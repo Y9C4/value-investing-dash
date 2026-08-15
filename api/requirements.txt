@@ -4,3 +4,5 @@ yfinance>=0.2.50
 supabase>=2.9.0
 python-dotenv>=1.0.1
 pandas>=2.2.0
+jupyterlab>=4.2.0
+ipykernel>=6.29.0
