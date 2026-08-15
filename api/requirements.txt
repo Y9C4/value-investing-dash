@@ -3,3 +3,4 @@ uvicorn[standard]>=0.32.0
 yfinance>=0.2.50
 supabase>=2.9.0
 python-dotenv>=1.0.1
+pandas>=2.2.0

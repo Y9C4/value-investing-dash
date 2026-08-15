@@ -25,4 +25,5 @@ uvicorn main:app --reload --port 8000
 - `GET /quote/{ticker}` — latest price snapshot
 - `GET /info/{ticker}` — full yfinance ticker info
 - `GET /history/{ticker}?period=1y&interval=1d` — OHLCV candles
-- `POST /backfill/sp500-daily-close` — fetches the last 1 year of daily close prices for all S&P 500 constituents (`data/sp500_tickers.json`) plus the `^GSPC` index, and upserts them into the Supabase `daily_close_prices` table (`date, ticker` primary key, so re-running is safe and only adds new rows)
+- `GET /returns/{ticker}` — daily close price + log returns (stock, market, excess) for up to the last 252 trading days, plus the 2x2 variance-covariance matrix of stock/market log returns and the average annualized risk-free rate (^IRX)
+- `POST /backfill/sp500-daily-close` — fetches the last 1 year of daily close prices for all S&P 500 constituents (`data/sp500_tickers.json`) plus the `^GSPC` index and the `^IRX` risk-free rate proxy, and upserts them into the Supabase `daily_close_prices` table (`date, ticker` primary key, so re-running is safe and only adds new rows)

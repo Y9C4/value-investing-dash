@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 from typing import Literal
 
+import pandas as pd
 import yfinance as yf
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -23,6 +24,7 @@ app.add_middleware(
 
 SP500_TICKERS_PATH = Path(__file__).parent / "data" / "sp500_tickers.json"
 SP500_INDEX_TICKER = "^GSPC"
+RISK_FREE_TICKER = "^IRX"
 FETCH_CHUNK_SIZE = 50
 UPSERT_CHUNK_SIZE = 500
 
@@ -126,6 +128,80 @@ def get_history(
     }
 
 
+RETURNS_LOOKBACK_DAYS = 252
+
+
+def get_average_risk_free_rate() -> float:
+    supabase = get_supabase()
+    res = supabase.table("average_risk_free_rate").select("annual_risk_free_rate").execute()
+
+    if not res.data or res.data[0]["annual_risk_free_rate"] is None:
+        raise HTTPException(status_code=404, detail="No risk-free rate data")
+
+    return res.data[0]["annual_risk_free_rate"]
+
+
+@app.get("/returns/{ticker}")
+def get_returns(ticker: str):
+    df, varcov = get_returns_df(ticker)
+    df = df.tail(RETURNS_LOOKBACK_DAYS).reset_index()
+
+    return {
+        "ticker": ticker.upper(),
+        "candles": [
+            {
+                "date": row["date"].date().isoformat(),
+                "close": row["close"],
+                "stock_log_return": row["stock_log_return"],
+                "market_log_return": row["market_log_return"],
+                "excess_log_return": row["excess_log_return"],
+            }
+            for _, row in df.iterrows()
+        ],
+        "varcov": varcov.values.tolist(),
+        "risk_free_rate": get_average_risk_free_rate(),
+        "expected_stock_return": df["stock_log_return"].mean() * RETURNS_LOOKBACK_DAYS,
+        "expected_market_return": df["market_log_return"].mean() * RETURNS_LOOKBACK_DAYS,
+    }
+
+
+def get_returns_df(ticker: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Fetch the last 1 year of daily log returns for `ticker` alongside the
+    S&P 500 (^GSPC) log return on the same dates.
+
+    Returns a tuple of:
+    - a DataFrame indexed by date (DatetimeIndex) with columns:
+      stock_log_return, market_log_return, excess_log_return. Rows with any
+      missing return (e.g. a ticker's first trading day, where there's no
+      prior close to diff against) are dropped.
+    - the 2x2 variance-covariance matrix of stock_log_return and
+      market_log_return.
+    """
+    supabase = get_supabase()
+    symbol = ticker.upper()
+
+    res = (
+        supabase.table("daily_excess_returns")
+        .select("date, close, stock_log_return, market_log_return, excess_log_return")
+        .eq("ticker", symbol)
+        .order("date")
+        .execute()
+    )
+
+    if not res.data:
+        raise HTTPException(
+            status_code=404, detail=f"No return data for '{symbol}'"
+        )
+
+    df = pd.DataFrame(res.data)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.set_index("date").dropna()
+    returns_df = df[["stock_log_return", "market_log_return"]]
+    centered = returns_df - returns_df.mean()
+    varcov = centered.T @ centered / len(centered)
+    return df, varcov
+
+
 def _chunk(items: list, size: int):
     for i in range(0, len(items), size):
         yield items[i : i + size]
@@ -144,7 +220,7 @@ def backfill_sp500_daily_close():
     supabase = get_supabase()
     started = time.monotonic()
 
-    all_tickers = [*SP500_TICKERS, SP500_INDEX_TICKER]
+    all_tickers = [*SP500_TICKERS, SP500_INDEX_TICKER, RISK_FREE_TICKER]
     rows: list[dict] = []
     failed_tickers: list[str] = []
     errors: list[str] = []

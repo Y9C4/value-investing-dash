@@ -29,18 +29,19 @@ import {
 
 type Candle = {
   date: string
-  open: number
-  high: number
-  low: number
   close: number
-  volume: number
+  stock_log_return: number
+  market_log_return: number
+  excess_log_return: number
 }
 
-type HistoryResponse = {
+type ReturnsResponse = {
   ticker: string
-  period: string
-  interval: string
   candles: Candle[]
+  varcov: [[number, number], [number, number]]
+  risk_free_rate: number
+  expected_stock_return: number
+  expected_market_return: number
 }
 
 const chartConfig = {
@@ -64,11 +65,30 @@ function formatPrice(value: number) {
   })
 }
 
+function formatReturn(value: number) {
+  return value.toLocaleString("en-US", {
+    style: "percent",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
 export function TickerHistory() {
   const [ticker, setTicker] = useState("")
-  const [data, setData] = useState<HistoryResponse | null>(null)
+  const [data, setData] = useState<ReturnsResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  async function fetchCloseHistory(symbol: string): Promise<ReturnsResponse> {
+    const res = await fetch(`/api/close-history/${encodeURIComponent(symbol)}`)
+    const body = await res.json()
+
+    if (!res.ok) {
+      throw new Error(body?.detail ?? `Failed to fetch history for ${symbol}`)
+    }
+
+    return body as ReturnsResponse
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -79,16 +99,8 @@ export function TickerHistory() {
     setError(null)
 
     try {
-      const res = await fetch(
-        `/api/history/${encodeURIComponent(symbol)}`
-      )
-      const body = await res.json()
-
-      if (!res.ok) {
-        throw new Error(body?.detail ?? "Failed to fetch price history")
-      }
-
-      setData(body as HistoryResponse)
+      const result = await fetchCloseHistory(symbol)
+      setData(result)
     } catch (err) {
       setData(null)
       setError(err instanceof Error ? err.message : "Something went wrong")
@@ -102,6 +114,12 @@ export function TickerHistory() {
       date: candle.date,
       close: candle.close,
     })) ?? []
+
+  const [varStock, covStockMarket, , varMarket] = data
+    ? [data.varcov[0][0], data.varcov[0][1], data.varcov[1][0], data.varcov[1][1]]
+    : [null, null, null, null]
+  const beta =
+    varMarket && covStockMarket !== null ? covStockMarket / varMarket : null
 
   return (
     <div className="flex w-full max-w-3xl flex-col gap-6">
@@ -125,7 +143,7 @@ export function TickerHistory() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>{data.ticker} — Last 30 Days</CardTitle>
+              <CardTitle>{data.ticker} — Last 1 Year</CardTitle>
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="h-64 w-full">
@@ -168,7 +186,119 @@ export function TickerHistory() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Close Prices</CardTitle>
+              <CardTitle>{data.ticker} — Key Statistics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+                <div>
+                  <dt className="text-muted-foreground">Variance (Stock)</dt>
+                  <dd className="font-mono">{varStock?.toExponential(3)}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Beta</dt>
+                  <dd className="font-mono">{beta?.toFixed(3)}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Risk-Free Rate (1Y avg)</dt>
+                  <dd className="font-mono">
+                    {formatReturn(data.risk_free_rate)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Expected Stock Return</dt>
+                  <dd className="font-mono">
+                    {formatReturn(data.expected_stock_return)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Expected Market Return</dt>
+                  <dd className="font-mono">
+                    {formatReturn(data.expected_market_return)}
+                  </dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Variance / Covariance Matrix</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead />
+                    <TableHead className="text-right">Stock</TableHead>
+                    <TableHead className="text-right">Market</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableHead>Stock</TableHead>
+                    <TableCell className="text-right font-mono">
+                      {varStock?.toExponential(3)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {covStockMarket?.toExponential(3)}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableHead>Market</TableHead>
+                    <TableCell className="text-right font-mono">
+                      {covStockMarket?.toExponential(3)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {varMarket?.toExponential(3)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Valuation Methods</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Method</TableHead>
+                    <TableHead className="text-right">Expected Return</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium text-chart-2">
+                      Actual Return
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-chart-2">
+                      {formatReturn(data.expected_stock_return)}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>CAPM</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {beta !== null
+                        ? formatReturn(
+                            data.risk_free_rate +
+                              beta *
+                                (data.expected_market_return -
+                                  data.risk_free_rate)
+                          )
+                        : "—"}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Daily Prices &amp; Returns</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
@@ -176,6 +306,9 @@ export function TickerHistory() {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead className="text-right">Close</TableHead>
+                    <TableHead className="text-right">Stock Return</TableHead>
+                    <TableHead className="text-right">Market Return</TableHead>
+                    <TableHead className="text-right">Excess Return</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -184,6 +317,15 @@ export function TickerHistory() {
                       <TableCell>{formatDate(candle.date)}</TableCell>
                       <TableCell className="text-right font-mono">
                         {formatPrice(candle.close)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatReturn(candle.stock_log_return)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatReturn(candle.market_log_return)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatReturn(candle.excess_log_return)}
                       </TableCell>
                     </TableRow>
                   ))}
