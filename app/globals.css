@@ -23,6 +23,22 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-seq-1: var(--seq-1);
+  --color-seq-2: var(--seq-2);
+  --color-seq-3: var(--seq-3);
+  --color-seq-4: var(--seq-4);
+  --color-seq-5: var(--seq-5);
+  --color-undervalued: var(--undervalued);
+  --color-overvalued: var(--overvalued);
+  --color-valuation-neutral: var(--valuation-neutral);
+  --color-status-good: var(--status-good);
+  --color-status-warning: var(--status-warning);
+  --color-status-critical: var(--status-critical);
+  --color-grid: var(--grid);
+  --color-axis: var(--axis);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -39,13 +55,16 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* House rule: no rounding anywhere. Every radius step resolves to 0 so that
+     shadcn primitives (which reach for rounded-md, rounded-lg, rounded-xl…)
+     come out square without each component having to override it. */
+  --radius-sm: 0rem;
+  --radius-md: 0rem;
+  --radius-lg: 0rem;
+  --radius-xl: 0rem;
+  --radius-2xl: 0rem;
+  --radius-3xl: 0rem;
+  --radius-4xl: 0rem;
 }
 
 :root {
@@ -70,7 +89,39 @@
   --chart-3: oklch(0.546 0.245 262.881);
   --chart-4: oklch(0.488 0.243 264.376);
   --chart-5: oklch(0.424 0.199 265.638);
-  --radius: 0.875rem;
+
+  /* Categorical series — identity only. Validated all-pairs (any two marks can
+     sit adjacent on a scatter): worst CVD ΔE 9.2, normal-vision ΔE 24.0 on the
+     white surface. Three slots is the all-pairs cap; a 4th identity must come
+     from shape, not a new hue. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+
+  /* Sequential — magnitude (conviction, weight, score). One hue, light→dark,
+     adjacent ΔL >= 0.06, light end 2.11:1 on white. */
+  --seq-1: #86b6ef;
+  --seq-2: #5598e7;
+  --seq-3: #2a78d6;
+  --seq-4: #1c5cab;
+  --seq-5: #0d366b;
+
+  /* Diverging — the app's core signal: price vs intrinsic value. Two poles
+     either side of a neutral gray midpoint (fair value). */
+  --undervalued: #0ca30c;
+  --overvalued: #d03b3b;
+  --valuation-neutral: oklch(0.923 0.003 48.717);
+
+  /* Status — reserved meaning, always shipped with an icon + label. */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+
+  /* Chart chrome — recessive, one step off the surface. */
+  --grid: oklch(0.923 0.003 48.717);
+  --axis: oklch(0.869 0.005 56.366);
+
+  --radius: 0rem;
   --sidebar: oklch(0.985 0.001 106.423);
   --sidebar-foreground: oklch(0.147 0.004 49.25);
   --sidebar-primary: oklch(0.546 0.245 262.881);
@@ -107,6 +158,31 @@
   --chart-3: oklch(0.546 0.245 262.881);
   --chart-4: oklch(0.488 0.243 264.376);
   --chart-5: oklch(0.424 0.199 265.638);
+
+  /* Same three hues, re-stepped for the dark surface and validated as a set:
+     worst all-pairs CVD ΔE 9.4, normal-vision ΔE 20.9, all >= 3:1 on the card. */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+
+  /* Sequential flips its anchor in dark: light end recedes toward the surface. */
+  --seq-1: #cde2fb;
+  --seq-2: #9ec5f4;
+  --seq-3: #6da7ec;
+  --seq-4: #3987e5;
+  --seq-5: #184f95;
+
+  --undervalued: #0ca30c;
+  --overvalued: #e66767;
+  --valuation-neutral: oklch(0.372 0.008 56.366);
+
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #e66767;
+
+  --grid: oklch(1 0 0 / 8%);
+  --axis: oklch(1 0 0 / 16%);
+
   --sidebar: oklch(0.216 0.006 56.043);
   --sidebar-foreground: oklch(0.985 0.001 106.423);
   --sidebar-primary: oklch(0.623 0.214 259.815);
@@ -120,6 +196,9 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* Belt and braces on the no-rounding rule: catches any literal radius that
+       slips in from a registry component or a stray utility. */
+    border-radius: 0 !important;
   }
   body {
     @apply bg-background text-foreground;
@@ -127,4 +206,21 @@
   html {
     @apply font-sans;
   }
+  /* Columns of figures must align vertically; large standalone numbers keep the
+     font's proportional figures and opt in via .tabular-figures where needed. */
+  td,
+  th,
+  .tabular-figures {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@utility grid-hairline {
+  background-image: linear-gradient(
+      to right,
+      var(--grid) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size: 4rem 4rem;
 }

@@ -35,44 +35,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-
-type EnvelopePoint = {
-  t: number
-  return: number
-  volatility: number
-  sharpe: number
-}
-
-type Portfolio = {
-  return: number
-  volatility: number
-  sharpe: number
-  weights: Record<string, number>
-}
-
-type CmlPoint = { volatility: number; return: number }
-
-type FrontierResponse = {
-  short_allowed: boolean
-  n_portfolios: number
-  risk_free_rate: number
-  max_sharpe: Portfolio
-  min_volatility: Portfolio
-  capital_market_line: CmlPoint[]
-  envelope: EnvelopePoint[]
-}
+import { BASELINE_FRONTIER, type FrontierResponse } from "@/lib/baseline-frontier"
 
 const DEFAULT_PORTFOLIOS = 100
 const MIN_PORTFOLIOS = 2
 const MAX_PORTFOLIOS = 500
 
-// The theme's chart ramp is a single blue hue, so the two anchors are separated
-// from the envelope by size and ring as much as by step.
+/**
+ * Three identities, which is the all-pairs cap for a scatter — any two marks
+ * here can end up adjacent, so the palette is validated with `--pairs all`.
+ * The two anchors are additionally separated by shape (star) and a surface
+ * ring, so identity never rests on hue alone.
+ */
 const chartConfig = {
-  envelope: { label: "Envelope", color: "var(--chart-1)" },
-  cml: { label: "Capital Market Line", color: "var(--chart-4)" },
-  maxSharpe: { label: "Max Sharpe (tangency)", color: "var(--chart-5)" },
-  minVolatility: { label: "Min Volatility", color: "var(--chart-3)" },
+  envelope: { label: "Efficient frontier", color: "var(--color-series-1)" },
+  cml: { label: "Capital market line", color: "var(--color-series-2)" },
+  anchor: { label: "Anchor portfolio", color: "var(--color-series-3)" },
 } satisfies ChartConfig
 
 function formatPercent(value: number) {
@@ -90,10 +68,34 @@ function formatAxisPercent(value: number) {
   })
 }
 
+function StatTile({
+  label,
+  value,
+  hint,
+}: {
+  label: string
+  value: string
+  hint?: string
+}) {
+  return (
+    <div className="flex flex-col gap-1 border border-border bg-card px-5 py-4">
+      <span className="text-xs tracking-wider text-muted-foreground uppercase">
+        {label}
+      </span>
+      {/* Proportional figures: this is a standalone value, not a column. */}
+      <span className="text-2xl font-semibold">{value}</span>
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+    </div>
+  )
+}
+
 export function EfficientFrontier() {
   const [shortAllowed, setShortAllowed] = useState(false)
   const [portfolios, setPortfolios] = useState(String(DEFAULT_PORTFOLIOS))
-  const [data, setData] = useState<FrontierResponse | null>(null)
+  // Seeded so the page is never blank: the baseline renders instantly and is
+  // replaced the moment a live solve returns.
+  const [data, setData] = useState<FrontierResponse>(BASELINE_FRONTIER)
+  const [isBaseline, setIsBaseline] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -122,47 +124,58 @@ export function EfficientFrontier() {
       }
 
       setData(body as FrontierResponse)
+      setIsBaseline(false)
     } catch (err) {
-      setData(null)
+      // Keep the previous render on screen rather than dropping to a blank
+      // frame — the error line says what happened.
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setLoading(false)
     }
   }
 
-  const envelopeData =
-    data?.envelope.map((point) => ({
-      volatility: point.volatility,
-      return: point.return,
-    })) ?? []
+  const envelopeData = data.envelope.map((point) => ({
+    volatility: point.volatility,
+    return: point.return,
+  }))
 
-  const cmlData = data?.capital_market_line ?? []
+  // The API extends the CML well into levered territory. Past a little beyond
+  // the tangency point it only stretches the axes and flattens the frontier's
+  // hook, so the line is clipped to the plotted range.
+  const maxEnvelopeVol = Math.max(
+    ...data.envelope.map((point) => point.volatility)
+  )
+  const cmlLimit = maxEnvelopeVol * 1.08
+  const cmlSlope =
+    data.max_sharpe.volatility > 0
+      ? (data.max_sharpe.return - data.risk_free_rate) /
+        data.max_sharpe.volatility
+      : 0
+  const cmlData = [
+    { volatility: 0, return: data.risk_free_rate },
+    { volatility: cmlLimit, return: data.risk_free_rate + cmlSlope * cmlLimit },
+  ]
 
-  // Keep dots readable when few, and avoid a solid band when many.
-  const envelopeDotSize =
-    envelopeData.length > 200 ? 12 : envelopeData.length > 80 ? 24 : 48
-
-  const anchors = data
-    ? [
-        {
-          key: "maxSharpe" as const,
-          title: "Max Sharpe",
-          portfolio: data.max_sharpe,
-        },
-        {
-          key: "minVolatility" as const,
-          title: "Min Volatility",
-          portfolio: data.min_volatility,
-        },
-      ]
-    : []
+  const anchors = [
+    {
+      key: "maxSharpe" as const,
+      title: "Max Sharpe",
+      portfolio: data.max_sharpe,
+    },
+    {
+      key: "minVolatility" as const,
+      title: "Min volatility",
+      portfolio: data.min_volatility,
+    },
+  ]
 
   return (
-    <div className="flex w-full max-w-3xl flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
+      {/* Controls in one row above the content they scope. */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-4">
           <Button onClick={handleBuild} disabled={loading || !portfoliosValid}>
-            {loading ? "Optimizing…" : "Build Efficient Frontier"}
+            {loading ? "Optimising…" : "Run live optimisation"}
           </Button>
 
           <FieldLabel
@@ -200,270 +213,330 @@ export function EfficientFrontier() {
           </p>
         )}
 
-        {loading && (
-          <p className="text-sm text-muted-foreground">
-            Solving across ~500 tickers — this can take a little while.
-          </p>
-        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile
+          label="Max Sharpe"
+          value={data.max_sharpe.sharpe.toFixed(2)}
+          hint={`${formatPercent(data.max_sharpe.return)} return at ${formatPercent(data.max_sharpe.volatility)} vol`}
+        />
+        <StatTile
+          label="Min volatility"
+          value={formatPercent(data.min_volatility.volatility)}
+          hint={`${formatPercent(data.min_volatility.return)} expected return`}
+        />
+        <StatTile
+          label="Risk-free rate"
+          value={formatPercent(data.risk_free_rate)}
+          hint="US 13-week treasury, annualised"
+        />
+      </div>
 
-      {data && (
-        <>
-          <Card className="bg-background">
-            <CardHeader>
-              <CardTitle>Efficient Frontier Envelope</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <ChartContainer
-                config={chartConfig}
-                className="aspect-auto h-[26rem] w-full"
+      <Card>
+        <CardHeader className="flex items-baseline justify-between gap-4">
+          <CardTitle>Efficient frontier</CardTitle>
+          {/* The provenance of what's on screen is never ambiguous. */}
+          <span className="text-xs tracking-wider text-muted-foreground uppercase">
+            {loading
+              ? "Solving…"
+              : isBaseline
+                ? "Illustrative baseline"
+                : `Live · ${data.n_portfolios} portfolios`}
+          </span>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <ChartContainer
+            config={chartConfig}
+            className={`aspect-auto h-[26rem] w-full transition-opacity ${
+              loading ? "opacity-60" : "opacity-100"
+            }`}
+          >
+            <ComposedChart
+              margin={{ left: 12, right: 16, top: 12, bottom: 28 }}
+            >
+              <CartesianGrid vertical={false} stroke="var(--color-grid)" />
+              <XAxis
+                type="number"
+                dataKey="volatility"
+                name="Volatility"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                domain={[0, "dataMax"]}
+                tickFormatter={formatAxisPercent}
               >
-                <ComposedChart margin={{ left: 12, right: 16, top: 12, bottom: 28 }}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    type="number"
-                    dataKey="volatility"
-                    name="Volatility"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    domain={[0, "dataMax"]}
-                    tickFormatter={formatAxisPercent}
-                  >
-                    <Label
-                      value="Volatility (annualised)"
-                      position="insideBottom"
-                      offset={-16}
-                      className="fill-muted-foreground text-xs"
-                    />
-                  </XAxis>
-                  <YAxis
-                    type="number"
-                    dataKey="return"
-                    name="Return"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    width={68}
-                    domain={["auto", "auto"]}
-                    tickFormatter={formatAxisPercent}
-                  >
-                    <Label
-                      value="Expected return (annualised)"
-                      angle={-90}
-                      position="insideLeft"
-                      style={{ textAnchor: "middle" }}
-                      className="fill-muted-foreground text-xs"
-                    />
-                  </YAxis>
-                  <ZAxis range={[envelopeDotSize, envelopeDotSize]} />
-                  <ZAxis zAxisId="anchor" range={[220, 220]} />
-                  <ChartTooltip
-                    cursor={{ strokeDasharray: "3 3" }}
-                    content={
-                      <ChartTooltipContent
-                        hideIndicator
-                        labelFormatter={(_, payload) => {
-                          const point = payload?.[0]?.payload as
-                            | { volatility: number; return: number }
-                            | undefined
-                          if (!point) return null
-                          return (
-                            <div className="grid gap-1">
-                              <div className="flex justify-between gap-4">
-                                <span className="text-muted-foreground">
-                                  Volatility
-                                </span>
-                                <span className="font-mono tabular-nums">
-                                  {formatPercent(point.volatility)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between gap-4">
-                                <span className="text-muted-foreground">
-                                  Return
-                                </span>
-                                <span className="font-mono tabular-nums">
-                                  {formatPercent(point.return)}
-                                </span>
-                              </div>
-                            </div>
-                          )
-                        }}
-                        formatter={() => null}
-                      />
-                    }
-                  />
-                  <Line
-                    data={cmlData}
-                    dataKey="return"
-                    name="Capital Market Line"
-                    stroke="var(--color-cml)"
-                    strokeWidth={2}
-                    strokeDasharray="5 4"
-                    dot={false}
-                    activeDot={false}
-                    isAnimationActive={false}
-                    legendType="none"
-                    tooltipType="none"
-                  />
-                  <Line
-                    data={envelopeData}
-                    dataKey="return"
-                    name="Envelope"
-                    stroke="var(--color-envelope)"
-                    strokeWidth={2}
-                    dot={false}
-                    activeDot={false}
-                    isAnimationActive={false}
-                    legendType="none"
-                  />
-                  <Scatter
-                    data={envelopeData}
-                    name="Envelope"
-                    fill="var(--color-envelope)"
-                    isAnimationActive={false}
-                  />
-                  {anchors.map(({ key, title, portfolio }) => (
-                    <Scatter
-                      key={key}
-                      name={title}
-                      data={[
-                        {
-                          volatility: portfolio.volatility,
-                          return: portfolio.return,
-                        },
-                      ]}
-                      zAxisId="anchor"
-                      fill={`var(--color-${key})`}
-                      stroke="var(--color-card)"
-                      strokeWidth={2}
-                      shape="star"
-                      isAnimationActive={false}
-                    />
-                  ))}
-                </ComposedChart>
-              </ChartContainer>
+                <Label
+                  value="Volatility (annualised)"
+                  position="insideBottom"
+                  offset={-16}
+                  className="fill-muted-foreground text-xs"
+                />
+              </XAxis>
+              <YAxis
+                type="number"
+                dataKey="return"
+                name="Return"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                width={68}
+                domain={["auto", "auto"]}
+                tickFormatter={formatAxisPercent}
+              >
+                <Label
+                  value="Expected return (annualised)"
+                  angle={-90}
+                  position="insideLeft"
+                  style={{ textAnchor: "middle" }}
+                  className="fill-muted-foreground text-xs"
+                />
+              </YAxis>
+              <ZAxis range={[18, 18]} />
+              <ZAxis zAxisId="anchor" range={[260, 260]} />
+              <ChartTooltip
+                cursor={{ strokeDasharray: "3 3" }}
+                content={
+                  <ChartTooltipContent
+                    hideIndicator
+                    labelFormatter={(_, payload) => {
+                      const point = payload?.[0]?.payload as
+                        | { volatility: number; return: number }
+                        | undefined
+                      if (!point) return null
 
-              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className="size-1.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: "var(--color-envelope)" }}
+                      return (
+                        <div className="grid gap-1">
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">
+                              Volatility
+                            </span>
+                            <span className="font-mono tabular-nums">
+                              {formatPercent(point.volatility)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">
+                              Return
+                            </span>
+                            <span className="font-mono tabular-nums">
+                              {formatPercent(point.return)}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    }}
+                    formatter={() => null}
                   />
-                  Envelope ({data.n_portfolios} portfolios)
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <svg viewBox="0 0 16 4" className="h-1 w-4 shrink-0">
-                    <line
-                      x1="0"
-                      y1="2"
-                      x2="16"
-                      y2="2"
-                      stroke="var(--color-cml)"
-                      strokeWidth="2"
-                      strokeDasharray="5 4"
-                    />
-                  </svg>
-                  Capital market line
-                </span>
-                {anchors.map(({ key, title }) => (
-                  <span key={key} className="flex items-center gap-1.5">
-                    <svg viewBox="0 0 10 10" className="size-3 shrink-0">
-                      <polygon
-                        points="5,0 6.2,3.6 10,3.6 6.9,5.9 8.1,9.5 5,7.3 1.9,9.5 3.1,5.9 0,3.6 3.8,3.6"
-                        fill={`var(--color-${key})`}
-                      />
-                    </svg>
-                    {title}
-                  </span>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                }
+              />
+              <Line
+                data={cmlData}
+                dataKey="return"
+                name="Capital market line"
+                stroke="var(--color-cml)"
+                strokeWidth={2}
+                strokeDasharray="5 4"
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+                legendType="none"
+                tooltipType="none"
+              />
+              <Line
+                data={envelopeData}
+                dataKey="return"
+                name="Efficient frontier"
+                stroke="var(--color-envelope)"
+                strokeWidth={2}
+                strokeLinecap="round"
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+                legendType="none"
+              />
+              {/* The 2px line carries the frontier's shape; a dot per portfolio
+                  would fuse into a solid band at these densities. */}
+              {anchors.map(({ key, title, portfolio }) => (
+                <Scatter
+                  key={key}
+                  name={title}
+                  data={[
+                    {
+                      volatility: portfolio.volatility,
+                      return: portfolio.return,
+                    },
+                  ]}
+                  zAxisId="anchor"
+                  fill="var(--color-anchor)"
+                  // 2px surface ring keeps the marker legible where it sits on
+                  // the frontier line.
+                  stroke="var(--color-card)"
+                  strokeWidth={2}
+                  shape={key === "maxSharpe" ? "star" : "diamond"}
+                  isAnimationActive={false}
+                />
+              ))}
+            </ComposedChart>
+          </ChartContainer>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Anchor Portfolios</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Portfolio</TableHead>
-                    <TableHead className="text-right">Return</TableHead>
-                    <TableHead className="text-right">Volatility</TableHead>
-                    <TableHead className="text-right">Sharpe</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {anchors.map(({ key, title, portfolio }) => (
-                    <TableRow key={key}>
-                      <TableCell className="font-medium">
-                        <span className="flex items-center gap-2">
-                          <svg viewBox="0 0 10 10" className="size-3 shrink-0">
+          {/* Legend is always present for >= 2 series. */}
+          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <svg viewBox="0 0 16 4" className="h-1 w-4 shrink-0">
+                <line
+                  x1="0"
+                  y1="2"
+                  x2="16"
+                  y2="2"
+                  stroke="var(--color-series-1)"
+                  strokeWidth="2"
+                />
+              </svg>
+              Efficient frontier
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg viewBox="0 0 16 4" className="h-1 w-4 shrink-0">
+                <line
+                  x1="0"
+                  y1="2"
+                  x2="16"
+                  y2="2"
+                  stroke="var(--color-series-2)"
+                  strokeWidth="2"
+                  strokeDasharray="5 4"
+                />
+              </svg>
+              Capital market line
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg viewBox="0 0 10 10" className="size-3 shrink-0">
+                <polygon
+                  points="5,0 6.2,3.6 10,3.6 6.9,5.9 8.1,9.5 5,7.3 1.9,9.5 3.1,5.9 0,3.6 3.8,3.6"
+                  fill="var(--color-series-3)"
+                />
+              </svg>
+              Max Sharpe
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg viewBox="0 0 10 10" className="size-3 shrink-0">
+                <polygon points="5,0 10,5 5,10 0,5" fill="var(--color-series-3)" />
+              </svg>
+              Min volatility
+            </span>
+          </div>
+
+          {isBaseline && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Showing an illustrative baseline frontier so the shape is visible
+              immediately. Run the live optimisation to solve across the S&amp;P
+              500 with Ledoit-Wolf shrinkage — it takes a few minutes.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Anchor portfolios</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Portfolio</TableHead>
+                  <TableHead className="text-right">Return</TableHead>
+                  <TableHead className="text-right">Volatility</TableHead>
+                  <TableHead className="text-right">Sharpe</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {anchors.map(({ key, title, portfolio }) => (
+                  <TableRow key={key}>
+                    <TableCell className="font-medium">
+                      <span className="flex items-center gap-2">
+                        <svg viewBox="0 0 10 10" className="size-3 shrink-0">
+                          {key === "maxSharpe" ? (
                             <polygon
                               points="5,0 6.2,3.6 10,3.6 6.9,5.9 8.1,9.5 5,7.3 1.9,9.5 3.1,5.9 0,3.6 3.8,3.6"
-                              fill={`var(--color-${key})`}
+                              fill="var(--color-series-3)"
                             />
-                          </svg>
-                          {title}
-                        </span>
-                      </TableCell>
+                          ) : (
+                            <polygon
+                              points="5,0 10,5 5,10 0,5"
+                              fill="var(--color-series-3)"
+                            />
+                          )}
+                        </svg>
+                        {title}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatPercent(portfolio.return)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatPercent(portfolio.volatility)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {portfolio.sharpe.toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                <TableRow>
+                  <TableCell className="font-medium">Risk-free rate</TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatPercent(data.risk_free_rate)}
+                  </TableCell>
+                  <TableCell />
+                  <TableCell />
+                </TableRow>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Max Sharpe — holdings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Ticker</TableHead>
+                  <TableHead className="text-right">Weight</TableHead>
+                  <TableHead className="w-32">Share</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Object.entries(data.max_sharpe.weights).map(
+                  ([ticker, weight]) => (
+                    <TableRow key={ticker}>
+                      <TableCell>{ticker}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {formatPercent(portfolio.return)}
+                        {formatPercent(weight)}
                       </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatPercent(portfolio.volatility)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {portfolio.sharpe.toFixed(2)}
+                      <TableCell>
+                        {/* Sequential: one hue, magnitude by length. */}
+                        <span
+                          className="block h-2"
+                          style={{
+                            width: `${Math.min(weight * 900, 100).toFixed(2)}%`,
+                            background: "var(--color-seq-3)",
+                          }}
+                          aria-hidden="true"
+                        />
                       </TableCell>
                     </TableRow>
-                  ))}
-                  <TableRow>
-                    <TableCell className="font-medium">Risk-Free Rate</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {formatPercent(data.risk_free_rate)}
-                    </TableCell>
-                    <TableCell />
-                    <TableCell />
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Max Sharpe — Holdings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Ticker</TableHead>
-                    <TableHead className="text-right">Weight</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {Object.entries(data.max_sharpe.weights).map(
-                    ([ticker, weight]) => (
-                      <TableRow key={ticker}>
-                        <TableCell>{ticker}</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatPercent(weight)}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </>
-      )}
+                  )
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

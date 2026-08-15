@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 
 import { Button } from "@/components/ui/button"
@@ -44,10 +44,11 @@ type ReturnsResponse = {
   expected_market_return: number
 }
 
+// A single series, so no legend box — the card title names what is plotted.
 const chartConfig = {
   close: {
     label: "Close",
-    color: "var(--chart-2)",
+    color: "var(--color-series-1)",
   },
 } satisfies ChartConfig
 
@@ -73,40 +74,62 @@ function formatReturn(value: number) {
   })
 }
 
-export function TickerHistory() {
-  const [ticker, setTicker] = useState("")
+export function TickerHistory({
+  initialTicker = "",
+}: {
+  /** When set, the history loads on mount — used by the stock detail page. */
+  initialTicker?: string
+}) {
+  const [ticker, setTicker] = useState(initialTicker)
   const [data, setData] = useState<ReturnsResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The symbol whose history is on screen (or in flight). Submitting the form
+  // and arriving with an `initialTicker` both funnel through this, so the
+  // effect below only ever synchronizes with the fetch — it never kicks off a
+  // second render pass of its own.
+  const [requested, setRequested] = useState(initialTicker.trim())
 
-  async function fetchCloseHistory(symbol: string): Promise<ReturnsResponse> {
-    const res = await fetch(`/api/close-history/${encodeURIComponent(symbol)}`)
-    const body = await res.json()
+  useEffect(() => {
+    if (!requested) return
 
-    if (!res.ok) {
-      throw new Error(body?.detail ?? `Failed to fetch history for ${symbol}`)
+    const controller = new AbortController()
+
+    async function load(symbol: string) {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const res = await fetch(
+          `/api/close-history/${encodeURIComponent(symbol)}`,
+          { signal: controller.signal }
+        )
+        const body = await res.json()
+
+        if (!res.ok) {
+          throw new Error(
+            body?.detail ?? `Failed to fetch history for ${symbol}`
+          )
+        }
+
+        setData(body as ReturnsResponse)
+      } catch (err) {
+        if (controller.signal.aborted) return
+        setData(null)
+        setError(err instanceof Error ? err.message : "Something went wrong")
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
     }
 
-    return body as ReturnsResponse
-  }
+    void load(requested)
 
-  async function handleSubmit(e: React.FormEvent) {
+    return () => controller.abort()
+  }, [requested])
+
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const symbol = ticker.trim()
-    if (!symbol) return
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const result = await fetchCloseHistory(symbol)
-      setData(result)
-    } catch (err) {
-      setData(null)
-      setError(err instanceof Error ? err.message : "Something went wrong")
-    } finally {
-      setLoading(false)
-    }
+    setRequested(ticker.trim())
   }
 
   const chartData =
@@ -121,13 +144,25 @@ export function TickerHistory() {
   const beta =
     varMarket && covStockMarket !== null ? covStockMarket / varMarket : null
 
+  // The return CAPM says this beta ought to have earned, and the gap between
+  // that and what it actually earned.
+  const capmRequired =
+    data && beta !== null
+      ? data.risk_free_rate +
+        beta * (data.expected_market_return - data.risk_free_rate)
+      : null
+  const capmAlpha =
+    data && capmRequired !== null
+      ? data.expected_stock_return - capmRequired
+      : null
+
   return (
-    <div className="flex w-full max-w-3xl flex-col gap-6">
-      <form onSubmit={handleSubmit}>
+    <div className="flex w-full flex-col gap-6">
+      <form onSubmit={handleSubmit} className="max-w-md">
         <Field orientation="horizontal">
           <Input
             type="search"
-            placeholder="Stock Ticker"
+            placeholder="Stock ticker"
             value={ticker}
             onChange={(e) => setTicker(e.target.value.toUpperCase())}
           />
@@ -143,12 +178,12 @@ export function TickerHistory() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>{data.ticker} — Last 1 Year</CardTitle>
+              <CardTitle>{data.ticker} — last 1 year</CardTitle>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-64 w-full">
+              <ChartContainer config={chartConfig} className="h-72 w-full">
                 <LineChart data={chartData} margin={{ left: 8, right: 8 }}>
-                  <CartesianGrid vertical={false} />
+                  <CartesianGrid vertical={false} stroke="var(--color-grid)" />
                   <XAxis
                     dataKey="date"
                     tickLine={false}
@@ -184,45 +219,104 @@ export function TickerHistory() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{data.ticker} — Key Statistics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-                <div>
-                  <dt className="text-muted-foreground">Variance (Stock)</dt>
-                  <dd className="font-mono">{varStock?.toExponential(3)}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Beta</dt>
-                  <dd className="font-mono">{beta?.toFixed(3)}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Risk-Free Rate (1Y avg)</dt>
-                  <dd className="font-mono">
-                    {formatReturn(data.risk_free_rate)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Expected Stock Return</dt>
-                  <dd className="font-mono">
-                    {formatReturn(data.expected_stock_return)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Expected Market Return</dt>
-                  <dd className="font-mono">
-                    {formatReturn(data.expected_market_return)}
-                  </dd>
-                </div>
-              </dl>
-            </CardContent>
-          </Card>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>{data.ticker} — key statistics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-5 text-sm">
+                  <div className="flex flex-col gap-0.5">
+                    <dt className="text-xs tracking-wider text-muted-foreground uppercase">
+                      Beta
+                    </dt>
+                    <dd className="text-xl font-semibold">
+                      {beta?.toFixed(3) ?? "—"}
+                    </dd>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <dt className="text-xs tracking-wider text-muted-foreground uppercase">
+                      Risk-free rate
+                    </dt>
+                    <dd className="text-xl font-semibold">
+                      {formatReturn(data.risk_free_rate)}
+                    </dd>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <dt className="text-xs tracking-wider text-muted-foreground uppercase">
+                      Realised return
+                    </dt>
+                    <dd className="text-xl font-semibold">
+                      {formatReturn(data.expected_stock_return)}
+                    </dd>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <dt className="text-xs tracking-wider text-muted-foreground uppercase">
+                      Market return
+                    </dt>
+                    <dd className="text-xl font-semibold">
+                      {formatReturn(data.expected_market_return)}
+                    </dd>
+                  </div>
+                </dl>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>CAPM</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                {/* Required vs realised is the whole CAPM read, so it leads. */}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Measure</TableHead>
+                      <TableHead className="text-right">
+                        Annualised return
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>Required by CAPM</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {capmRequired !== null
+                          ? formatReturn(capmRequired)
+                          : "—"}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">
+                        Actually realised
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatReturn(data.expected_stock_return)}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Alpha</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {capmAlpha !== null ? formatReturn(capmAlpha) : "—"}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {capmAlpha === null
+                    ? "Alpha needs a market variance to compute."
+                    : capmAlpha >= 0
+                      ? "Delivered more than its systematic risk demanded over this window."
+                      : "Delivered less than its systematic risk demanded over this window."}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Variance / Covariance Matrix</CardTitle>
+              <CardTitle>Variance / covariance matrix</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
@@ -259,48 +353,9 @@ export function TickerHistory() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Valuation Methods</CardTitle>
+              <CardTitle>Daily prices &amp; returns</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Method</TableHead>
-                    <TableHead className="text-right">Expected Return</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium text-chart-2">
-                      Actual Return
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-chart-2">
-                      {formatReturn(data.expected_stock_return)}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>CAPM</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {beta !== null
-                        ? formatReturn(
-                            data.risk_free_rate +
-                              beta *
-                                (data.expected_market_return -
-                                  data.risk_free_rate)
-                          )
-                        : "—"}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Daily Prices &amp; Returns</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="max-h-[32rem] overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
