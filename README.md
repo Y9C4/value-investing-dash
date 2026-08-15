@@ -15,3 +15,32 @@ The goal of this project is to create a dashboard that allows the user to click 
 
 Possible ideas for future application:
 - identifying companies experiencing rapid growth and use an LLM to identify what project may be leading to the high growth and its completion date to build a multi-stage DDM/FCFE model.
+
+## Running the app
+
+The dashboard is a Next.js app that reads market data from a separate Python microservice (`/api`, see `api/README.md`). Both need to be running for the dashboard to show live data.
+
+### 1. Start the market data API
+
+```bash
+cd api
+python -m venv .venv
+.venv\Scripts\activate   # Windows; use `source .venv/bin/activate` on macOS/Linux
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+This serves on `http://127.0.0.1:8000`. Leave it running in its own terminal.
+
+### 2. Start the Next.js dashboard
+
+In a separate terminal, from the repo root:
+
+```bash
+pnpm install
+pnpm dev
+```
+
+Copy `.env.local.example` to `.env.local` if you need to point the dashboard at a market data API running somewhere other than `http://127.0.0.1:8000`.
+
+Visit `http://localhost:3000/dashboard` and enter a ticker to see its last 30 days of close prices.
