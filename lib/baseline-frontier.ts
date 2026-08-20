@@ -29,6 +29,8 @@ export type CmlPoint = { volatility: number; return: number }
 export type FrontierResponse = {
   short_allowed: boolean
   n_portfolios: number
+  /** How many stocks the solve actually ran over. Absent on older responses. */
+  n_assets?: number
   risk_free_rate: number
   max_sharpe: Portfolio
   min_volatility: Portfolio

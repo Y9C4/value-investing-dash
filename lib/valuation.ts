@@ -34,6 +34,14 @@ export type ValuationMethod = {
   status: MethodStatus
   /** One line the user can act on — what the method rewards. */
   blurb: string
+  /** The core expression, in the notation used in the Python implementation. */
+  formula: string
+  /**
+   * The conditions under which this model declines to produce a verdict.
+   * Mirrors the guards in `api/valuation.py`; kept here so the UI can explain
+   * an absent row rather than leaving it looking like missing data.
+   */
+  refusesWhen: string[]
 }
 
 export const VALUATION_METHODS: ValuationMethod[] = [
@@ -44,6 +52,10 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     status: "live",
     blurb:
       "Prices systematic risk only. Compares the return the market demands for a stock's beta against the return it actually delivered; the gap is read as a one-year price correction.",
+    formula: "E(r) = rf + β(E(rm) − rf)",
+    refusesWhen: [
+      "Fewer than 120 overlapping daily observations against the index",
+    ],
   },
   {
     id: "ff3",
@@ -52,6 +64,11 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     status: "live",
     blurb:
       "Adds size and value to market risk. A risk model, not an intrinsic value — the unexplained return (alpha) is mapped to an implied price, so it is capped and weighted lightly.",
+    formula: "R − rf = α + β₁(Mkt−rf) + β₂·SMB + β₃·HML",
+    refusesWhen: [
+      "Fewer than 120 overlapping observations",
+      "Regression R² below 0.10 — the factors do not explain this stock",
+    ],
   },
   {
     id: "ff5",
@@ -60,6 +77,11 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     status: "live",
     blurb:
       "Extends FF3 with profitability and investment. Also supplies the cost of equity every cash-flow model below discounts at, which is its more important job.",
+    formula: "R − rf = α + β₁(Mkt−rf) + β₂·SMB + β₃·HML + β₄·RMW + β₅·CMA",
+    refusesWhen: [
+      "Fewer than 120 overlapping observations",
+      "Regression R² below 0.10",
+    ],
   },
   {
     id: "ddm",
@@ -68,6 +90,13 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     status: "live",
     blurb:
       "Values the dividend stream directly via Gordon growth. Skipped below a 1.5% yield, where the dividend explains too little of the price to say anything about value.",
+    formula: "V₀ = D₁ / (ke − g),  D₁ = D₀(1 + g)",
+    refusesWhen: [
+      "The company pays no dividend",
+      "Fewer than 8 dividend payments on record",
+      "Yield below 1.5% — a token dividend does not explain the price",
+      "Cost of equity within 2 points of the growth rate, where the formula explodes",
+    ],
   },
   {
     id: "fcfe",
@@ -76,6 +105,13 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     status: "live",
     blurb:
       "Cash left for shareholders after capex and net borrowing, discounted at the cost of equity. Skipped for banks and REITs, where capex is not a meaningful concept.",
+    formula: "FCFE = CFO + CapEx + net borrowing, discounted at ke",
+    refusesWhen: [
+      "Trailing free cash flow to equity is zero or negative",
+      "Banks and REITs, where capital expenditure is not a meaningful concept",
+      "Fewer than 4 quarters of statements on file",
+      "Cost of equity within 2 points of terminal growth",
+    ],
   },
   {
     id: "fcff",
@@ -84,6 +120,13 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     status: "live",
     blurb:
       "Cash available to all capital providers, discounted at WACC and bridged to equity by netting out debt. Less sensitive to leverage than FCFE.",
+    formula: "FCFF = EBIT(1−t) + D&A + CapEx − ΔWC, discounted at WACC",
+    refusesWhen: [
+      "Trailing free cash flow to the firm is zero or negative",
+      "Banks and REITs",
+      "Equity value after netting debt is negative",
+      "WACC within 2 points of terminal growth",
+    ],
   },
   {
     id: "graham",
@@ -92,6 +135,11 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     status: "live",
     blurb:
       "Defensive ceiling from earnings and book value. Its constant encodes 15x earnings and 1.5x book — almost nothing clears it today, so it flags deep value rather than fair value.",
+    formula: "V₀ = √(22.5 × EPS × book value per share)",
+    refusesWhen: [
+      "Negative or zero earnings per share — the square root would be imaginary",
+      "Negative or zero book value per share",
+    ],
   },
   {
     id: "epv",
@@ -100,6 +148,11 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     status: "live",
     blurb:
       "Capitalises sustainable earnings with no growth assumption at all. A floor on value rather than an estimate of it, which is why it reads low for growing companies.",
+    formula: "V₀ = EBIT(1 − t) / WACC, less net debt",
+    refusesWhen: [
+      "Negative or zero operating earnings",
+      "Equity value after netting debt is negative",
+    ],
   },
   {
     id: "rim",
@@ -108,6 +161,11 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     status: "live",
     blurb:
       "Book value plus earnings above the cost of equity. Robust where cash flows are lumpy, and the right model for banks — so it carries no sector exclusion.",
+    formula: "V₀ = B₀ + Σ (ROE − ke)·B₍ₜ₋₁₎ / (1 + ke)ᵗ",
+    refusesWhen: [
+      "Negative or zero book value, which makes residual income meaningless",
+      "Return on equity unavailable",
+    ],
   },
 ]
 
@@ -139,18 +197,39 @@ export type Stock = {
 }
 
 /**
+ * The verdicts that count under the current model selection. An empty
+ * selection means every model counts, which is the default reading.
+ */
+export function activeVerdicts(
+  stock: Stock,
+  methods: MethodId[] = []
+): MethodVerdict[] {
+  if (methods.length === 0) return stock.verdicts
+  return stock.verdicts.filter((v) => methods.includes(v.method))
+}
+
+/**
  * Consensus margin of safety across the methods that produced a verdict,
  * weighted by each method's confidence. This is the number the screener sorts
  * on and the diverging scale encodes.
+ *
+ * Passing `methods` narrows the consensus to those models only. That is the
+ * point of the model toggles: restricting to DDM and FCFE asks "what does a
+ * cash-returns view alone say about this company", and the whole screen —
+ * margins, bands, distribution, ranking — answers that question instead.
  */
-export function consensusMarginOfSafety(stock: Stock): number {
-  if (stock.verdicts.length === 0) return 0
+export function consensusMarginOfSafety(
+  stock: Stock,
+  methods: MethodId[] = []
+): number {
+  const verdicts = activeVerdicts(stock, methods)
+  if (verdicts.length === 0) return 0
 
-  const weight = stock.verdicts.reduce((sum, v) => sum + v.confidence, 0)
+  const weight = verdicts.reduce((sum, v) => sum + v.confidence, 0)
   if (weight === 0) return 0
 
   return (
-    stock.verdicts.reduce((sum, v) => sum + v.marginOfSafety * v.confidence, 0) /
+    verdicts.reduce((sum, v) => sum + v.marginOfSafety * v.confidence, 0) /
     weight
   )
 }
@@ -166,9 +245,14 @@ export type ValuationBand =
   // consensus of 0 because the models agree the price is right.
   | "unrated"
 
-/** Whether any model produced a verdict for this stock. */
-export function isRated(stock: Stock): boolean {
-  return stock.verdicts.length > 0
+/**
+ * Whether any of the selected models produced a verdict for this stock. Under
+ * a narrowed selection a stock can be unrated here while still carrying
+ * verdicts from models the user has switched off — which is the honest
+ * reading: those models were asked not to speak.
+ */
+export function isRated(stock: Stock, methods: MethodId[] = []): boolean {
+  return activeVerdicts(stock, methods).length > 0
 }
 
 /**
@@ -222,20 +306,23 @@ export type ScreenerFilters = {
   search: string
   sectors: string[]
   bands: ValuationBand[]
+  /**
+   * Restrict the consensus to these models. Empty means every model that
+   * produced a verdict counts — the default reading.
+   */
+  methods: MethodId[]
   /** Inclusive [min, max] on the consensus margin of safety. */
   marginRange: [number, number]
   maxBeta: number
-  /** Only stocks scored by at least this many methods. */
-  minMethods: number
 }
 
 export const DEFAULT_FILTERS: ScreenerFilters = {
   search: "",
   sectors: [],
   bands: [],
+  methods: [],
   marginRange: [-1, 1],
   maxBeta: 3,
-  minMethods: 1,
 }
 
 export function applyFilters(
@@ -258,16 +345,15 @@ export function applyFilters(
     }
 
     if (stock.beta > filters.maxBeta) return false
-    if (stock.verdicts.length < filters.minMethods) return false
 
     // An unrated stock has no margin to compare, so the numeric filters below
     // would read its 0 as "fair" and let it through every range. It only
     // qualifies when the band filter asks for it explicitly.
-    if (!isRated(stock)) {
+    if (!isRated(stock, filters.methods)) {
       return filters.bands.includes("unrated")
     }
 
-    const margin = consensusMarginOfSafety(stock)
+    const margin = consensusMarginOfSafety(stock, filters.methods)
     if (margin < filters.marginRange[0] || margin > filters.marginRange[1]) {
       return false
     }

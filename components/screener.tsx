@@ -12,10 +12,12 @@ import {
   BAND_FILL,
   BAND_LABELS,
   DEFAULT_FILTERS,
+  VALUATION_METHODS,
   applyFilters,
   consensusMarginOfSafety,
   isRated,
   valuationBand,
+  type MethodId,
   type ScreenerFilters,
   type Stock,
   type ValuationBand,
@@ -131,6 +133,23 @@ export function Screener({
     [stocks, filters]
   )
 
+  // Coverage is counted over the whole universe, not the filtered set, so the
+  // number beside each model answers "what can this model value" rather than
+  // drifting as unrelated filters move.
+  const methodCoverage = useMemo(() => {
+    const base = Object.fromEntries(
+      VALUATION_METHODS.map((m) => [m.id, 0])
+    ) as Record<MethodId, number>
+
+    for (const stock of stocks) {
+      for (const verdict of stock.verdicts) {
+        if (verdict.method in base) base[verdict.method] += 1
+      }
+    }
+
+    return base
+  }, [stocks])
+
   const sorted = useMemo(() => {
     const factor = direction === "asc" ? 1 : -1
 
@@ -142,21 +161,27 @@ export function Screener({
           return (a.beta - b.beta) * factor
         case "peRatio":
           return (a.peRatio - b.peRatio) * factor
-        case "coverage":
-          return (a.verdicts.length - b.verdicts.length) * factor
+        case "realisedReturn":
+          return (a.realisedReturn - b.realisedReturn) * factor
+        case "volatility":
+          return (a.volatility - b.volatility) * factor
         default: {
           // Unrated stocks have no margin to rank on, so they sink to the
           // bottom rather than sorting as though their consensus were zero.
-          if (!isRated(a) && !isRated(b)) return 0
-          if (!isRated(a)) return 1
-          if (!isRated(b)) return -1
+          const aRated = isRated(a, filters.methods)
+          const bRated = isRated(b, filters.methods)
+          if (!aRated && !bRated) return 0
+          if (!aRated) return 1
+          if (!bRated) return -1
           return (
-            (consensusMarginOfSafety(a) - consensusMarginOfSafety(b)) * factor
+            (consensusMarginOfSafety(a, filters.methods) -
+              consensusMarginOfSafety(b, filters.methods)) *
+            factor
           )
         }
       }
     })
-  }, [filtered, sort, direction])
+  }, [filtered, sort, direction, filters.methods])
 
   const counts = useMemo(() => {
     const base = {
@@ -170,14 +195,14 @@ export function Screener({
 
     for (const stock of filtered) {
       base[
-        isRated(stock)
-          ? valuationBand(consensusMarginOfSafety(stock))
+        isRated(stock, filters.methods)
+          ? valuationBand(consensusMarginOfSafety(stock, filters.methods))
           : "unrated"
       ] += 1
     }
 
     return base
-  }, [filtered])
+  }, [filtered, filters.methods])
 
   function handleSort(key: SortKey) {
     if (key === sort) {
@@ -205,6 +230,7 @@ export function Screener({
             sectors={sectors}
             matches={filtered.length}
             total={stocks.length}
+            methodCoverage={methodCoverage}
             onChange={setFilters}
             onReset={() => setFilters(DEFAULT_FILTERS)}
           />
@@ -221,20 +247,46 @@ export function Screener({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <ValuationLegend />
 
-            {selected.length > 0 && (
-              <Button
-                size="sm"
-                nativeButton={false}
-                render={<Link href="/portfolio" />}
-              >
-                Optimise {selected.length} selected
-                <RiArrowRightLine />
-              </Button>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Hand the whole screened set over, not just ticked rows. This
+                  is the point of screening: the frontier is built from what
+                  survived the filters rather than from the full index. */}
+              {filtered.length > 1 && (
+                <Button
+                  size="sm"
+                  variant={selected.length > 0 ? "outline" : "default"}
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={`/portfolio?tickers=${filtered
+                        .map((stock) => stock.ticker)
+                        .join(",")}`}
+                    />
+                  }
+                >
+                  Optimise all {filtered.length} matches
+                  <RiArrowRightLine />
+                </Button>
+              )}
+
+              {selected.length > 1 && (
+                <Button
+                  size="sm"
+                  nativeButton={false}
+                  render={
+                    <Link href={`/portfolio?tickers=${selected.join(",")}`} />
+                  }
+                >
+                  Optimise {selected.length} selected
+                  <RiArrowRightLine />
+                </Button>
+              )}
+            </div>
           </div>
 
           <ScreenerTable
             stocks={sorted}
+            methods={filters.methods}
             sort={sort}
             direction={direction}
             onSort={handleSort}

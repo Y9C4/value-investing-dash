@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { PageHeader } from "@/components/page-header"
-import { TickerHistory } from "@/components/ticker-history"
-import { ValuationBreakdown } from "@/components/valuation-breakdown"
+import { StockDetail } from "@/components/stock-detail"
 import { loadUniverse } from "@/lib/universe"
 
 export default async function StockPage({
@@ -24,10 +23,7 @@ export default async function StockPage({
         description="Every model's view of what this company is worth, alongside the price history and the risk statistics the optimiser will use if you include it."
       />
 
-      <div className="flex flex-col gap-6 px-6 py-8 lg:px-10">
-        <ValuationBreakdown stock={stock} />
-        <TickerHistory initialTicker={stock.ticker} />
-      </div>
+      <StockDetail stock={stock} />
     </>
   )
 }

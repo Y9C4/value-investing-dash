@@ -135,16 +135,6 @@ def value_one(
     else:
         cost_of_equity = capm_ke
 
-    # --- CAPM verdict, mapped from alpha the same way the factor models are,
-    # --- so the three risk models stay directly comparable.
-    if beta is not None and not excess_returns.empty:
-        realised = float(excess_returns.mean()) * V.TRADING_DAYS + risk_free
-        alpha = realised - capm_ke
-        alpha = max(-V.MAX_ALPHA, min(V.MAX_ALPHA, alpha))
-        capm_verdict = V._verdict("capm", price * (1 + alpha), price, 0.45)
-        if capm_verdict:
-            verdicts.append(capm_verdict)
-
     if ttm is None:
         return V.damp_cashflow_confidence(verdicts)
 
@@ -264,11 +254,12 @@ def compute_universe(
     dividends_by_ticker: dict[str, pd.DataFrame],
     risk_free: float,
     index_ticker: str,
-) -> tuple[list[dict], list[str]]:
+) -> tuple[list[dict], list[str], list[dict]]:
     """Run every model over every ticker with usable price history.
 
     `prices` is wide (index=date, columns=ticker). Returns the verdict rows
-    ready for upsert, plus the tickers that produced nothing at all.
+    ready for upsert, the tickers that produced nothing at all, and the
+    per-ticker return statistics measured over the same window.
     """
     log_returns = np.log(prices / prices.shift(1))
 
@@ -290,6 +281,7 @@ def compute_universe(
 
     rows: list[dict] = []
     unvalued: list[str] = []
+    stats: list[dict] = []
 
     for ticker in prices.columns:
         if ticker == index_ticker:
@@ -311,6 +303,22 @@ def compute_universe(
         aligned_market = market_returns.reindex(window.index)
         covariance = float(window.cov(aligned_market))
         beta = covariance / market_variance if market_variance else None
+
+        # Measured on the same window the models use, so the risk numbers in
+        # the screener and the valuations beside them describe one period.
+        # Recorded for every ticker with history, including ones no model could
+        # value — return and volatility do not depend on a verdict existing.
+        stats.append(
+            {
+                "ticker": ticker,
+                "realised_return": V._finite(float(window.mean()) * V.TRADING_DAYS),
+                "volatility": V._finite(
+                    float(window.std()) * math.sqrt(V.TRADING_DAYS)
+                ),
+                "beta_252": V._finite(beta),
+                "observations": int(len(window)),
+            }
+        )
 
         verdicts = value_one(
             ticker,
@@ -334,4 +342,4 @@ def compute_universe(
         for verdict in verdicts:
             rows.append({"ticker": ticker, **verdict})
 
-    return rows, unvalued
+    return rows, unvalued, stats

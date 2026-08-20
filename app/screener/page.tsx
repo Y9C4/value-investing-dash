@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/page-header"
 import { Screener } from "@/components/screener"
+import { ScreenerRationale } from "@/components/screener-rationale"
 import { loadUniverse } from "@/lib/universe"
 
 export const metadata = {
@@ -12,10 +13,11 @@ export default async function ScreenerPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Step one"
-        title="Screener"
-        description="Every stock in the universe scored against each valuation model, then reduced to the ones trading below what they're worth. Filter here; optimise what survives."
+        eyebrow="Step one of three"
+        title="Screen on value, then optimise"
+        description="A mean-variance optimiser fed the whole index will happily concentrate into whatever has recently risen fastest, because a steep past return looks like a high expected return. Screening first removes those names on valuation grounds before the optimiser ever sees them."
       />
+      <ScreenerRationale />
       <Screener
         stocks={stocks}
         isBaseline={isBaseline}

@@ -89,7 +89,12 @@ function StatTile({
   )
 }
 
-export function EfficientFrontier() {
+export function EfficientFrontier({
+  tickers = [],
+}: {
+  /** A screened subset handed over by the screener; empty means the full index. */
+  tickers?: string[]
+}) {
   const [shortAllowed, setShortAllowed] = useState(false)
   const [portfolios, setPortfolios] = useState(String(DEFAULT_PORTFOLIOS))
   // Seeded so the page is never blank: the baseline renders instantly and is
@@ -112,11 +117,17 @@ export function EfficientFrontier() {
     setError(null)
 
     try {
-      const res = await fetch(
-        `/api/efficient-frontier?short_allowed=${shortAllowed}` +
-          `&n_portfolios=${parsedPortfolios}`,
-        { method: "POST" }
-      )
+      const query = new URLSearchParams({
+        short_allowed: String(shortAllowed),
+        n_portfolios: String(parsedPortfolios),
+      })
+      if (tickers.length > 0) {
+        query.set("tickers", tickers.join(","))
+      }
+
+      const res = await fetch(`/api/efficient-frontier?${query}`, {
+        method: "POST",
+      })
       const body = await res.json()
 
       if (!res.ok) {
@@ -171,11 +182,36 @@ export function EfficientFrontier() {
 
   return (
     <div className="flex w-full flex-col gap-6">
+      {/* States plainly that this solve is scoped to the screened set — the
+          whole reason the screener exists ahead of it. */}
+      {tickers.length > 0 && (
+        <div className="flex flex-col gap-1 border border-border bg-card px-5 py-4">
+          <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+            Screened universe
+          </span>
+          <p className="text-sm leading-relaxed">
+            Optimising over the{" "}
+            <span className="font-mono">{tickers.length}</span>{" "}
+            {tickers.length === 1 ? "stock" : "stocks"} handed over from the
+            screener
+            {typeof data.n_assets === "number" && !isBaseline
+              ? ` — ${data.n_assets} had the price history to be solved`
+              : ""}
+            . The optimiser can only allocate within this set, so a stock the
+            filters rejected cannot enter the portfolio at any weight.
+          </p>
+        </div>
+      )}
+
       {/* Controls in one row above the content they scope. */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-4">
           <Button onClick={handleBuild} disabled={loading || !portfoliosValid}>
-            {loading ? "Optimising…" : "Run live optimisation"}
+            {loading
+              ? "Optimising…"
+              : tickers.length > 0
+                ? `Optimise ${tickers.length} screened stocks`
+                : "Run live optimisation"}
           </Button>
 
           <FieldLabel

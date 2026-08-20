@@ -8,9 +8,15 @@ export async function POST(request: Request) {
   const shortAllowed = searchParams.get("short_allowed") === "true"
   const nPortfolios = searchParams.get("n_portfolios")
 
+  // A screened subset from the screener. Omitted means the full index.
+  const tickers = searchParams.get("tickers")
+
   const query = new URLSearchParams({ short_allowed: String(shortAllowed) })
   if (nPortfolios) {
     query.set("n_portfolios", nPortfolios)
+  }
+  if (tickers) {
+    query.set("tickers", tickers)
   }
 
   let upstream: Response

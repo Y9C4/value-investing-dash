@@ -57,6 +57,9 @@ INCREMENTAL_OVERLAP_DAYS = 5
 MAX_STOCK_WEIGHT = 0.03
 MU_CLIP = 0.50
 ENVELOPE_POINTS = 100
+# Below this, the covariance matrix is too small for the optimisation to say
+# anything meaningful about diversification.
+MIN_FRONTIER_TICKERS = 5
 MIN_ENVELOPE_POINTS = 2
 MAX_ENVELOPE_POINTS = 500
 # How far past the frontier the capital market line runs (levered portfolios).
@@ -629,7 +632,7 @@ def backfill_valuations():
 
     risk_free = get_average_risk_free_rate()
 
-    rows, unvalued = engine.compute_universe(
+    rows, unvalued, stats = engine.compute_universe(
         prices,
         factor_df,
         ttm_by_ticker,
@@ -647,6 +650,13 @@ def backfill_valuations():
         supabase.table("valuations").delete().neq("ticker", "").execute()
     except Exception as exc:  # noqa: BLE001 - report and continue
         errors.append(f"clearing valuations: {exc}")
+
+    # Statistics describe the window, not the models, so they are upserted in
+    # place rather than cleared — a ticker no model could value still has a
+    # measurable return and volatility.
+    _upsert_rows(
+        "ticker_statistics", stats, "ticker", errors, ignore_duplicates=False
+    )
 
     rows_upserted = _upsert_rows(
         "valuations", rows, "ticker,method", errors, ignore_duplicates=False
@@ -693,6 +703,12 @@ def get_valuations():
         for row in _fetch_all_rows("latest_close_prices", "ticker, date, close")
     }
     ttm = {row["ticker"]: row for row in _fetch_all_rows("ttm_fundamentals", "*")}
+    statistics = {
+        row["ticker"]: row
+        for row in _fetch_all_rows(
+            "ticker_statistics", "ticker, realised_return, volatility, beta_252"
+        )
+    }
 
     by_ticker: dict[str, list[dict]] = {}
     computed_at = None
@@ -708,6 +724,7 @@ def get_valuations():
             price_row.get("close") or verdicts[0]["price_at_calc"]
         )
 
+        stats_row = statistics.get(ticker, {})
         fundamentals_row = ttm.get(ticker, {})
         eps = fundamentals_row.get("ttm_diluted_eps") or profile.get("trailing_eps")
         pe_ratio = (
@@ -721,7 +738,14 @@ def get_valuations():
                 "sector": profile.get("sector") or "Unclassified",
                 "price": price,
                 "marketCap": float(profile.get("market_cap") or 0) / 1e9,
-                "beta": float(profile.get("beta_yf") or 0),
+                # Prefer the beta measured over the same 252-day window the
+                # models used; yfinance's own figure uses its own period and is
+                # only the fallback.
+                "beta": float(
+                    stats_row.get("beta_252") or profile.get("beta_yf") or 0
+                ),
+                "realisedReturn": float(stats_row.get("realised_return") or 0),
+                "volatility": float(stats_row.get("volatility") or 0),
                 "peRatio": round(pe_ratio, 2),
                 "dividendYield": float(profile.get("dividend_yield") or 0) / 100,
                 "verdicts": [
@@ -811,14 +835,21 @@ def _portfolio_stats(
 
 
 def build_efficient_frontier(
-    ShortAllowed: bool, n_portfolios: int = ENVELOPE_POINTS
+    ShortAllowed: bool,
+    n_portfolios: int = ENVELOPE_POINTS,
+    tickers: list[str] | None = None,
 ) -> dict:
-    """Build the efficient-frontier envelope for the S&P 500 universe.
+    """Build the efficient-frontier envelope for a universe of stocks.
 
     Optimises two anchor portfolios under identical constraints — the max-Sharpe
     (tangency) portfolio and the minimum-volatility portfolio — then sweeps a
     blend of the two weight vectors across `n_portfolios` steps to trace an
     envelope of further efficient portfolios for plotting.
+
+    `tickers` narrows the optimisation to a screened subset. This is the whole
+    point of screening before optimising: the frontier is drawn over companies
+    that passed a value filter, so the optimiser cannot allocate into a stock
+    that is merely rising fast. Passing None optimises the full index.
     """
     if not MIN_ENVELOPE_POINTS <= n_portfolios <= MAX_ENVELOPE_POINTS:
         raise HTTPException(
@@ -831,7 +862,32 @@ def build_efficient_frontier(
 
     prices = get_sp500_prices_df()
     # ^GSPC is fetched for reference but is an index, not an investable holding.
-    stock_prices = prices[[t for t in SP500_TICKERS if t in prices.columns]]
+    universe = SP500_TICKERS
+    if tickers:
+        requested = {t.strip().upper() for t in tickers if t.strip()}
+        universe = [t for t in SP500_TICKERS if t.upper() in requested]
+
+        # Two names cannot support a covariance estimate worth optimising, and
+        # a silent fallback to the full index would misreport what was solved.
+        if len(universe) < MIN_FRONTIER_TICKERS:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Need at least {MIN_FRONTIER_TICKERS} known tickers to "
+                    f"build a frontier; got {len(universe)}."
+                ),
+            )
+
+    stock_prices = prices[[t for t in universe if t in prices.columns]]
+
+    if stock_prices.shape[1] < MIN_FRONTIER_TICKERS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Only {stock_prices.shape[1]} of the requested tickers have "
+                f"stored price history; need {MIN_FRONTIER_TICKERS}."
+            ),
+        )
 
     mu = expected_returns.mean_historical_return(stock_prices)
     mu = mu.clip(lower=-MU_CLIP, upper=MU_CLIP)
@@ -896,6 +952,7 @@ def build_efficient_frontier(
     return {
         "short_allowed": ShortAllowed,
         "n_portfolios": n_portfolios,
+        "n_assets": int(stock_prices.shape[1]),
         "risk_free_rate": risk_free_rate,
         "max_sharpe": max_sharpe,
         "min_volatility": _summarise(minvol_weights),
@@ -906,7 +963,11 @@ def build_efficient_frontier(
 
 @app.post("/efficient-frontier")
 def post_efficient_frontier(
-    short_allowed: bool = False, n_portfolios: int = ENVELOPE_POINTS
+    short_allowed: bool = False,
+    n_portfolios: int = ENVELOPE_POINTS,
+    tickers: str | None = None,
 ):
-    return build_efficient_frontier(short_allowed, n_portfolios)
+    """`tickers` is a comma-separated screened subset; omit it for the full index."""
+    subset = tickers.split(",") if tickers else None
+    return build_efficient_frontier(short_allowed, n_portfolios, subset)
 

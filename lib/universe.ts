@@ -21,6 +21,9 @@ const MARKET_DATA_API_URL =
 // hour-stale render is fine and saves a round trip per visitor.
 const REVALIDATE_SECONDS = 3600
 
+/** Cache tag for the scored universe; see `revalidateValuations`. */
+export const VALUATIONS_CACHE_TAG = "valuations"
+
 type ValuationsResponse = {
   computed_at: string | null
   count: number
@@ -64,7 +67,9 @@ function normalise(stock: Stock): Stock {
 export async function loadUniverse(): Promise<Universe> {
   try {
     const response = await fetch(`${MARKET_DATA_API_URL}/valuations`, {
-      next: { revalidate: REVALIDATE_SECONDS },
+      // Tagged so a backfill can purge this entry the moment it finishes.
+      // Without that, fresh numbers sit invisible behind the hour-long window.
+      next: { revalidate: REVALIDATE_SECONDS, tags: [VALUATIONS_CACHE_TAG] },
     })
 
     if (!response.ok) {
