@@ -13,6 +13,12 @@ const BAND_ORDER: ValuationBand[] = [
   "expensive",
 ]
 
+/**
+ * The bands are not centred on zero. Half the models credit no growth, so the
+ * index-wide consensus sits well below it; the cut points track the observed
+ * distribution instead. See `valuationBand` for the full reasoning.
+ */
+
 export function formatSignedPercent(value: number) {
   const formatted = Math.abs(value).toLocaleString("en-US", {
     style: "percent",

@@ -3,14 +3,16 @@ import { notFound } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
 import { TickerHistory } from "@/components/ticker-history"
 import { ValuationBreakdown } from "@/components/valuation-breakdown"
-import { SAMPLE_UNIVERSE } from "@/lib/sample-universe"
+import { loadUniverse } from "@/lib/universe"
 
 export default async function StockPage({
   params,
 }: PageProps<"/stocks/[ticker]">) {
   const { ticker } = await params
   const symbol = decodeURIComponent(ticker).toUpperCase()
-  const stock = SAMPLE_UNIVERSE.find((item) => item.ticker === symbol)
+
+  const { stocks } = await loadUniverse()
+  const stock = stocks.find((item) => item.ticker === symbol)
 
   if (!stock) notFound()
 

@@ -41,7 +41,7 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
       <CardHeader className="flex items-baseline justify-between gap-4">
         <CardTitle>Valuation models</CardTitle>
         <span className="text-xs tracking-wider text-muted-foreground uppercase">
-          {stock.verdicts.length} of {VALUATION_METHODS.length} live
+          {stock.verdicts.length} of {VALUATION_METHODS.length} applied
         </span>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
@@ -86,11 +86,14 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
                         <span className="text-xs">{method.full}</span>
                       </span>
                     </TableCell>
+                    {/* Every model here is implemented. A missing row means
+                        this one declined to value this company — it has
+                        nothing to say, which is a result, not a gap. */}
                     <TableCell
                       colSpan={4}
                       className="text-right text-xs tracking-wider text-muted-foreground uppercase"
                     >
-                      Not yet modelled
+                      Does not apply
                     </TableCell>
                   </TableRow>
                 )

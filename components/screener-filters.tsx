@@ -15,6 +15,7 @@ const BANDS: ValuationBand[] = [
   "fair",
   "overvalued",
   "expensive",
+  "unrated",
 ]
 
 function FilterGroup({
@@ -218,7 +219,7 @@ export function ScreenerFilterRail({
 
       <FilterGroup label="Model coverage">
         <div className="flex flex-wrap gap-2">
-          {[1, 2, 3, 4, 5].map((count) => (
+          {[1, 3, 5, 7, 9].map((count) => (
             <Chip
               key={count}
               active={filters.minMethods === count}
@@ -229,8 +230,9 @@ export function ScreenerFilterRail({
           ))}
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          A stock scored by more models has a consensus you can lean on. CAPM is
-          live today; the rest fill in as they ship.
+          A stock scored by more models has a consensus you can lean on. Models
+          skip companies they cannot describe — no dividend model for a
+          non-payer, no cash-flow model for a bank — so coverage varies.
         </p>
       </FilterGroup>
     </div>

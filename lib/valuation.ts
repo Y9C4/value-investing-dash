@@ -1,14 +1,28 @@
 /**
  * The valuation layer the screener is built on.
  *
- * Only CAPM is wired to real math today (see `api/main.py`); the remaining
- * methods are declared here so the screener, the filter rail, and the stock
- * detail view can be built against their final shape. Each method reports the
- * same contract — a fair value and a confidence — so adding one is a matter of
- * filling in `status: "live"` and a real number, not reworking the UI.
+ * Every method here is wired to real math in `api/valuation.py` and scored
+ * across the S&P 500 by `POST /backfill/valuations`. Each reports the same
+ * contract — a fair value and a confidence — so the UI never needs to know
+ * which model produced a number.
+ *
+ * A model that cannot speak to a company emits NO verdict rather than a zero:
+ * a bank has no meaningful free cash flow, a non-payer has no dividend stream,
+ * a loss-maker has no Graham number. Absence in the breakdown means "does not
+ * apply here", which is why `verdicts` is ragged and coverage is worth
+ * filtering on.
  */
 
-export type MethodId = "capm" | "dcf" | "ddm" | "graham" | "epv" | "rim"
+export type MethodId =
+  | "capm"
+  | "ff3"
+  | "ff5"
+  | "ddm"
+  | "fcfe"
+  | "fcff"
+  | "graham"
+  | "epv"
+  | "rim"
 
 export type MethodStatus = "live" | "planned"
 
@@ -29,47 +43,71 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     full: "Capital Asset Pricing Model",
     status: "live",
     blurb:
-      "Prices systematic risk only. Compares the return the market demands for a stock's beta against the return it actually delivered.",
+      "Prices systematic risk only. Compares the return the market demands for a stock's beta against the return it actually delivered; the gap is read as a one-year price correction.",
   },
   {
-    id: "dcf",
-    label: "DCF",
-    full: "Discounted Cash Flow",
-    status: "planned",
+    id: "ff3",
+    label: "FF3",
+    full: "Fama-French Three-Factor",
+    status: "live",
     blurb:
-      "Present value of projected free cash flow. The most sensitive to assumptions, and the closest to a true intrinsic value.",
+      "Adds size and value to market risk. A risk model, not an intrinsic value — the unexplained return (alpha) is mapped to an implied price, so it is capped and weighted lightly.",
+  },
+  {
+    id: "ff5",
+    label: "FF5",
+    full: "Fama-French Five-Factor",
+    status: "live",
+    blurb:
+      "Extends FF3 with profitability and investment. Also supplies the cost of equity every cash-flow model below discounts at, which is its more important job.",
   },
   {
     id: "ddm",
     label: "DDM",
     full: "Dividend Discount Model",
-    status: "planned",
+    status: "live",
     blurb:
-      "Values the dividend stream directly. Meaningful for mature payers, useless for non-payers.",
+      "Values the dividend stream directly via Gordon growth. Skipped below a 1.5% yield, where the dividend explains too little of the price to say anything about value.",
+  },
+  {
+    id: "fcfe",
+    label: "FCFE",
+    full: "Free Cash Flow to Equity",
+    status: "live",
+    blurb:
+      "Cash left for shareholders after capex and net borrowing, discounted at the cost of equity. Skipped for banks and REITs, where capex is not a meaningful concept.",
+  },
+  {
+    id: "fcff",
+    label: "FCFF",
+    full: "Free Cash Flow to Firm",
+    status: "live",
+    blurb:
+      "Cash available to all capital providers, discounted at WACC and bridged to equity by netting out debt. Less sensitive to leverage than FCFE.",
   },
   {
     id: "graham",
     label: "Graham",
     full: "Graham Number",
-    status: "planned",
+    status: "live",
     blurb:
-      "Defensive ceiling from earnings and book value. A blunt screen for the price you should refuse to exceed.",
+      "Defensive ceiling from earnings and book value. Its constant encodes 15x earnings and 1.5x book — almost nothing clears it today, so it flags deep value rather than fair value.",
   },
   {
     id: "epv",
     label: "EPV",
     full: "Earnings Power Value",
-    status: "planned",
+    status: "live",
     blurb:
-      "Capitalises sustainable earnings with no growth assumption. Greenwald's answer to DCF's optimism.",
+      "Capitalises sustainable earnings with no growth assumption at all. A floor on value rather than an estimate of it, which is why it reads low for growing companies.",
   },
   {
     id: "rim",
     label: "RIM",
     full: "Residual Income Model",
-    status: "planned",
+    status: "live",
     blurb:
-      "Book value plus earnings above the cost of equity. Robust where cash flows are lumpy.",
+      "Book value plus earnings above the cost of equity. Robust where cash flows are lumpy, and the right model for banks — so it carries no sector exclusion.",
   },
 ]
 
@@ -123,17 +161,36 @@ export type ValuationBand =
   | "fair"
   | "overvalued"
   | "expensive"
+  // No model could value this company. Distinct from "fair" on purpose: a
+  // consensus of 0 because nothing applies is not the same claim as a
+  // consensus of 0 because the models agree the price is right.
+  | "unrated"
+
+/** Whether any model produced a verdict for this stock. */
+export function isRated(stock: Stock): boolean {
+  return stock.verdicts.length > 0
+}
 
 /**
  * Buckets the consensus into the five bands the screener's diverging scale
- * paints. Thresholds are symmetric around fair value so the midpoint reads as
- * "no opinion" rather than as a sixth category.
+ * paints.
+ *
+ * The thresholds are not symmetric around zero, and deliberately so. Half the
+ * models here — EPV, RIM, Graham — credit no growth beyond retained earnings,
+ * which caps a company at roughly 1/r times earnings (about 11x at a 9%
+ * discount rate). Against a market trading well above that, they read bearish
+ * by construction, and the consensus for the S&P 500 sits near -36% rather
+ * than near zero. Centring the bands on zero would file three quarters of the
+ * index under "expensive" and leave the screener unable to discriminate.
+ *
+ * These cut points track the observed distribution, so a band means "cheap
+ * relative to the rest of the index" rather than "cheap in absolute terms".
  */
 export function valuationBand(marginOfSafety: number): ValuationBand {
-  if (marginOfSafety >= 0.25) return "deep-value"
-  if (marginOfSafety >= 0.08) return "undervalued"
-  if (marginOfSafety > -0.08) return "fair"
-  if (marginOfSafety > -0.25) return "overvalued"
+  if (marginOfSafety >= -0.05) return "deep-value"
+  if (marginOfSafety >= -0.22) return "undervalued"
+  if (marginOfSafety > -0.40) return "fair"
+  if (marginOfSafety > -0.50) return "overvalued"
   return "expensive"
 }
 
@@ -143,6 +200,7 @@ export const BAND_LABELS: Record<ValuationBand, string> = {
   fair: "Fair value",
   overvalued: "Overvalued",
   expensive: "Expensive",
+  unrated: "Unrated",
 }
 
 /**
@@ -155,6 +213,9 @@ export const BAND_FILL: Record<ValuationBand, string> = {
   fair: "var(--color-valuation-neutral)",
   overvalued: "color-mix(in oklch, var(--color-overvalued), transparent 45%)",
   expensive: "var(--color-overvalued)",
+  // Deliberately off the diverging scale entirely — "no reading" is not a
+  // point on an axis running from cheap to expensive.
+  unrated: "var(--color-muted)",
 }
 
 export type ScreenerFilters = {
@@ -198,6 +259,13 @@ export function applyFilters(
 
     if (stock.beta > filters.maxBeta) return false
     if (stock.verdicts.length < filters.minMethods) return false
+
+    // An unrated stock has no margin to compare, so the numeric filters below
+    // would read its 0 as "fair" and let it through every range. It only
+    // qualifies when the band filter asks for it explicitly.
+    if (!isRated(stock)) {
+      return filters.bands.includes("unrated")
+    }
 
     const margin = consensusMarginOfSafety(stock)
     if (margin < filters.marginRange[0] || margin > filters.marginRange[1]) {

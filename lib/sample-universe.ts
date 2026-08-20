@@ -1,21 +1,23 @@
 import type { Stock } from "@/lib/valuation"
 
 /**
- * A deterministic sample of the S&P 500 with valuation verdicts attached.
+ * A deterministic sample of the S&P 500, kept as the screener's fallback.
  *
- * The screener is designed against this so the filtering system, the coverage
- * map, and the valuation distribution can be built and reviewed before the
- * remaining models land in `api/main.py`. Swap this import for the live
- * endpoint once the backend serves the same shape — nothing else changes.
+ * The live universe comes from `GET /valuations` via `lib/universe.ts`. This
+ * stands in when the market data service is unreachable, the same way
+ * `BASELINE_FRONTIER` keeps the portfolio page from opening on a blank chart —
+ * an illustrative screen beats an empty one, provided it says so, which the
+ * distribution header does.
  *
- * Prices and fair values here are illustrative, not market data.
+ * Prices and fair values here are invented, not market data. Sectors follow
+ * the yfinance taxonomy so the fallback and the live data filter alike.
  */
 
 export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "AAPL",
     name: "Apple",
-    sector: "Information Technology",
+    sector: "Technology",
     price: 250.83,
     marketCap: 3480,
     beta: 1.26,
@@ -25,13 +27,13 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1707,
     verdicts: [
       { method: "capm", fairValue: 274.68, marginOfSafety: 0.0951, confidence: 0.8 },
-      { method: "dcf", fairValue: 257.3, marginOfSafety: 0.0258, confidence: 0.78 },
+      { method: "fcfe", fairValue: 257.3, marginOfSafety: 0.0258, confidence: 0.78 },
     ],
   },
   {
     ticker: "MSFT",
     name: "Microsoft",
-    sector: "Information Technology",
+    sector: "Technology",
     price: 293.11,
     marketCap: 3720,
     beta: 1.55,
@@ -46,7 +48,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "NVDA",
     name: "NVIDIA",
-    sector: "Information Technology",
+    sector: "Technology",
     price: 321.5,
     marketCap: 4120,
     beta: 1.32,
@@ -56,14 +58,14 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4258,
     verdicts: [
       { method: "capm", fairValue: 202.61, marginOfSafety: -0.3698, confidence: 0.92 },
-      { method: "dcf", fairValue: 212.9, marginOfSafety: -0.3378, confidence: 0.74 },
+      { method: "fcfe", fairValue: 212.9, marginOfSafety: -0.3378, confidence: 0.74 },
       { method: "ddm", fairValue: 197.98, marginOfSafety: -0.3842, confidence: 0.64 },
     ],
   },
   {
     ticker: "AVGO",
     name: "Broadcom",
-    sector: "Information Technology",
+    sector: "Technology",
     price: 449.02,
     marketCap: 1180,
     beta: 0.8,
@@ -73,7 +75,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3396,
     verdicts: [
       { method: "capm", fairValue: 341.43, marginOfSafety: -0.2396, confidence: 0.87 },
-      { method: "dcf", fairValue: 365.95, marginOfSafety: -0.185, confidence: 0.72 },
+      { method: "fcfe", fairValue: 365.95, marginOfSafety: -0.185, confidence: 0.72 },
       { method: "ddm", fairValue: 316.15, marginOfSafety: -0.2959, confidence: 0.75 },
       { method: "graham", fairValue: 359.44, marginOfSafety: -0.1995, confidence: 0.52 },
     ],
@@ -81,7 +83,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "ORCL",
     name: "Oracle",
-    sector: "Information Technology",
+    sector: "Technology",
     price: 497.57,
     marketCap: 640,
     beta: 1.35,
@@ -91,13 +93,13 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1282,
     verdicts: [
       { method: "capm", fairValue: 437.46, marginOfSafety: -0.1208, confidence: 0.85 },
-      { method: "dcf", fairValue: 500.46, marginOfSafety: 0.0058, confidence: 0.72 },
+      { method: "fcfe", fairValue: 500.46, marginOfSafety: 0.0058, confidence: 0.72 },
     ],
   },
   {
     ticker: "CSCO",
     name: "Cisco Systems",
-    sector: "Information Technology",
+    sector: "Technology",
     price: 29.74,
     marketCap: 268,
     beta: 1.48,
@@ -112,7 +114,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "ACN",
     name: "Accenture",
-    sector: "Information Technology",
+    sector: "Technology",
     price: 329.05,
     marketCap: 212,
     beta: 1.63,
@@ -127,7 +129,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "ADBE",
     name: "Adobe",
-    sector: "Information Technology",
+    sector: "Technology",
     price: 603.3,
     marketCap: 198,
     beta: 1.52,
@@ -137,13 +139,13 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3982,
     verdicts: [
       { method: "capm", fairValue: 517.69, marginOfSafety: -0.1419, confidence: 0.8 },
-      { method: "dcf", fairValue: 522.46, marginOfSafety: -0.134, confidence: 0.69 },
+      { method: "fcfe", fairValue: 522.46, marginOfSafety: -0.134, confidence: 0.69 },
     ],
   },
   {
     ticker: "CRM",
     name: "Salesforce",
-    sector: "Information Technology",
+    sector: "Technology",
     price: 414.77,
     marketCap: 256,
     beta: 1.37,
@@ -158,7 +160,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "INTC",
     name: "Intel",
-    sector: "Information Technology",
+    sector: "Technology",
     price: 562.81,
     marketCap: 108,
     beta: 0.83,
@@ -168,13 +170,13 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4025,
     verdicts: [
       { method: "capm", fairValue: 452.39, marginOfSafety: -0.1962, confidence: 0.92 },
-      { method: "dcf", fairValue: 422.22, marginOfSafety: -0.2498, confidence: 0.73 },
+      { method: "fcfe", fairValue: 422.22, marginOfSafety: -0.2498, confidence: 0.73 },
     ],
   },
   {
     ticker: "TXN",
     name: "Texas Instruments",
-    sector: "Information Technology",
+    sector: "Technology",
     price: 424.45,
     marketCap: 176,
     beta: 1.28,
@@ -184,14 +186,14 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.291,
     verdicts: [
       { method: "capm", fairValue: 393.59, marginOfSafety: -0.0727, confidence: 0.79 },
-      { method: "dcf", fairValue: 432.43, marginOfSafety: 0.0188, confidence: 0.8 },
+      { method: "fcfe", fairValue: 432.43, marginOfSafety: 0.0188, confidence: 0.8 },
       { method: "ddm", fairValue: 391.05, marginOfSafety: -0.0787, confidence: 0.67 },
     ],
   },
   {
     ticker: "QCOM",
     name: "Qualcomm",
-    sector: "Information Technology",
+    sector: "Technology",
     price: 113.97,
     marketCap: 184,
     beta: 1.35,
@@ -201,13 +203,13 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3759,
     verdicts: [
       { method: "capm", fairValue: 80.66, marginOfSafety: -0.2923, confidence: 0.85 },
-      { method: "dcf", fairValue: 83.43, marginOfSafety: -0.268, confidence: 0.81 },
+      { method: "fcfe", fairValue: 83.43, marginOfSafety: -0.268, confidence: 0.81 },
     ],
   },
   {
     ticker: "JPM",
     name: "JPMorgan Chase",
-    sector: "Financials",
+    sector: "Financial Services",
     price: 219.88,
     marketCap: 742,
     beta: 0.77,
@@ -217,13 +219,13 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2097,
     verdicts: [
       { method: "capm", fairValue: 234.55, marginOfSafety: 0.0667, confidence: 0.8 },
-      { method: "dcf", fairValue: 257.22, marginOfSafety: 0.1698, confidence: 0.83 },
+      { method: "fcfe", fairValue: 257.22, marginOfSafety: 0.1698, confidence: 0.83 },
     ],
   },
   {
     ticker: "BAC",
     name: "Bank of America",
-    sector: "Financials",
+    sector: "Financial Services",
     price: 537.09,
     marketCap: 342,
     beta: 1.67,
@@ -238,7 +240,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "WFC",
     name: "Wells Fargo",
-    sector: "Financials",
+    sector: "Financial Services",
     price: 148.43,
     marketCap: 258,
     beta: 1.29,
@@ -248,7 +250,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4154,
     verdicts: [
       { method: "capm", fairValue: 128.58, marginOfSafety: -0.1337, confidence: 0.94 },
-      { method: "dcf", fairValue: 116.46, marginOfSafety: -0.2154, confidence: 0.74 },
+      { method: "fcfe", fairValue: 116.46, marginOfSafety: -0.2154, confidence: 0.74 },
       { method: "ddm", fairValue: 127.32, marginOfSafety: -0.1422, confidence: 0.62 },
       { method: "graham", fairValue: 125.08, marginOfSafety: -0.1573, confidence: 0.64 },
     ],
@@ -256,7 +258,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "GS",
     name: "Goldman Sachs",
-    sector: "Financials",
+    sector: "Financial Services",
     price: 245.78,
     marketCap: 216,
     beta: 0.86,
@@ -271,7 +273,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "MS",
     name: "Morgan Stanley",
-    sector: "Financials",
+    sector: "Financial Services",
     price: 174.6,
     marketCap: 214,
     beta: 0.86,
@@ -281,14 +283,14 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4005,
     verdicts: [
       { method: "capm", fairValue: 96.71, marginOfSafety: -0.4461, confidence: 0.87 },
-      { method: "dcf", fairValue: 117.14, marginOfSafety: -0.3291, confidence: 0.8 },
+      { method: "fcfe", fairValue: 117.14, marginOfSafety: -0.3291, confidence: 0.8 },
       { method: "ddm", fairValue: 110.05, marginOfSafety: -0.3697, confidence: 0.72 },
     ],
   },
   {
     ticker: "BRK.B",
     name: "Berkshire Hathaway",
-    sector: "Financials",
+    sector: "Financial Services",
     price: 597.78,
     marketCap: 1020,
     beta: 0.65,
@@ -298,7 +300,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1353,
     verdicts: [
       { method: "capm", fairValue: 624.56, marginOfSafety: 0.0448, confidence: 0.88 },
-      { method: "dcf", fairValue: 642.55, marginOfSafety: 0.0749, confidence: 0.72 },
+      { method: "fcfe", fairValue: 642.55, marginOfSafety: 0.0749, confidence: 0.72 },
       { method: "ddm", fairValue: 602.08, marginOfSafety: 0.0072, confidence: 0.73 },
       { method: "graham", fairValue: 627.07, marginOfSafety: 0.049, confidence: 0.52 },
       { method: "epv", fairValue: 620.32, marginOfSafety: 0.0377, confidence: 0.57 },
@@ -307,7 +309,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "V",
     name: "Visa",
-    sector: "Financials",
+    sector: "Financial Services",
     price: 108.59,
     marketCap: 624,
     beta: 0.77,
@@ -322,7 +324,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "MA",
     name: "Mastercard",
-    sector: "Financials",
+    sector: "Financial Services",
     price: 584,
     marketCap: 518,
     beta: 1.03,
@@ -332,7 +334,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.327,
     verdicts: [
       { method: "capm", fairValue: 585.05, marginOfSafety: 0.0018, confidence: 0.91 },
-      { method: "dcf", fairValue: 588.2, marginOfSafety: 0.0072, confidence: 0.77 },
+      { method: "fcfe", fairValue: 588.2, marginOfSafety: 0.0072, confidence: 0.77 },
       { method: "ddm", fairValue: 547.5, marginOfSafety: -0.0625, confidence: 0.73 },
       { method: "graham", fairValue: 571.27, marginOfSafety: -0.0218, confidence: 0.66 },
       { method: "epv", fairValue: 599.88, marginOfSafety: 0.0272, confidence: 0.45 },
@@ -341,7 +343,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "AXP",
     name: "American Express",
-    sector: "Financials",
+    sector: "Financial Services",
     price: 414.01,
     marketCap: 212,
     beta: 1.67,
@@ -351,14 +353,14 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2316,
     verdicts: [
       { method: "capm", fairValue: 404.53, marginOfSafety: -0.0229, confidence: 0.8 },
-      { method: "dcf", fairValue: 375.51, marginOfSafety: -0.093, confidence: 0.73 },
+      { method: "fcfe", fairValue: 375.51, marginOfSafety: -0.093, confidence: 0.73 },
       { method: "ddm", fairValue: 395.5, marginOfSafety: -0.0447, confidence: 0.75 },
     ],
   },
   {
     ticker: "BLK",
     name: "BlackRock",
-    sector: "Financials",
+    sector: "Financial Services",
     price: 63.68,
     marketCap: 164,
     beta: 1.26,
@@ -368,7 +370,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3134,
     verdicts: [
       { method: "capm", fairValue: 53.32, marginOfSafety: -0.1627, confidence: 0.81 },
-      { method: "dcf", fairValue: 49.87, marginOfSafety: -0.2168, confidence: 0.8 },
+      { method: "fcfe", fairValue: 49.87, marginOfSafety: -0.2168, confidence: 0.8 },
       { method: "ddm", fairValue: 48.64, marginOfSafety: -0.2362, confidence: 0.68 },
       { method: "graham", fairValue: 49.82, marginOfSafety: -0.2176, confidence: 0.65 },
       { method: "epv", fairValue: 54.28, marginOfSafety: -0.1476, confidence: 0.51 },
@@ -377,7 +379,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "JNJ",
     name: "Johnson & Johnson",
-    sector: "Health Care",
+    sector: "Healthcare",
     price: 456.9,
     marketCap: 396,
     beta: 1.28,
@@ -387,13 +389,13 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4585,
     verdicts: [
       { method: "capm", fairValue: 372.1, marginOfSafety: -0.1856, confidence: 0.81 },
-      { method: "dcf", fairValue: 396.27, marginOfSafety: -0.1327, confidence: 0.73 },
+      { method: "fcfe", fairValue: 396.27, marginOfSafety: -0.1327, confidence: 0.73 },
     ],
   },
   {
     ticker: "UNH",
     name: "UnitedHealth",
-    sector: "Health Care",
+    sector: "Healthcare",
     price: 404.51,
     marketCap: 286,
     beta: 1.8,
@@ -403,7 +405,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3218,
     verdicts: [
       { method: "capm", fairValue: 273.77, marginOfSafety: -0.3232, confidence: 0.87 },
-      { method: "dcf", fairValue: 292.26, marginOfSafety: -0.2775, confidence: 0.85 },
+      { method: "fcfe", fairValue: 292.26, marginOfSafety: -0.2775, confidence: 0.85 },
       { method: "ddm", fairValue: 279.64, marginOfSafety: -0.3087, confidence: 0.73 },
       { method: "graham", fairValue: 278.51, marginOfSafety: -0.3115, confidence: 0.55 },
     ],
@@ -411,7 +413,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "LLY",
     name: "Eli Lilly",
-    sector: "Health Care",
+    sector: "Healthcare",
     price: 529.39,
     marketCap: 842,
     beta: 0.71,
@@ -421,7 +423,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1513,
     verdicts: [
       { method: "capm", fairValue: 379.04, marginOfSafety: -0.284, confidence: 0.85 },
-      { method: "dcf", fairValue: 408.11, marginOfSafety: -0.2291, confidence: 0.71 },
+      { method: "fcfe", fairValue: 408.11, marginOfSafety: -0.2291, confidence: 0.71 },
       { method: "ddm", fairValue: 385.24, marginOfSafety: -0.2723, confidence: 0.7 },
       { method: "graham", fairValue: 400.96, marginOfSafety: -0.2426, confidence: 0.53 },
       { method: "epv", fairValue: 412.55, marginOfSafety: -0.2207, confidence: 0.46 },
@@ -430,7 +432,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "MRK",
     name: "Merck",
-    sector: "Health Care",
+    sector: "Healthcare",
     price: 52.66,
     marketCap: 216,
     beta: 1.36,
@@ -440,13 +442,13 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3961,
     verdicts: [
       { method: "capm", fairValue: 42.84, marginOfSafety: -0.1864, confidence: 0.88 },
-      { method: "dcf", fairValue: 47.44, marginOfSafety: -0.0992, confidence: 0.73 },
+      { method: "fcfe", fairValue: 47.44, marginOfSafety: -0.0992, confidence: 0.73 },
     ],
   },
   {
     ticker: "ABBV",
     name: "AbbVie",
-    sector: "Health Care",
+    sector: "Healthcare",
     price: 469.14,
     marketCap: 352,
     beta: 0.92,
@@ -461,7 +463,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "PFE",
     name: "Pfizer",
-    sector: "Health Care",
+    sector: "Healthcare",
     price: 488.31,
     marketCap: 148,
     beta: 1.85,
@@ -471,7 +473,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3759,
     verdicts: [
       { method: "capm", fairValue: 366.23, marginOfSafety: -0.25, confidence: 0.9 },
-      { method: "dcf", fairValue: 323.36, marginOfSafety: -0.3378, confidence: 0.72 },
+      { method: "fcfe", fairValue: 323.36, marginOfSafety: -0.3378, confidence: 0.72 },
       { method: "ddm", fairValue: 350.9, marginOfSafety: -0.2814, confidence: 0.73 },
       { method: "graham", fairValue: 350.12, marginOfSafety: -0.283, confidence: 0.62 },
     ],
@@ -479,7 +481,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "TMO",
     name: "Thermo Fisher",
-    sector: "Health Care",
+    sector: "Healthcare",
     price: 176.17,
     marketCap: 198,
     beta: 1,
@@ -489,13 +491,13 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4464,
     verdicts: [
       { method: "capm", fairValue: 128.02, marginOfSafety: -0.2733, confidence: 0.86 },
-      { method: "dcf", fairValue: 132.27, marginOfSafety: -0.2492, confidence: 0.79 },
+      { method: "fcfe", fairValue: 132.27, marginOfSafety: -0.2492, confidence: 0.79 },
     ],
   },
   {
     ticker: "DHR",
     name: "Danaher",
-    sector: "Health Care",
+    sector: "Healthcare",
     price: 466.32,
     marketCap: 154,
     beta: 0.55,
@@ -510,7 +512,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "AMGN",
     name: "Amgen",
-    sector: "Health Care",
+    sector: "Healthcare",
     price: 196.17,
     marketCap: 156,
     beta: 1.78,
@@ -520,7 +522,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.407,
     verdicts: [
       { method: "capm", fairValue: 195.13, marginOfSafety: -0.0053, confidence: 0.86 },
-      { method: "dcf", fairValue: 204.74, marginOfSafety: 0.0437, confidence: 0.71 },
+      { method: "fcfe", fairValue: 204.74, marginOfSafety: 0.0437, confidence: 0.71 },
       { method: "ddm", fairValue: 189.87, marginOfSafety: -0.0321, confidence: 0.65 },
       { method: "graham", fairValue: 189.93, marginOfSafety: -0.0318, confidence: 0.59 },
       { method: "epv", fairValue: 196.74, marginOfSafety: 0.0029, confidence: 0.52 },
@@ -529,7 +531,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "CVS",
     name: "CVS Health",
-    sector: "Health Care",
+    sector: "Healthcare",
     price: 67.24,
     marketCap: 84,
     beta: 2.15,
@@ -539,7 +541,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2959,
     verdicts: [
       { method: "capm", fairValue: 40.96, marginOfSafety: -0.3909, confidence: 0.81 },
-      { method: "dcf", fairValue: 41.9, marginOfSafety: -0.3768, confidence: 0.71 },
+      { method: "fcfe", fairValue: 41.9, marginOfSafety: -0.3768, confidence: 0.71 },
       { method: "ddm", fairValue: 43.15, marginOfSafety: -0.3583, confidence: 0.76 },
       { method: "graham", fairValue: 37.36, marginOfSafety: -0.4444, confidence: 0.57 },
       { method: "epv", fairValue: 38.47, marginOfSafety: -0.4279, confidence: 0.57 },
@@ -548,7 +550,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "PG",
     name: "Procter & Gamble",
-    sector: "Consumer Staples",
+    sector: "Consumer Defensive",
     price: 148.35,
     marketCap: 368,
     beta: 1.68,
@@ -563,7 +565,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "KO",
     name: "Coca-Cola",
-    sector: "Consumer Staples",
+    sector: "Consumer Defensive",
     price: 322.15,
     marketCap: 304,
     beta: 1.9,
@@ -578,7 +580,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "PEP",
     name: "PepsiCo",
-    sector: "Consumer Staples",
+    sector: "Consumer Defensive",
     price: 467.62,
     marketCap: 196,
     beta: 1.65,
@@ -588,14 +590,14 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4132,
     verdicts: [
       { method: "capm", fairValue: 492.17, marginOfSafety: 0.0525, confidence: 0.82 },
-      { method: "dcf", fairValue: 473.56, marginOfSafety: 0.0127, confidence: 0.78 },
+      { method: "fcfe", fairValue: 473.56, marginOfSafety: 0.0127, confidence: 0.78 },
       { method: "ddm", fairValue: 497.97, marginOfSafety: 0.0649, confidence: 0.64 },
     ],
   },
   {
     ticker: "COST",
     name: "Costco",
-    sector: "Consumer Staples",
+    sector: "Consumer Defensive",
     price: 489.58,
     marketCap: 412,
     beta: 1.75,
@@ -605,7 +607,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1991,
     verdicts: [
       { method: "capm", fairValue: 456.14, marginOfSafety: -0.0683, confidence: 0.87 },
-      { method: "dcf", fairValue: 484.78, marginOfSafety: -0.0098, confidence: 0.83 },
+      { method: "fcfe", fairValue: 484.78, marginOfSafety: -0.0098, confidence: 0.83 },
       { method: "ddm", fairValue: 478.81, marginOfSafety: -0.022, confidence: 0.66 },
       { method: "graham", fairValue: 476.17, marginOfSafety: -0.0274, confidence: 0.54 },
     ],
@@ -613,7 +615,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "WMT",
     name: "Walmart",
-    sector: "Consumer Staples",
+    sector: "Consumer Defensive",
     price: 184.75,
     marketCap: 748,
     beta: 0.68,
@@ -623,7 +625,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4326,
     verdicts: [
       { method: "capm", fairValue: 220.7, marginOfSafety: 0.1946, confidence: 0.81 },
-      { method: "dcf", fairValue: 201.23, marginOfSafety: 0.0892, confidence: 0.76 },
+      { method: "fcfe", fairValue: 201.23, marginOfSafety: 0.0892, confidence: 0.76 },
       { method: "ddm", fairValue: 220.81, marginOfSafety: 0.1952, confidence: 0.74 },
       { method: "graham", fairValue: 204.65, marginOfSafety: 0.1077, confidence: 0.59 },
       { method: "epv", fairValue: 224.29, marginOfSafety: 0.214, confidence: 0.55 },
@@ -632,7 +634,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "PM",
     name: "Philip Morris",
-    sector: "Consumer Staples",
+    sector: "Consumer Defensive",
     price: 418.43,
     marketCap: 254,
     beta: 1.73,
@@ -642,14 +644,14 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4558,
     verdicts: [
       { method: "capm", fairValue: 339.3, marginOfSafety: -0.1891, confidence: 0.91 },
-      { method: "dcf", fairValue: 344.16, marginOfSafety: -0.1775, confidence: 0.77 },
+      { method: "fcfe", fairValue: 344.16, marginOfSafety: -0.1775, confidence: 0.77 },
       { method: "ddm", fairValue: 346.25, marginOfSafety: -0.1725, confidence: 0.68 },
     ],
   },
   {
     ticker: "MO",
     name: "Altria",
-    sector: "Consumer Staples",
+    sector: "Consumer Defensive",
     price: 581.61,
     marketCap: 98,
     beta: 1.11,
@@ -659,13 +661,13 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4085,
     verdicts: [
       { method: "capm", fairValue: 506.47, marginOfSafety: -0.1292, confidence: 0.94 },
-      { method: "dcf", fairValue: 538.28, marginOfSafety: -0.0745, confidence: 0.77 },
+      { method: "fcfe", fairValue: 538.28, marginOfSafety: -0.0745, confidence: 0.77 },
     ],
   },
   {
     ticker: "KHC",
     name: "Kraft Heinz",
-    sector: "Consumer Staples",
+    sector: "Consumer Defensive",
     price: 146.78,
     marketCap: 32,
     beta: 1.78,
@@ -675,7 +677,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4583,
     verdicts: [
       { method: "capm", fairValue: 183.89, marginOfSafety: 0.2528, confidence: 0.88 },
-      { method: "dcf", fairValue: 188.54, marginOfSafety: 0.2845, confidence: 0.78 },
+      { method: "fcfe", fairValue: 188.54, marginOfSafety: 0.2845, confidence: 0.78 },
       { method: "ddm", fairValue: 189.26, marginOfSafety: 0.2894, confidence: 0.63 },
       { method: "graham", fairValue: 183.25, marginOfSafety: 0.2485, confidence: 0.53 },
     ],
@@ -683,7 +685,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "AMZN",
     name: "Amazon",
-    sector: "Consumer Discretionary",
+    sector: "Consumer Cyclical",
     price: 507.87,
     marketCap: 2340,
     beta: 1.38,
@@ -693,7 +695,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1854,
     verdicts: [
       { method: "capm", fairValue: 554.75, marginOfSafety: 0.0923, confidence: 0.85 },
-      { method: "dcf", fairValue: 597.81, marginOfSafety: 0.1771, confidence: 0.78 },
+      { method: "fcfe", fairValue: 597.81, marginOfSafety: 0.1771, confidence: 0.78 },
       { method: "ddm", fairValue: 590.14, marginOfSafety: 0.162, confidence: 0.65 },
       { method: "graham", fairValue: 577.14, marginOfSafety: 0.1364, confidence: 0.53 },
     ],
@@ -701,7 +703,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "TSLA",
     name: "Tesla",
-    sector: "Consumer Discretionary",
+    sector: "Consumer Cyclical",
     price: 304.39,
     marketCap: 1180,
     beta: 0.79,
@@ -711,14 +713,14 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1411,
     verdicts: [
       { method: "capm", fairValue: 363.23, marginOfSafety: 0.1933, confidence: 0.93 },
-      { method: "dcf", fairValue: 360.58, marginOfSafety: 0.1846, confidence: 0.71 },
+      { method: "fcfe", fairValue: 360.58, marginOfSafety: 0.1846, confidence: 0.71 },
       { method: "ddm", fairValue: 368.62, marginOfSafety: 0.211, confidence: 0.63 },
     ],
   },
   {
     ticker: "HD",
     name: "Home Depot",
-    sector: "Consumer Discretionary",
+    sector: "Consumer Cyclical",
     price: 241.82,
     marketCap: 368,
     beta: 1.36,
@@ -728,14 +730,14 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2715,
     verdicts: [
       { method: "capm", fairValue: 258.63, marginOfSafety: 0.0695, confidence: 0.89 },
-      { method: "dcf", fairValue: 242.59, marginOfSafety: 0.0032, confidence: 0.83 },
+      { method: "fcfe", fairValue: 242.59, marginOfSafety: 0.0032, confidence: 0.83 },
       { method: "ddm", fairValue: 260, marginOfSafety: 0.0752, confidence: 0.7 },
     ],
   },
   {
     ticker: "MCD",
     name: "McDonald's",
-    sector: "Consumer Discretionary",
+    sector: "Consumer Cyclical",
     price: 29.46,
     marketCap: 216,
     beta: 0.47,
@@ -745,7 +747,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4016,
     verdicts: [
       { method: "capm", fairValue: 17.53, marginOfSafety: -0.4048, confidence: 0.81 },
-      { method: "dcf", fairValue: 20.06, marginOfSafety: -0.3192, confidence: 0.76 },
+      { method: "fcfe", fairValue: 20.06, marginOfSafety: -0.3192, confidence: 0.76 },
       { method: "ddm", fairValue: 18.21, marginOfSafety: -0.3819, confidence: 0.67 },
       { method: "graham", fairValue: 17.24, marginOfSafety: -0.4147, confidence: 0.66 },
       { method: "epv", fairValue: 18.14, marginOfSafety: -0.3841, confidence: 0.49 },
@@ -754,7 +756,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "NKE",
     name: "Nike",
-    sector: "Consumer Discretionary",
+    sector: "Consumer Cyclical",
     price: 198.71,
     marketCap: 96,
     beta: 1.46,
@@ -769,7 +771,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "SBUX",
     name: "Starbucks",
-    sector: "Consumer Discretionary",
+    sector: "Consumer Cyclical",
     price: 442.38,
     marketCap: 104,
     beta: 1.98,
@@ -779,7 +781,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1641,
     verdicts: [
       { method: "capm", fairValue: 431.72, marginOfSafety: -0.0241, confidence: 0.87 },
-      { method: "dcf", fairValue: 403.01, marginOfSafety: -0.089, confidence: 0.72 },
+      { method: "fcfe", fairValue: 403.01, marginOfSafety: -0.089, confidence: 0.72 },
       { method: "ddm", fairValue: 458.17, marginOfSafety: 0.0357, confidence: 0.75 },
       { method: "graham", fairValue: 422.38, marginOfSafety: -0.0452, confidence: 0.58 },
     ],
@@ -787,7 +789,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "LOW",
     name: "Lowe's",
-    sector: "Consumer Discretionary",
+    sector: "Consumer Cyclical",
     price: 131.63,
     marketCap: 138,
     beta: 1.86,
@@ -797,7 +799,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2823,
     verdicts: [
       { method: "capm", fairValue: 122.42, marginOfSafety: -0.07, confidence: 0.8 },
-      { method: "dcf", fairValue: 126.52, marginOfSafety: -0.0388, confidence: 0.8 },
+      { method: "fcfe", fairValue: 126.52, marginOfSafety: -0.0388, confidence: 0.8 },
       { method: "ddm", fairValue: 125.23, marginOfSafety: -0.0486, confidence: 0.7 },
       { method: "graham", fairValue: 120.99, marginOfSafety: -0.0808, confidence: 0.57 },
       { method: "epv", fairValue: 124.27, marginOfSafety: -0.0559, confidence: 0.56 },
@@ -806,7 +808,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "TJX",
     name: "TJX Companies",
-    sector: "Consumer Discretionary",
+    sector: "Consumer Cyclical",
     price: 295.29,
     marketCap: 136,
     beta: 1.89,
@@ -816,7 +818,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2899,
     verdicts: [
       { method: "capm", fairValue: 241.52, marginOfSafety: -0.1821, confidence: 0.79 },
-      { method: "dcf", fairValue: 257.23, marginOfSafety: -0.1289, confidence: 0.81 },
+      { method: "fcfe", fairValue: 257.23, marginOfSafety: -0.1289, confidence: 0.81 },
     ],
   },
   {
@@ -847,7 +849,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3741,
     verdicts: [
       { method: "capm", fairValue: 167.31, marginOfSafety: -0.0635, confidence: 0.81 },
-      { method: "dcf", fairValue: 177.22, marginOfSafety: -0.008, confidence: 0.72 },
+      { method: "fcfe", fairValue: 177.22, marginOfSafety: -0.008, confidence: 0.72 },
       { method: "ddm", fairValue: 189.42, marginOfSafety: 0.0603, confidence: 0.73 },
       { method: "graham", fairValue: 169.95, marginOfSafety: -0.0487, confidence: 0.53 },
     ],
@@ -865,7 +867,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3447,
     verdicts: [
       { method: "capm", fairValue: 434.97, marginOfSafety: 0.2795, confidence: 0.8 },
-      { method: "dcf", fairValue: 420.25, marginOfSafety: 0.2362, confidence: 0.75 },
+      { method: "fcfe", fairValue: 420.25, marginOfSafety: 0.2362, confidence: 0.75 },
       { method: "ddm", fairValue: 449.18, marginOfSafety: 0.3213, confidence: 0.72 },
     ],
   },
@@ -882,7 +884,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2865,
     verdicts: [
       { method: "capm", fairValue: 581.49, marginOfSafety: 0.1229, confidence: 0.93 },
-      { method: "dcf", fairValue: 612.51, marginOfSafety: 0.1828, confidence: 0.76 },
+      { method: "fcfe", fairValue: 612.51, marginOfSafety: 0.1828, confidence: 0.76 },
       { method: "ddm", fairValue: 612.82, marginOfSafety: 0.1834, confidence: 0.74 },
     ],
   },
@@ -914,7 +916,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1963,
     verdicts: [
       { method: "capm", fairValue: 136.58, marginOfSafety: -0.1526, confidence: 0.79 },
-      { method: "dcf", fairValue: 136.32, marginOfSafety: -0.1542, confidence: 0.7 },
+      { method: "fcfe", fairValue: 136.32, marginOfSafety: -0.1542, confidence: 0.7 },
       { method: "ddm", fairValue: 135.85, marginOfSafety: -0.1571, confidence: 0.71 },
       { method: "graham", fairValue: 117.62, marginOfSafety: -0.2702, confidence: 0.65 },
     ],
@@ -932,7 +934,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.176,
     verdicts: [
       { method: "capm", fairValue: 214.14, marginOfSafety: 0.0012, confidence: 0.79 },
-      { method: "dcf", fairValue: 223.4, marginOfSafety: 0.0445, confidence: 0.85 },
+      { method: "fcfe", fairValue: 223.4, marginOfSafety: 0.0445, confidence: 0.85 },
       { method: "ddm", fairValue: 211.66, marginOfSafety: -0.0104, confidence: 0.71 },
       { method: "graham", fairValue: 201.9, marginOfSafety: -0.056, confidence: 0.53 },
       { method: "epv", fairValue: 210.99, marginOfSafety: -0.0135, confidence: 0.44 },
@@ -951,7 +953,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3103,
     verdicts: [
       { method: "capm", fairValue: 49.91, marginOfSafety: -0.0878, confidence: 0.87 },
-      { method: "dcf", fairValue: 54.22, marginOfSafety: -0.009, confidence: 0.82 },
+      { method: "fcfe", fairValue: 54.22, marginOfSafety: -0.009, confidence: 0.82 },
     ],
   },
   {
@@ -967,7 +969,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1269,
     verdicts: [
       { method: "capm", fairValue: 609.58, marginOfSafety: 0.102, confidence: 0.88 },
-      { method: "dcf", fairValue: 538.11, marginOfSafety: -0.0272, confidence: 0.83 },
+      { method: "fcfe", fairValue: 538.11, marginOfSafety: -0.0272, confidence: 0.83 },
     ],
   },
   {
@@ -983,7 +985,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3519,
     verdicts: [
       { method: "capm", fairValue: 521.87, marginOfSafety: -0.1744, confidence: 0.93 },
-      { method: "dcf", fairValue: 504.93, marginOfSafety: -0.2012, confidence: 0.84 },
+      { method: "fcfe", fairValue: 504.93, marginOfSafety: -0.2012, confidence: 0.84 },
       { method: "ddm", fairValue: 525.22, marginOfSafety: -0.1691, confidence: 0.67 },
       { method: "graham", fairValue: 518.71, marginOfSafety: -0.1794, confidence: 0.61 },
       { method: "epv", fairValue: 558.03, marginOfSafety: -0.1172, confidence: 0.47 },
@@ -1017,7 +1019,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2246,
     verdicts: [
       { method: "capm", fairValue: 542.62, marginOfSafety: 0.0639, confidence: 0.91 },
-      { method: "dcf", fairValue: 593.67, marginOfSafety: 0.164, confidence: 0.78 },
+      { method: "fcfe", fairValue: 593.67, marginOfSafety: 0.164, confidence: 0.78 },
     ],
   },
   {
@@ -1033,7 +1035,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3428,
     verdicts: [
       { method: "capm", fairValue: 207.21, marginOfSafety: -0.0853, confidence: 0.79 },
-      { method: "dcf", fairValue: 219.92, marginOfSafety: -0.0292, confidence: 0.76 },
+      { method: "fcfe", fairValue: 219.92, marginOfSafety: -0.0292, confidence: 0.76 },
       { method: "ddm", fairValue: 207.25, marginOfSafety: -0.0851, confidence: 0.73 },
       { method: "graham", fairValue: 226.08, marginOfSafety: -0.002, confidence: 0.66 },
     ],
@@ -1051,7 +1053,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2631,
     verdicts: [
       { method: "capm", fairValue: 107.82, marginOfSafety: -0.378, confidence: 0.92 },
-      { method: "dcf", fairValue: 105.95, marginOfSafety: -0.3888, confidence: 0.83 },
+      { method: "fcfe", fairValue: 105.95, marginOfSafety: -0.3888, confidence: 0.83 },
       { method: "ddm", fairValue: 114.58, marginOfSafety: -0.339, confidence: 0.69 },
     ],
   },
@@ -1068,7 +1070,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1126,
     verdicts: [
       { method: "capm", fairValue: 158.17, marginOfSafety: -0.0586, confidence: 0.91 },
-      { method: "dcf", fairValue: 176.34, marginOfSafety: 0.0495, confidence: 0.71 },
+      { method: "fcfe", fairValue: 176.34, marginOfSafety: 0.0495, confidence: 0.71 },
       { method: "ddm", fairValue: 175.11, marginOfSafety: 0.0422, confidence: 0.68 },
       { method: "graham", fairValue: 171.78, marginOfSafety: 0.0224, confidence: 0.53 },
       { method: "epv", fairValue: 156.31, marginOfSafety: -0.0697, confidence: 0.46 },
@@ -1087,7 +1089,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.222,
     verdicts: [
       { method: "capm", fairValue: 711.7, marginOfSafety: 0.1575, confidence: 0.87 },
-      { method: "dcf", fairValue: 686.43, marginOfSafety: 0.1164, confidence: 0.84 },
+      { method: "fcfe", fairValue: 686.43, marginOfSafety: 0.1164, confidence: 0.84 },
       { method: "ddm", fairValue: 754.37, marginOfSafety: 0.2269, confidence: 0.7 },
       { method: "graham", fairValue: 676.53, marginOfSafety: 0.1003, confidence: 0.64 },
     ],
@@ -1125,7 +1127,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "LIN",
     name: "Linde",
-    sector: "Materials",
+    sector: "Basic Materials",
     price: 400.55,
     marketCap: 214,
     beta: 1.53,
@@ -1135,7 +1137,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3732,
     verdicts: [
       { method: "capm", fairValue: 423.14, marginOfSafety: 0.0564, confidence: 0.87 },
-      { method: "dcf", fairValue: 403.79, marginOfSafety: 0.0081, confidence: 0.69 },
+      { method: "fcfe", fairValue: 403.79, marginOfSafety: 0.0081, confidence: 0.69 },
       { method: "ddm", fairValue: 396.74, marginOfSafety: -0.0095, confidence: 0.62 },
       { method: "graham", fairValue: 396.62, marginOfSafety: -0.0098, confidence: 0.54 },
       { method: "epv", fairValue: 432.31, marginOfSafety: 0.0793, confidence: 0.57 },
@@ -1144,7 +1146,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
   {
     ticker: "APD",
     name: "Air Products",
-    sector: "Materials",
+    sector: "Basic Materials",
     price: 523.65,
     marketCap: 64,
     beta: 1.26,
@@ -1154,14 +1156,14 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3521,
     verdicts: [
       { method: "capm", fairValue: 583.24, marginOfSafety: 0.1138, confidence: 0.88 },
-      { method: "dcf", fairValue: 599.37, marginOfSafety: 0.1446, confidence: 0.74 },
+      { method: "fcfe", fairValue: 599.37, marginOfSafety: 0.1446, confidence: 0.74 },
       { method: "ddm", fairValue: 577.85, marginOfSafety: 0.1035, confidence: 0.62 },
     ],
   },
   {
     ticker: "SHW",
     name: "Sherwin-Williams",
-    sector: "Materials",
+    sector: "Basic Materials",
     price: 506.17,
     marketCap: 88,
     beta: 0.86,
@@ -1171,14 +1173,14 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2353,
     verdicts: [
       { method: "capm", fairValue: 544.18, marginOfSafety: 0.0751, confidence: 0.83 },
-      { method: "dcf", fairValue: 589.89, marginOfSafety: 0.1654, confidence: 0.79 },
+      { method: "fcfe", fairValue: 589.89, marginOfSafety: 0.1654, confidence: 0.79 },
       { method: "ddm", fairValue: 577.29, marginOfSafety: 0.1405, confidence: 0.61 },
     ],
   },
   {
     ticker: "NEM",
     name: "Newmont",
-    sector: "Materials",
+    sector: "Basic Materials",
     price: 611.9,
     marketCap: 62,
     beta: 0.9,
@@ -1188,7 +1190,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3104,
     verdicts: [
       { method: "capm", fairValue: 562.7, marginOfSafety: -0.0804, confidence: 0.83 },
-      { method: "dcf", fairValue: 565.89, marginOfSafety: -0.0752, confidence: 0.73 },
+      { method: "fcfe", fairValue: 565.89, marginOfSafety: -0.0752, confidence: 0.73 },
     ],
   },
   {
@@ -1204,7 +1206,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2796,
     verdicts: [
       { method: "capm", fairValue: 35.44, marginOfSafety: -0.0026, confidence: 0.88 },
-      { method: "dcf", fairValue: 38.97, marginOfSafety: 0.0969, confidence: 0.77 },
+      { method: "fcfe", fairValue: 38.97, marginOfSafety: 0.0969, confidence: 0.77 },
       { method: "ddm", fairValue: 36.1, marginOfSafety: 0.0161, confidence: 0.74 },
       { method: "graham", fairValue: 39.04, marginOfSafety: 0.0989, confidence: 0.54 },
     ],
@@ -1222,7 +1224,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3253,
     verdicts: [
       { method: "capm", fairValue: 379.77, marginOfSafety: -0.0015, confidence: 0.82 },
-      { method: "dcf", fairValue: 371.52, marginOfSafety: -0.0232, confidence: 0.72 },
+      { method: "fcfe", fairValue: 371.52, marginOfSafety: -0.0232, confidence: 0.72 },
       { method: "ddm", fairValue: 423.74, marginOfSafety: 0.1141, confidence: 0.76 },
       { method: "graham", fairValue: 372.66, marginOfSafety: -0.0202, confidence: 0.51 },
     ],
@@ -1240,7 +1242,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3116,
     verdicts: [
       { method: "capm", fairValue: 800.73, marginOfSafety: 0.2669, confidence: 0.79 },
-      { method: "dcf", fairValue: 806.23, marginOfSafety: 0.2756, confidence: 0.75 },
+      { method: "fcfe", fairValue: 806.23, marginOfSafety: 0.2756, confidence: 0.75 },
     ],
   },
   {
@@ -1256,7 +1258,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1243,
     verdicts: [
       { method: "capm", fairValue: 485.99, marginOfSafety: -0.224, confidence: 0.86 },
-      { method: "dcf", fairValue: 483.36, marginOfSafety: -0.2282, confidence: 0.81 },
+      { method: "fcfe", fairValue: 483.36, marginOfSafety: -0.2282, confidence: 0.81 },
       { method: "ddm", fairValue: 499.27, marginOfSafety: -0.2028, confidence: 0.74 },
       { method: "graham", fairValue: 488.56, marginOfSafety: -0.2199, confidence: 0.63 },
       { method: "epv", fairValue: 482.42, marginOfSafety: -0.2297, confidence: 0.48 },
@@ -1275,7 +1277,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4101,
     verdicts: [
       { method: "capm", fairValue: 581.5, marginOfSafety: 0.3022, confidence: 0.83 },
-      { method: "dcf", fairValue: 547.16, marginOfSafety: 0.2253, confidence: 0.81 },
+      { method: "fcfe", fairValue: 547.16, marginOfSafety: 0.2253, confidence: 0.81 },
     ],
   },
   {
@@ -1291,7 +1293,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2839,
     verdicts: [
       { method: "capm", fairValue: 79.01, marginOfSafety: 0.2314, confidence: 0.91 },
-      { method: "dcf", fairValue: 80.8, marginOfSafety: 0.2594, confidence: 0.76 },
+      { method: "fcfe", fairValue: 80.8, marginOfSafety: 0.2594, confidence: 0.76 },
     ],
   },
   {
@@ -1307,7 +1309,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.3115,
     verdicts: [
       { method: "capm", fairValue: 602.89, marginOfSafety: -0.0033, confidence: 0.86 },
-      { method: "dcf", fairValue: 560.97, marginOfSafety: -0.0726, confidence: 0.73 },
+      { method: "fcfe", fairValue: 560.97, marginOfSafety: -0.0726, confidence: 0.73 },
       { method: "ddm", fairValue: 537.69, marginOfSafety: -0.1111, confidence: 0.69 },
       { method: "graham", fairValue: 592.61, marginOfSafety: -0.0203, confidence: 0.56 },
     ],
@@ -1325,7 +1327,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.1902,
     verdicts: [
       { method: "capm", fairValue: 478.11, marginOfSafety: 0.1998, confidence: 0.78 },
-      { method: "dcf", fairValue: 455.04, marginOfSafety: 0.1419, confidence: 0.72 },
+      { method: "fcfe", fairValue: 455.04, marginOfSafety: 0.1419, confidence: 0.72 },
       { method: "ddm", fairValue: 503.53, marginOfSafety: 0.2636, confidence: 0.7 },
     ],
   },
@@ -1342,7 +1344,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.2459,
     verdicts: [
       { method: "capm", fairValue: 524.02, marginOfSafety: 0.3523, confidence: 0.81 },
-      { method: "dcf", fairValue: 494.8, marginOfSafety: 0.2769, confidence: 0.77 },
+      { method: "fcfe", fairValue: 494.8, marginOfSafety: 0.2769, confidence: 0.77 },
       { method: "ddm", fairValue: 529.4, marginOfSafety: 0.3662, confidence: 0.66 },
       { method: "graham", fairValue: 530.29, marginOfSafety: 0.3685, confidence: 0.6 },
       { method: "epv", fairValue: 496.62, marginOfSafety: 0.2816, confidence: 0.57 },
@@ -1376,7 +1378,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     volatility: 0.4104,
     verdicts: [
       { method: "capm", fairValue: 72.92, marginOfSafety: -0.4107, confidence: 0.87 },
-      { method: "dcf", fairValue: 73.06, marginOfSafety: -0.4096, confidence: 0.75 },
+      { method: "fcfe", fairValue: 73.06, marginOfSafety: -0.4096, confidence: 0.75 },
       { method: "ddm", fairValue: 80.23, marginOfSafety: -0.3516, confidence: 0.65 },
     ],
   },

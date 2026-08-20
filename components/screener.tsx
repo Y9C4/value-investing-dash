@@ -8,15 +8,16 @@ import { Button } from "@/components/ui/button"
 import { ScreenerFilterRail } from "@/components/screener-filters"
 import { ScreenerTable, type SortKey } from "@/components/screener-table"
 import { ValuationLegend } from "@/components/valuation-scale"
-import { SAMPLE_UNIVERSE } from "@/lib/sample-universe"
 import {
   BAND_FILL,
   BAND_LABELS,
   DEFAULT_FILTERS,
   applyFilters,
   consensusMarginOfSafety,
+  isRated,
   valuationBand,
   type ScreenerFilters,
+  type Stock,
   type ValuationBand,
 } from "@/lib/valuation"
 
@@ -26,6 +27,7 @@ const BANDS: ValuationBand[] = [
   "fair",
   "overvalued",
   "expensive",
+  "unrated",
 ]
 
 /**
@@ -36,15 +38,33 @@ const BANDS: ValuationBand[] = [
 function BandDistribution({
   counts,
   total,
+  isBaseline,
+  computedAt,
 }: {
   counts: Record<ValuationBand, number>
   total: number
+  isBaseline: boolean
+  computedAt: string | null
 }) {
   return (
     <div className="flex flex-col gap-3 border border-border bg-card px-6 py-5">
-      <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-        Distribution
-      </span>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+          Distribution
+        </span>
+        {/* Where the numbers came from. A screen built on illustrative data
+            looks identical to a live one, so it has to say which it is. */}
+        <span className="text-xs text-muted-foreground">
+          {isBaseline
+            ? "Illustrative sample — market data service unreachable"
+            : computedAt
+              ? `Live · valued ${new Date(computedAt).toLocaleDateString(
+                  "en-US",
+                  { month: "short", day: "numeric", year: "numeric" }
+                )}`
+              : "Live"}
+        </span>
+      </div>
 
       <div className="flex h-6 w-full gap-0.5" role="img" aria-hidden="true">
         {BANDS.map((band) => {
@@ -83,7 +103,16 @@ function BandDistribution({
   )
 }
 
-export function Screener() {
+export function Screener({
+  stocks,
+  isBaseline = false,
+  computedAt = null,
+}: {
+  stocks: Stock[]
+  /** True when the live service was unreachable and the sample is standing in. */
+  isBaseline?: boolean
+  computedAt?: string | null
+}) {
   const [filters, setFilters] = useState<ScreenerFilters>(DEFAULT_FILTERS)
   const [sort, setSort] = useState<SortKey>("margin")
   const [direction, setDirection] = useState<"asc" | "desc">("desc")
@@ -91,15 +120,15 @@ export function Screener() {
 
   const sectors = useMemo(
     () =>
-      [...new Set(SAMPLE_UNIVERSE.map((stock) => stock.sector))].sort((a, b) =>
+      [...new Set(stocks.map((stock) => stock.sector))].sort((a, b) =>
         a.localeCompare(b)
       ),
-    []
+    [stocks]
   )
 
   const filtered = useMemo(
-    () => applyFilters(SAMPLE_UNIVERSE, filters),
-    [filters]
+    () => applyFilters(stocks, filters),
+    [stocks, filters]
   )
 
   const sorted = useMemo(() => {
@@ -115,10 +144,16 @@ export function Screener() {
           return (a.peRatio - b.peRatio) * factor
         case "coverage":
           return (a.verdicts.length - b.verdicts.length) * factor
-        default:
+        default: {
+          // Unrated stocks have no margin to rank on, so they sink to the
+          // bottom rather than sorting as though their consensus were zero.
+          if (!isRated(a) && !isRated(b)) return 0
+          if (!isRated(a)) return 1
+          if (!isRated(b)) return -1
           return (
             (consensusMarginOfSafety(a) - consensusMarginOfSafety(b)) * factor
           )
+        }
       }
     })
   }, [filtered, sort, direction])
@@ -130,10 +165,15 @@ export function Screener() {
       fair: 0,
       overvalued: 0,
       expensive: 0,
+      unrated: 0,
     } as Record<ValuationBand, number>
 
     for (const stock of filtered) {
-      base[valuationBand(consensusMarginOfSafety(stock))] += 1
+      base[
+        isRated(stock)
+          ? valuationBand(consensusMarginOfSafety(stock))
+          : "unrated"
+      ] += 1
     }
 
     return base
@@ -164,14 +204,19 @@ export function Screener() {
             filters={filters}
             sectors={sectors}
             matches={filtered.length}
-            total={SAMPLE_UNIVERSE.length}
+            total={stocks.length}
             onChange={setFilters}
             onReset={() => setFilters(DEFAULT_FILTERS)}
           />
         </div>
 
         <div className="flex min-w-0 flex-col gap-6">
-          <BandDistribution counts={counts} total={filtered.length} />
+          <BandDistribution
+            counts={counts}
+            total={filtered.length}
+            isBaseline={isBaseline}
+            computedAt={computedAt}
+          />
 
           <div className="flex flex-wrap items-center justify-between gap-4">
             <ValuationLegend />
