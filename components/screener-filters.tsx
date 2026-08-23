@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/popover"
 import { Label } from "@/components/ui/label"
 import {
+  BAND_BASIS,
   BAND_FILL,
   BAND_LABELS,
   VALUATION_METHODS,
@@ -311,8 +312,8 @@ export function ScreenerFilterRail({
           exactly these models. */}
       <FilterGroup label="Valuation models">
         <p className="text-xs leading-relaxed text-muted-foreground">
-          The consensus margin of safety is a confidence-weighted average of
-          the models switched on here. Turn some off to screen on one school of
+          The consensus margin of safety is a weighted average of the models
+          switched on here, each model carrying a fixed weight. Turn some off to screen on one school of
           valuation — cash flows alone, or book value alone — and every margin,
           band and ranking recomputes against that view. Hover any{" "}
           <RiInformationLine
@@ -395,6 +396,12 @@ export function ScreenerFilterRail({
       </FilterGroup>
 
       <FilterGroup label="Valuation band">
+        {/* A relative band labelled as though it were absolute is the whole
+            failure mode here, so the basis is stated where the bands are
+            chosen rather than buried in a tooltip. */}
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {BAND_BASIS}
+        </p>
         <div className="flex flex-wrap gap-2">
           {BANDS.map((band) => (
             <Chip

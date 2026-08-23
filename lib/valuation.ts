@@ -8,21 +8,17 @@
  *
  * A model that cannot speak to a company emits NO verdict rather than a zero:
  * a bank has no meaningful free cash flow, a non-payer has no dividend stream,
- * a loss-maker has no Graham number. Absence in the breakdown means "does not
- * apply here", which is why `verdicts` is ragged and coverage is worth
- * filtering on.
+ * a company with negative book value has no residual income. Absence in the
+ * breakdown means "does not apply here", which is why `verdicts` is ragged and
+ * coverage is worth filtering on.
+ *
+ * CAPM and the Fama-French regressions are deliberately NOT in this list. They
+ * produce an expected return, not an intrinsic value per share; their real job
+ * is supplying the cost of equity the models below discount at, which is shown
+ * in the discount-rate panel rather than as a fair value.
  */
 
-export type MethodId =
-  | "capm"
-  | "ff3"
-  | "ff5"
-  | "ddm"
-  | "fcfe"
-  | "fcff"
-  | "graham"
-  | "epv"
-  | "rim"
+export type MethodId = "fcfe" | "fcff" | "comps" | "ddm" | "rim"
 
 export type MethodStatus = "live" | "planned"
 
@@ -45,59 +41,6 @@ export type ValuationMethod = {
 }
 
 export const VALUATION_METHODS: ValuationMethod[] = [
-  {
-    id: "capm",
-    label: "CAPM",
-    full: "Capital Asset Pricing Model",
-    status: "live",
-    blurb:
-      "Prices systematic risk only. Compares the return the market demands for a stock's beta against the return it actually delivered; the gap is read as a one-year price correction.",
-    formula: "E(r) = rf + β(E(rm) − rf)",
-    refusesWhen: [
-      "Fewer than 120 overlapping daily observations against the index",
-    ],
-  },
-  {
-    id: "ff3",
-    label: "FF3",
-    full: "Fama-French Three-Factor",
-    status: "live",
-    blurb:
-      "Adds size and value to market risk. A risk model, not an intrinsic value — the unexplained return (alpha) is mapped to an implied price, so it is capped and weighted lightly.",
-    formula: "R − rf = α + β₁(Mkt−rf) + β₂·SMB + β₃·HML",
-    refusesWhen: [
-      "Fewer than 120 overlapping observations",
-      "Regression R² below 0.10 — the factors do not explain this stock",
-    ],
-  },
-  {
-    id: "ff5",
-    label: "FF5",
-    full: "Fama-French Five-Factor",
-    status: "live",
-    blurb:
-      "Extends FF3 with profitability and investment. Also supplies the cost of equity every cash-flow model below discounts at, which is its more important job.",
-    formula: "R − rf = α + β₁(Mkt−rf) + β₂·SMB + β₃·HML + β₄·RMW + β₅·CMA",
-    refusesWhen: [
-      "Fewer than 120 overlapping observations",
-      "Regression R² below 0.10",
-    ],
-  },
-  {
-    id: "ddm",
-    label: "DDM",
-    full: "Dividend Discount Model",
-    status: "live",
-    blurb:
-      "Values the dividend stream directly via Gordon growth. Skipped below a 1.5% yield, where the dividend explains too little of the price to say anything about value.",
-    formula: "V₀ = D₁ / (ke − g),  D₁ = D₀(1 + g)",
-    refusesWhen: [
-      "The company pays no dividend",
-      "Fewer than 8 dividend payments on record",
-      "Yield below 1.5% — a token dividend does not explain the price",
-      "Cost of equity within 2 points of the growth rate, where the formula explodes",
-    ],
-  },
   {
     id: "fcfe",
     label: "FCFE",
@@ -129,29 +72,34 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     ],
   },
   {
-    id: "graham",
-    label: "Graham",
-    full: "Graham Number",
+    id: "comps",
+    label: "Comps",
+    full: "Comparable Company Analysis",
     status: "live",
     blurb:
-      "Defensive ceiling from earnings and book value. Its constant encodes 15x earnings and 1.5x book — almost nothing clears it today, so it flags deep value rather than fair value.",
-    formula: "V₀ = √(22.5 × EPS × book value per share)",
+      "What the company would be worth priced like the median of its sector, on EV/EBITDA and P/E. The one model here that looks at other companies' prices — so it inherits whatever the sector is doing, and will call an expensive company fair if every peer is expensive too.",
+    formula: "V₀ = ½·[(median EV/EBITDA × EBITDA − net debt) + median P/E × EPS] ÷ shares",
     refusesWhen: [
-      "Negative or zero earnings per share — the square root would be imaginary",
-      "Negative or zero book value per share",
+      "Negative or zero EBITDA and negative or zero earnings per share",
+      "Fewer than 5 usable peers in the sector — a median of a handful is an anecdote",
+      "Fewer than 4 quarters of statements on file",
+      "Sector unknown, so there is no peer set to compare against",
     ],
   },
   {
-    id: "epv",
-    label: "EPV",
-    full: "Earnings Power Value",
+    id: "ddm",
+    label: "DDM",
+    full: "Dividend Discount Model",
     status: "live",
     blurb:
-      "Capitalises sustainable earnings with no growth assumption at all. A floor on value rather than an estimate of it, which is why it reads low for growing companies.",
-    formula: "V₀ = EBIT(1 − t) / WACC, less net debt",
+      "Values the dividend stream directly: ten years of explicit dividend growth, then a perpetuity. Skipped below a 1.5% yield, where the dividend explains too little of the price to say anything about value.",
+    formula:
+      "V₀ = Σ D₀(1 + g)ᵗ / (1 + ke)ᵗ + D₁₀(1 + gₙ) / (ke − gₙ)(1 + ke)¹⁰",
     refusesWhen: [
-      "Negative or zero operating earnings",
-      "Equity value after netting debt is negative",
+      "The company pays no dividend",
+      "Fewer than 8 dividend payments on record",
+      "Yield below 1.5% — a token dividend does not explain the price",
+      "Cost of equity within 2 points of the 3% terminal growth rate",
     ],
   },
   {
@@ -180,6 +128,35 @@ export type MethodVerdict = {
   confidence: number
 }
 
+/**
+ * The rates a company's valuations were discounted at.
+ *
+ * Not verdicts, which is why they are not in `verdicts`: CAPM and the
+ * Fama-French regressions produce an expected return, not an intrinsic value
+ * per share. Listing CAPM as a fair-value model is what left a permanently
+ * empty row on every stock page.
+ *
+ * Every field is nullable. A company with too little on file to build a
+ * capital structure still has a cost of equity, and a missing WACC is not a
+ * WACC of zero.
+ */
+export type DiscountRates = {
+  /** 13-week T-bill (^IRX), averaged over the same 252-day window. */
+  riskFree: number | null
+  /** The rate FCFE, DDM and RIM discounted at. */
+  costOfEquity: number | null
+  /** Which model produced it — the three use incomparable risk premia. */
+  costOfEquitySource: "ff5" | "ff3" | "capm" | null
+  /** CAPM's own figure, shown beside the one that was used. */
+  capmCostOfEquity: number | null
+  /** The blended rate FCFF discounted at. */
+  wacc: number | null
+  costOfDebt: number | null
+  /** E / (E + max(net debt, 0)), after the debt-weight cap. */
+  equityWeight: number | null
+  taxRate: number | null
+}
+
 export type Stock = {
   ticker: string
   name: string
@@ -194,6 +171,8 @@ export type Stock = {
   /** Annualised volatility over the same window. */
   volatility: number
   verdicts: MethodVerdict[]
+  /** Absent on the offline sample, which has no rates to report. */
+  discountRates?: DiscountRates
 }
 
 /**
@@ -210,8 +189,9 @@ export function activeVerdicts(
 
 /**
  * Consensus margin of safety across the methods that produced a verdict,
- * weighted by each method's confidence. This is the number the screener sorts
- * on and the diverging scale encodes.
+ * weighted by each method's declared weight (see WEIGHT_* in
+ * `api/valuation.py`). This is the number the screener sorts on and the
+ * diverging scale encodes.
  *
  * Passing `methods` narrows the consensus to those models only. That is the
  * point of the model toggles: restricting to DDM and FCFE asks "what does a
@@ -259,24 +239,38 @@ export function isRated(stock: Stock, methods: MethodId[] = []): boolean {
  * Buckets the consensus into the five bands the screener's diverging scale
  * paints.
  *
- * The thresholds are not symmetric around zero, and deliberately so. Half the
- * models here — EPV, RIM, Graham — credit no growth beyond retained earnings,
- * which caps a company at roughly 1/r times earnings (about 11x at a 9%
- * discount rate). Against a market trading well above that, they read bearish
- * by construction, and the consensus for the S&P 500 sits near -36% rather
- * than near zero. Centring the bands on zero would file three quarters of the
- * index under "expensive" and leave the screener unable to discriminate.
+ * THESE BANDS ARE RELATIVE, NOT ABSOLUTE. They are the quintiles of the actual
+ * S&P 500 distribution, so "deep value" means "in the cheapest fifth of the
+ * index" and not "trading below its intrinsic worth". The UI says so wherever
+ * a band is named; a reader who assumes otherwise is being misled.
  *
- * These cut points track the observed distribution, so a band means "cheap
- * relative to the rest of the index" rather than "cheap in absolute terms".
+ * The reason is a fact about the models, not a presentation choice. Measured
+ * over the index, the consensus median sits near -34%: the cash-flow models
+ * discount at a median cost of equity around 12% while halving observed growth
+ * and capping it at 6% against a 3% perpetuity, so they read the market as
+ * expensive almost everywhere (FCFE negative on 76% of names, FCFF on 78%).
+ * Centring the bands on zero is more honest about each number but useless as a
+ * filter — it files three fifths of the index under "expensive" and cannot
+ * discriminate within it.
+ *
+ * So the honest construction is a relative one, labelled as relative. If the
+ * discount-rate work ever moves that median toward zero, recompute these cut
+ * points from the new distribution rather than leaving them frozen here.
  */
 export function valuationBand(marginOfSafety: number): ValuationBand {
-  if (marginOfSafety >= -0.05) return "deep-value"
-  if (marginOfSafety >= -0.22) return "undervalued"
-  if (marginOfSafety > -0.40) return "fair"
-  if (marginOfSafety > -0.50) return "overvalued"
+  if (marginOfSafety >= 0.03) return "deep-value"
+  if (marginOfSafety >= -0.26) return "undervalued"
+  if (marginOfSafety > -0.41) return "fair"
+  if (marginOfSafety > -0.57) return "overvalued"
   return "expensive"
 }
+
+/**
+ * Shown wherever bands are explained. Kept here beside the cut points so the
+ * caveat cannot drift away from the thresholds it describes.
+ */
+export const BAND_BASIS =
+  "Bands are quintiles of the S&P 500 distribution, so they rank a company against the index rather than against its own intrinsic value. The models read the market as expensive almost everywhere — the median consensus is about −34% — so an absolute scale would file three fifths of the index under “expensive”."
 
 export const BAND_LABELS: Record<ValuationBand, string> = {
   "deep-value": "Deep value",

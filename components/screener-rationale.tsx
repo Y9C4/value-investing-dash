@@ -1,3 +1,5 @@
+import { VALUATION_METHODS } from "@/lib/valuation"
+
 /**
  * The case for screening before optimising, stated once at the top of the
  * workflow. Without it the screener reads as a table of numbers; the point is
@@ -25,11 +27,11 @@ export function ScreenerRationale() {
           The filter
         </span>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Nine valuation models price each company off its own fundamentals —
-          dividends, free cash flow, book value, earnings power — and never off
-          its price history. A stock whose price has outrun what those models
-          can justify shows a deeply negative margin of safety and is filtered
-          out before the optimiser is ever asked about it.
+          {VALUATION_METHODS.length} valuation models price each company off
+          its own fundamentals — free cash flow, dividends, book value — and
+          never off its price history. A stock whose price has outrun what those
+          models can justify shows a deeply negative margin of safety and is
+          filtered out before the optimiser is ever asked about it.
         </p>
       </div>
 

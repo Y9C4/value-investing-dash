@@ -55,7 +55,7 @@ const COLUMNS: {
     numeric: false,
     help: {
       title: "Margin of safety",
-      body: "Benjamin Graham's term, and the central idea of value investing: the discount between what a company is worth and what it currently costs. Here it is (fair value − price) ÷ price, where fair value is the confidence-weighted consensus of the models switched on in the filter rail.",
+      body: "Benjamin Graham's term, and the central idea of value investing: the discount between what a company is worth and what it currently costs. Here it is (fair value − price) ÷ price, where fair value is the weighted consensus of the models switched on in the filter rail.",
       points: [
         "+20% means the models put the company's worth a fifth above its price — you are paying 80 cents for a dollar of value.",
         "−20% means the price sits a fifth above what the models can justify.",

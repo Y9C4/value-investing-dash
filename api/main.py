@@ -678,6 +678,21 @@ def backfill_valuations():
     }
 
 
+def _optional_float(value) -> float | None:
+    """Coerce a Supabase numeric to float, preserving None.
+
+    `float(x or 0)` -- the idiom used elsewhere in this file -- would turn a
+    genuinely absent rate into 0.0, which the discount-rate panel would then
+    render as a real 0% WACC.
+    """
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 @app.get("/valuations")
 def get_valuations():
     """The scored universe, in the shape the screener consumes.
@@ -685,6 +700,8 @@ def get_valuations():
     Reads the precomputed table, so this stays fast enough to serve on a page
     load — roughly 500 stocks with their verdicts attached.
     """
+    risk_free = get_average_risk_free_rate()
+
     valuation_rows = _fetch_all_rows(
         "valuations",
         "ticker, method, fair_value, margin_of_safety, confidence, price_at_calc, computed_at",
@@ -703,12 +720,23 @@ def get_valuations():
         for row in _fetch_all_rows("latest_close_prices", "ticker, date, close")
     }
     ttm = {row["ticker"]: row for row in _fetch_all_rows("ttm_fundamentals", "*")}
-    statistics = {
-        row["ticker"]: row
-        for row in _fetch_all_rows(
+    # The discount-rate columns arrive with 20260821000000_add_discount_rates.
+    # Selecting them before that migration is applied fails the whole request,
+    # which would make deploying this code require lock-step timing with the
+    # database. Fall back to the columns that have always existed instead: the
+    # panel simply does not render until the migration lands.
+    statistics_columns = (
+        "ticker, realised_return, volatility, beta_252, cost_of_equity,"
+        " cost_of_equity_source, capm_cost_of_equity, wacc, cost_of_debt,"
+        " equity_weight, tax_rate"
+    )
+    try:
+        statistics_rows = _fetch_all_rows("ticker_statistics", statistics_columns)
+    except Exception:  # noqa: BLE001 - missing columns, not a fatal condition
+        statistics_rows = _fetch_all_rows(
             "ticker_statistics", "ticker, realised_return, volatility, beta_252"
         )
-    }
+    statistics = {row["ticker"]: row for row in statistics_rows}
 
     by_ticker: dict[str, list[dict]] = {}
     computed_at = None
@@ -748,6 +776,25 @@ def get_valuations():
                 "volatility": float(stats_row.get("volatility") or 0),
                 "peRatio": round(pe_ratio, 2),
                 "dividendYield": float(profile.get("dividend_yield") or 0) / 100,
+                # The rates every verdict below was discounted at. Null rather
+                # than 0 where they could not be computed: a missing WACC is
+                # not a WACC of zero, and the panel must be able to say so.
+                # Omitted entirely pre-migration, so the panel stays hidden
+                # rather than rendering a card full of em dashes.
+                **({} if "cost_of_equity" not in stats_row else {
+                "discountRates": {
+                    "riskFree": risk_free,
+                    "costOfEquity": _optional_float(stats_row.get("cost_of_equity")),
+                    "costOfEquitySource": stats_row.get("cost_of_equity_source"),
+                    "capmCostOfEquity": _optional_float(
+                        stats_row.get("capm_cost_of_equity")
+                    ),
+                    "wacc": _optional_float(stats_row.get("wacc")),
+                    "costOfDebt": _optional_float(stats_row.get("cost_of_debt")),
+                    "equityWeight": _optional_float(stats_row.get("equity_weight")),
+                    "taxRate": _optional_float(stats_row.get("tax_rate")),
+                },
+                }),
                 "verdicts": [
                     {
                         "method": verdict["method"],

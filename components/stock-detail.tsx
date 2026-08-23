@@ -1,5 +1,6 @@
 "use client"
 
+import { DiscountRatePanel } from "@/components/discount-rate-panel"
 import {
   KeyStatisticsCard,
   PriceChartCard,
@@ -54,8 +55,14 @@ export function StockDetail({ stock }: { stock: Stock }) {
         )}
       </div>
 
-      <div className="min-w-0">
+      <div className="flex min-w-0 flex-col gap-6">
         <ValuationBreakdown stock={stock} />
+        {/* Below the verdicts, because the rates only mean something once you
+            have seen what they produced. Absent on the offline sample, which
+            has no rates to report. */}
+        {stock.discountRates && (
+          <DiscountRatePanel rates={stock.discountRates} />
+        )}
       </div>
     </div>
   )

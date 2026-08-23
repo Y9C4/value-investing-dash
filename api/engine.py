@@ -76,6 +76,77 @@ def _dividend_stats(payments: pd.DataFrame) -> dict:
     }
 
 
+def _shares_for(ttm: dict | None, profile: dict | None) -> float | None:
+    """Share count for one ticker, TTM first, profile as fallback."""
+    return V._finite((ttm or {}).get("shares_outstanding")) or V._finite(
+        (profile or {}).get("shares_outstanding")
+    )
+
+
+def sector_multiples(
+    prices: pd.DataFrame,
+    ttm_by_ticker: dict[str, dict],
+    profiles: dict[str, dict],
+    index_ticker: str,
+) -> dict[str, dict[str, float]]:
+    """Median EV/EBITDA and P/E for every sector with enough usable peers.
+
+    This is why the universe is valued in two passes. A relative valuation needs
+    the peer set priced before any single company can be measured against it,
+    and `value_one` sees one ticker at a time, so the medians cannot be built
+    there. Sectors below `MIN_COMPS_PEERS` are omitted entirely rather than
+    given a thin median -- `comps_verdict` then refuses for those companies,
+    which is the same "absence means does not apply" contract as everywhere else.
+    """
+    buckets: dict[str, dict[str, list[float]]] = {}
+
+    for ticker in prices.columns:
+        if ticker == index_ticker:
+            continue
+
+        ttm = ttm_by_ticker.get(ticker)
+        if not ttm or int(ttm.get("quarters_used") or 0) < 4:
+            continue
+
+        profile = profiles.get(ticker) or {}
+        sector = profile.get("sector")
+        if not sector:
+            continue
+
+        series = prices[ticker].dropna()
+        if series.empty:
+            continue
+        price = V._finite(series.iloc[-1])
+        shares = _shares_for(ttm, profile)
+        if price is None or price <= 0 or shares is None or shares <= 0:
+            continue
+
+        bucket = buckets.setdefault(sector, {"ev_ebitda": [], "pe": []})
+
+        ebitda = V._finite(ttm.get("ttm_ebitda"))
+        if ebitda is not None and ebitda > 0:
+            enterprise = price * shares + (V._finite(ttm.get("net_debt")) or 0.0)
+            if enterprise > 0:
+                bucket["ev_ebitda"].append(enterprise / ebitda)
+
+        eps = V._finite(ttm.get("ttm_diluted_eps")) or V._finite(
+            profile.get("trailing_eps")
+        )
+        if eps is not None and eps > 0:
+            bucket["pe"].append(price / eps)
+
+    medians: dict[str, dict[str, float]] = {}
+    for sector, bucket in buckets.items():
+        entry = {
+            key: float(np.median(values))
+            for key, values in bucket.items()
+            if len(values) >= V.MIN_COMPS_PEERS
+        }
+        if entry:
+            medians[sector] = entry
+    return medians
+
+
 def _per_share(total: float | None, shares: float | None) -> float | None:
     value = V._finite(total)
     count = V._finite(shares)
@@ -97,27 +168,25 @@ def value_one(
     risk_free: float,
     market_premium: float,
     beta: float | None,
-) -> list[dict]:
-    """Every model's verdict on one stock. Models that do not apply are absent
-    from the returned list rather than present with a zero."""
+    multiples: dict[str, float] | None = None,
+) -> tuple[list[dict], dict]:
+    """Every model's verdict on one stock, plus the discount rates used.
+
+    Models that do not apply are absent from the verdict list rather than
+    present with a zero. The rates come back separately because they are not
+    verdicts -- a cost of equity is not a fair value per share -- but they are
+    computed here and were previously thrown away, which left the UI unable to
+    show the rate any of these numbers was discounted at."""
     verdicts: list[dict] = []
     sector = (profile or {}).get("sector")
 
-    # --- Factor models: both a verdict and the discount rate for everything
-    # --- downstream.
+    # --- Factor regressions. These emit no verdict of their own: an expected
+    # --- return is not an intrinsic value per share. They exist to supply the
+    # --- cost of equity every model below discounts at.
     ff3 = V.factor_regression(excess_returns, factors, ["mkt_rf", "smb", "hml"])
     ff5 = V.factor_regression(
         excess_returns, factors, ["mkt_rf", "smb", "hml", "rmw", "cma"]
     )
-
-    if ff3:
-        verdict = V.factor_verdict("ff3", ff3, price)
-        if verdict:
-            verdicts.append(verdict)
-    if ff5:
-        verdict = V.factor_verdict("ff5", ff5, price)
-        if verdict:
-            verdicts.append(verdict)
 
     # CAPM cost of equity is the fallback when the factor regression could not
     # run (too few overlapping dates, usually a recent listing).
@@ -135,13 +204,21 @@ def value_one(
     else:
         cost_of_equity = capm_ke
 
+    rates: dict = {
+        "cost_of_equity": V._finite(cost_of_equity),
+        "cost_of_equity_source": "ff5" if ff5 else "ff3" if ff3 else "capm",
+        "capm_cost_of_equity": V._finite(capm_ke) if beta is not None else None,
+        "wacc": None,
+        "cost_of_debt": None,
+        "equity_weight": None,
+        "tax_rate": None,
+    }
+
     if ttm is None:
-        return V.damp_cashflow_confidence(verdicts)
+        return V.damp_cashflow_confidence(verdicts), rates
 
     quarters = int(ttm.get("quarters_used") or 0)
-    shares = V._finite(ttm.get("shares_outstanding")) or V._finite(
-        (profile or {}).get("shares_outstanding")
-    )
+    shares = _shares_for(ttm, profile)
 
     # --- Dividend discount
     stats = _dividend_stats(dividends)
@@ -164,9 +241,15 @@ def value_one(
     revenue_growth = V._finite((profile or {}).get("revenue_growth"))
     earnings_growth = V._finite((profile or {}).get("earnings_growth"))
     observed = revenue_growth if revenue_growth is not None else earnings_growth
+    # The 0.12 ceiling is NOT redundant with MAX_GROWTH, which clamps only the
+    # rate fed into the projection. The discount-spread guards in `fcfe_verdict`
+    # and `fcff_verdict` deliberately test the rate BEFORE that clamp, so an
+    # absurd estimate refuses instead of being capped into looking reasonable.
+    # Without this ceiling, a yfinance revenue-growth figure of 40% halves to
+    # 20%, exceeds every cost of equity, and silently costs the fast-growing
+    # names a verdict -- 89 tickers sit above it, and dropping it blocked 25
+    # extra FCFE and 22 extra FCFF.
     growth = 0.04 if observed is None else max(0.0, min(0.12, observed * 0.5))
-
-    stability = 0.8
 
     fcfe = V.fcfe_verdict(
         price,
@@ -178,7 +261,6 @@ def value_one(
         growth,
         quarters,
         sector,
-        stability,
     )
     if fcfe:
         verdicts.append(fcfe)
@@ -192,7 +274,6 @@ def value_one(
         ttm.get("avg_tax_rate"),
         ttm.get("total_debt"),
         ttm.get("net_debt"),
-        V._finite((profile or {}).get("market_cap")),
         ttm.get("ttm_interest_expense"),
         shares,
         risk_free,
@@ -200,7 +281,6 @@ def value_one(
         growth,
         quarters,
         sector,
-        stability,
     )
     if fcff:
         verdicts.append(fcff)
@@ -211,26 +291,6 @@ def value_one(
     eps = V._finite(ttm.get("ttm_diluted_eps")) or V._finite(
         (profile or {}).get("trailing_eps")
     )
-
-    graham = V.graham_verdict(price, eps, book_ps, quarters)
-    if graham:
-        verdicts.append(graham)
-
-    epv = V.epv_verdict(
-        price,
-        ttm.get("ttm_ebit"),
-        ttm.get("avg_tax_rate"),
-        ttm.get("ttm_depreciation_amortisation"),
-        ttm.get("ttm_capital_expenditure"),
-        ttm.get("net_debt"),
-        shares,
-        cost_of_equity,
-        sector,
-        quarters,
-        stability,
-    )
-    if epv:
-        verdicts.append(epv)
 
     rim = V.rim_verdict(
         price,
@@ -243,7 +303,43 @@ def value_one(
     if rim:
         verdicts.append(rim)
 
-    return V.damp_cashflow_confidence(verdicts)
+    comps = V.comps_verdict(
+        price,
+        ttm.get("ttm_ebitda"),
+        eps,
+        ttm.get("net_debt"),
+        shares,
+        multiples,
+        quarters,
+    )
+    if comps:
+        verdicts.append(comps)
+
+    # The same call `fcff_verdict` makes, so the panel cannot drift from the
+    # rate the model discounted at. Recorded even when FCFF itself refuses --
+    # a reader is owed the discount rate that led to the refusal.
+    if shares is not None and shares > 0 and quarters >= 4:
+        tax = V._finite(ttm.get("avg_tax_rate"))
+        tax = 0.21 if tax is None else max(0.0, min(0.5, tax))
+        components = V.wacc_components(
+            price * shares,
+            tax,
+            ttm.get("total_debt"),
+            ttm.get("net_debt"),
+            ttm.get("ttm_interest_expense"),
+            risk_free,
+            cost_of_equity,
+        )
+        rates.update(
+            {
+                "wacc": V._finite(components["wacc"]),
+                "cost_of_debt": V._finite(components["cost_of_debt"]),
+                "equity_weight": V._finite(components["equity_weight"]),
+                "tax_rate": V._finite(components["tax_rate"]),
+            }
+        )
+
+    return V.damp_cashflow_confidence(verdicts), rates
 
 
 def compute_universe(
@@ -279,6 +375,12 @@ def compute_universe(
     ff3_premia = _annualised_premia(factors, ff3_columns)
     ff5_premia = _annualised_premia(factors, ff5_columns)
 
+    # Pass one. Comps measure a company against its peers, so the peer set has
+    # to be priced before any single company can be valued against it.
+    multiples_by_sector = sector_multiples(
+        prices, ttm_by_ticker, profiles, index_ticker
+    )
+
     rows: list[dict] = []
     unvalued: list[str] = []
     stats: list[dict] = []
@@ -308,19 +410,16 @@ def compute_universe(
         # the screener and the valuations beside them describe one period.
         # Recorded for every ticker with history, including ones no model could
         # value — return and volatility do not depend on a verdict existing.
-        stats.append(
-            {
-                "ticker": ticker,
-                "realised_return": V._finite(float(window.mean()) * V.TRADING_DAYS),
-                "volatility": V._finite(
-                    float(window.std()) * math.sqrt(V.TRADING_DAYS)
-                ),
-                "beta_252": V._finite(beta),
-                "observations": int(len(window)),
-            }
-        )
+        statistics_row = {
+            "ticker": ticker,
+            "realised_return": V._finite(float(window.mean()) * V.TRADING_DAYS),
+            "volatility": V._finite(float(window.std()) * math.sqrt(V.TRADING_DAYS)),
+            "beta_252": V._finite(beta),
+            "observations": int(len(window)),
+        }
+        stats.append(statistics_row)
 
-        verdicts = value_one(
+        verdicts, rates = value_one(
             ticker,
             price,
             window - daily_rf,
@@ -333,7 +432,9 @@ def compute_universe(
             risk_free,
             market_premium,
             beta,
+            multiples_by_sector.get((profiles.get(ticker) or {}).get("sector")),
         )
+        statistics_row.update(rates)
 
         if not verdicts:
             unvalued.append(ticker)

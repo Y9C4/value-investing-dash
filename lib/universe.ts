@@ -1,5 +1,5 @@
 import { SAMPLE_UNIVERSE } from "@/lib/sample-universe"
-import type { MethodId, Stock } from "@/lib/valuation"
+import { VALUATION_METHODS, type MethodId, type Stock } from "@/lib/valuation"
 
 /**
  * Loads the scored universe for the screener and the stock pages.
@@ -38,21 +38,20 @@ export type Universe = {
   computedAt: string | null
 }
 
-const METHOD_IDS: MethodId[] = [
-  "capm",
-  "ff3",
-  "ff5",
-  "ddm",
-  "fcfe",
-  "fcff",
-  "graham",
-  "epv",
-  "rim",
-]
+// Derived from the method registry rather than restated. A hand-maintained
+// copy of this list is what let `capm`, `ff3`, `graham` and `epv` linger here
+// after they stopped being modelled.
+const METHOD_IDS: string[] = VALUATION_METHODS.map((method) => method.id)
 
-/** Drops anything the API sent that this build does not model. */
+/**
+ * Drops anything the API sent that this build does not model.
+ *
+ * Load-bearing across a model change: `valuations` rows for a retired method
+ * survive in the database until the next backfill, and this is what keeps them
+ * from reaching the consensus in the meantime.
+ */
 function isKnownMethod(method: string): method is MethodId {
-  return (METHOD_IDS as string[]).includes(method)
+  return METHOD_IDS.includes(method)
 }
 
 function normalise(stock: Stock): Stock {

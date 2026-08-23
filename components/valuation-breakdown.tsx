@@ -55,8 +55,8 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
               {formatSignedPercent(consensus)}
             </span>
             <span className="text-sm text-muted-foreground">
-              {BAND_LABELS[valuationBand(consensus)]} · confidence-weighted
-              across {stock.verdicts.length}{" "}
+              {BAND_LABELS[valuationBand(consensus)]} · weighted across{" "}
+              {stock.verdicts.length}{" "}
               {stock.verdicts.length === 1 ? "model" : "models"}
             </span>
           </div>
@@ -69,8 +69,7 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
               <TableHead>Model</TableHead>
               <TableHead className="text-right">Fair value</TableHead>
               <TableHead className="text-right">Margin</TableHead>
-              <TableHead className="w-40">Signal</TableHead>
-              <TableHead className="text-right">Confidence</TableHead>
+              <TableHead className="text-right">Weight</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -90,7 +89,7 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
                         this one declined to value this company — it has
                         nothing to say, which is a result, not a gap. */}
                     <TableCell
-                      colSpan={4}
+                      colSpan={3}
                       className="text-right text-xs tracking-wider text-muted-foreground uppercase"
                     >
                       Does not apply
@@ -114,9 +113,6 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
                   </TableCell>
                   <TableCell className="text-right font-mono">
                     {formatSignedPercent(verdict.marginOfSafety)}
-                  </TableCell>
-                  <TableCell>
-                    <MarginBar margin={verdict.marginOfSafety} />
                   </TableCell>
                   <TableCell className="text-right">
                     <span className="flex items-center justify-end gap-2">
@@ -144,7 +140,13 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
 
         <p className="text-xs leading-relaxed text-muted-foreground">
           Current price {formatPrice(stock.price)}. A positive margin means the
-          model&rsquo;s fair value sits above the market price.
+          model&rsquo;s fair value sits above the market price. The band label
+          above ranks this company against the S&amp;P 500 rather than against
+          its own intrinsic value. Weight is how
+          much say a model gets in the consensus above &mdash; a fixed judgement
+          about the method, reduced where this company&rsquo;s inputs are weaker
+          than usual (an imputed tax rate, an incomplete set of quarters, cash
+          flow propped up by borrowing).
         </p>
       </CardContent>
     </Card>

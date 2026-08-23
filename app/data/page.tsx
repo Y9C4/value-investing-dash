@@ -1,5 +1,6 @@
 import { BackfillCard } from "@/components/backfill-card"
 import { PageHeader } from "@/components/page-header"
+import { VALUATION_METHODS } from "@/lib/valuation"
 
 export const metadata = {
   title: "Data — Margin",
@@ -43,7 +44,7 @@ export default function DataPage() {
         />
         <BackfillCard
           title="Valuations"
-          description="Runs all nine models over every stock and replaces the valuations table. The models themselves take under a second; the time is the bulk read that feeds them. Run this after any of the three above."
+          description={`Runs all ${VALUATION_METHODS.length} models over every stock and replaces the valuations table. The models themselves take under a second; the time is the bulk read that feeds them. Run this after any of the three above.`}
           endpoint="/api/backfill/valuations"
           buttonLabel="Recompute valuations"
           estimate="~70s"

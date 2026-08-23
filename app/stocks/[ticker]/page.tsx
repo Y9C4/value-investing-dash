@@ -10,7 +10,7 @@ export default async function StockPage({
   const { ticker } = await params
   const symbol = decodeURIComponent(ticker).toUpperCase()
 
-  const { stocks } = await loadUniverse()
+  const { stocks, isBaseline } = await loadUniverse()
   const stock = stocks.find((item) => item.ticker === symbol)
 
   if (!stock) notFound()
@@ -22,6 +22,20 @@ export default async function StockPage({
         title={`${stock.ticker} · ${stock.name}`}
         description="Every model's view of what this company is worth, alongside the price history and the risk statistics the optimiser will use if you include it."
       />
+
+      {/* The screener says which data it is showing; this page renders the same
+          fallback and has to say so too. Fair values from the sample are
+          invented, and a page of invented valuations is indistinguishable from
+          a live one unless it is labelled. */}
+      {isBaseline && (
+        <p
+          role="status"
+          className="border-b border-border bg-card px-6 py-3 text-xs text-muted-foreground lg:px-10"
+        >
+          Illustrative sample — market data service unreachable. The fair values
+          below are invented, not market data.
+        </p>
+      )}
 
       <StockDetail stock={stock} />
     </>

@@ -10,7 +10,9 @@ import type { Stock } from "@/lib/valuation"
  * distribution header does.
  *
  * Prices and fair values here are invented, not market data. Sectors follow
- * the yfinance taxonomy so the fallback and the live data filter alike.
+ * the yfinance taxonomy so the fallback and the live data filter alike, and
+ * the method mix mirrors the live model set so the coverage counters and
+ * model toggles behave the same against the fallback as against real data.
  */
 
 export const SAMPLE_UNIVERSE: Stock[] = [
@@ -26,8 +28,9 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.3133,
     volatility: 0.1707,
     verdicts: [
-      { method: "capm", fairValue: 274.68, marginOfSafety: 0.0951, confidence: 0.8 },
+      { method: "fcff", fairValue: 274.68, marginOfSafety: 0.0951, confidence: 0.8 },
       { method: "fcfe", fairValue: 257.3, marginOfSafety: 0.0258, confidence: 0.78 },
+      { method: "comps", fairValue: 250.03, marginOfSafety: -0.0032, confidence: 0.55 },
     ],
   },
   {
@@ -42,7 +45,8 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.075,
     volatility: 0.4184,
     verdicts: [
-      { method: "capm", fairValue: 282.35, marginOfSafety: -0.0367, confidence: 0.78 },
+      { method: "fcff", fairValue: 282.35, marginOfSafety: -0.0367, confidence: 0.78 },
+      { method: "comps", fairValue: 276.7, marginOfSafety: -0.056, confidence: 0.55 },
     ],
   },
   {
@@ -57,7 +61,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2875,
     volatility: 0.4258,
     verdicts: [
-      { method: "capm", fairValue: 202.61, marginOfSafety: -0.3698, confidence: 0.92 },
+      { method: "fcff", fairValue: 202.61, marginOfSafety: -0.3698, confidence: 0.92 },
       { method: "fcfe", fairValue: 212.9, marginOfSafety: -0.3378, confidence: 0.74 },
       { method: "ddm", fairValue: 197.98, marginOfSafety: -0.3842, confidence: 0.64 },
     ],
@@ -74,10 +78,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1951,
     volatility: 0.3396,
     verdicts: [
-      { method: "capm", fairValue: 341.43, marginOfSafety: -0.2396, confidence: 0.87 },
+      { method: "fcff", fairValue: 341.43, marginOfSafety: -0.2396, confidence: 0.87 },
       { method: "fcfe", fairValue: 365.95, marginOfSafety: -0.185, confidence: 0.72 },
       { method: "ddm", fairValue: 316.15, marginOfSafety: -0.2959, confidence: 0.75 },
-      { method: "graham", fairValue: 359.44, marginOfSafety: -0.1995, confidence: 0.52 },
+      { method: "rim", fairValue: 359.44, marginOfSafety: -0.1995, confidence: 0.52 },
+      { method: "comps", fairValue: 366.49, marginOfSafety: -0.1838, confidence: 0.55 },
     ],
   },
   {
@@ -92,8 +97,9 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0751,
     volatility: 0.1282,
     verdicts: [
-      { method: "capm", fairValue: 437.46, marginOfSafety: -0.1208, confidence: 0.85 },
+      { method: "fcff", fairValue: 437.46, marginOfSafety: -0.1208, confidence: 0.85 },
       { method: "fcfe", fairValue: 500.46, marginOfSafety: 0.0058, confidence: 0.72 },
+      { method: "comps", fairValue: 440.82, marginOfSafety: -0.1141, confidence: 0.55 },
     ],
   },
   {
@@ -108,7 +114,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2931,
     volatility: 0.2866,
     verdicts: [
-      { method: "capm", fairValue: 25.88, marginOfSafety: -0.1298, confidence: 0.8 },
+      { method: "fcff", fairValue: 25.88, marginOfSafety: -0.1298, confidence: 0.8 },
     ],
   },
   {
@@ -123,7 +129,8 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2035,
     volatility: 0.1254,
     verdicts: [
-      { method: "capm", fairValue: 372.39, marginOfSafety: 0.1317, confidence: 0.83 },
+      { method: "fcff", fairValue: 372.39, marginOfSafety: 0.1317, confidence: 0.83 },
+      { method: "comps", fairValue: 379.84, marginOfSafety: 0.1544, confidence: 0.55 },
     ],
   },
   {
@@ -138,8 +145,9 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0706,
     volatility: 0.3982,
     verdicts: [
-      { method: "capm", fairValue: 517.69, marginOfSafety: -0.1419, confidence: 0.8 },
+      { method: "fcff", fairValue: 517.69, marginOfSafety: -0.1419, confidence: 0.8 },
       { method: "fcfe", fairValue: 522.46, marginOfSafety: -0.134, confidence: 0.69 },
+      { method: "comps", fairValue: 551.28, marginOfSafety: -0.0862, confidence: 0.55 },
     ],
   },
   {
@@ -154,7 +162,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2207,
     volatility: 0.308,
     verdicts: [
-      { method: "capm", fairValue: 334.01, marginOfSafety: -0.1947, confidence: 0.83 },
+      { method: "fcff", fairValue: 334.01, marginOfSafety: -0.1947, confidence: 0.83 },
     ],
   },
   {
@@ -169,8 +177,9 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2476,
     volatility: 0.4025,
     verdicts: [
-      { method: "capm", fairValue: 452.39, marginOfSafety: -0.1962, confidence: 0.92 },
+      { method: "fcff", fairValue: 452.39, marginOfSafety: -0.1962, confidence: 0.92 },
       { method: "fcfe", fairValue: 422.22, marginOfSafety: -0.2498, confidence: 0.73 },
+      { method: "comps", fairValue: 428.56, marginOfSafety: -0.2385, confidence: 0.55 },
     ],
   },
   {
@@ -185,9 +194,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1595,
     volatility: 0.291,
     verdicts: [
-      { method: "capm", fairValue: 393.59, marginOfSafety: -0.0727, confidence: 0.79 },
+      { method: "fcff", fairValue: 393.59, marginOfSafety: -0.0727, confidence: 0.79 },
       { method: "fcfe", fairValue: 432.43, marginOfSafety: 0.0188, confidence: 0.8 },
       { method: "ddm", fairValue: 391.05, marginOfSafety: -0.0787, confidence: 0.67 },
+      { method: "comps", fairValue: 413.8, marginOfSafety: -0.0251, confidence: 0.55 },
     ],
   },
   {
@@ -202,7 +212,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0159,
     volatility: 0.3759,
     verdicts: [
-      { method: "capm", fairValue: 80.66, marginOfSafety: -0.2923, confidence: 0.85 },
+      { method: "fcff", fairValue: 80.66, marginOfSafety: -0.2923, confidence: 0.85 },
       { method: "fcfe", fairValue: 83.43, marginOfSafety: -0.268, confidence: 0.81 },
     ],
   },
@@ -218,8 +228,9 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0714,
     volatility: 0.2097,
     verdicts: [
-      { method: "capm", fairValue: 234.55, marginOfSafety: 0.0667, confidence: 0.8 },
+      { method: "fcff", fairValue: 234.55, marginOfSafety: 0.0667, confidence: 0.8 },
       { method: "fcfe", fairValue: 257.22, marginOfSafety: 0.1698, confidence: 0.83 },
+      { method: "comps", fairValue: 231.13, marginOfSafety: 0.0512, confidence: 0.55 },
     ],
   },
   {
@@ -234,7 +245,8 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0466,
     volatility: 0.2224,
     verdicts: [
-      { method: "capm", fairValue: 658.04, marginOfSafety: 0.2252, confidence: 0.82 },
+      { method: "fcff", fairValue: 658.04, marginOfSafety: 0.2252, confidence: 0.82 },
+      { method: "comps", fairValue: 644.88, marginOfSafety: 0.2007, confidence: 0.55 },
     ],
   },
   {
@@ -249,10 +261,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2045,
     volatility: 0.4154,
     verdicts: [
-      { method: "capm", fairValue: 128.58, marginOfSafety: -0.1337, confidence: 0.94 },
+      { method: "fcff", fairValue: 128.58, marginOfSafety: -0.1337, confidence: 0.94 },
       { method: "fcfe", fairValue: 116.46, marginOfSafety: -0.2154, confidence: 0.74 },
       { method: "ddm", fairValue: 127.32, marginOfSafety: -0.1422, confidence: 0.62 },
-      { method: "graham", fairValue: 125.08, marginOfSafety: -0.1573, confidence: 0.64 },
+      { method: "rim", fairValue: 125.08, marginOfSafety: -0.1573, confidence: 0.64 },
     ],
   },
   {
@@ -267,7 +279,8 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2941,
     volatility: 0.3576,
     verdicts: [
-      { method: "capm", fairValue: 191.12, marginOfSafety: -0.2224, confidence: 0.83 },
+      { method: "fcff", fairValue: 191.12, marginOfSafety: -0.2224, confidence: 0.83 },
+      { method: "comps", fairValue: 202.59, marginOfSafety: -0.1757, confidence: 0.55 },
     ],
   },
   {
@@ -282,9 +295,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1878,
     volatility: 0.4005,
     verdicts: [
-      { method: "capm", fairValue: 96.71, marginOfSafety: -0.4461, confidence: 0.87 },
+      { method: "fcff", fairValue: 96.71, marginOfSafety: -0.4461, confidence: 0.87 },
       { method: "fcfe", fairValue: 117.14, marginOfSafety: -0.3291, confidence: 0.8 },
       { method: "ddm", fairValue: 110.05, marginOfSafety: -0.3697, confidence: 0.72 },
+      { method: "comps", fairValue: 101.49, marginOfSafety: -0.4187, confidence: 0.55 },
     ],
   },
   {
@@ -299,11 +313,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0107,
     volatility: 0.1353,
     verdicts: [
-      { method: "capm", fairValue: 624.56, marginOfSafety: 0.0448, confidence: 0.88 },
+      { method: "fcff", fairValue: 624.56, marginOfSafety: 0.0448, confidence: 0.88 },
       { method: "fcfe", fairValue: 642.55, marginOfSafety: 0.0749, confidence: 0.72 },
       { method: "ddm", fairValue: 602.08, marginOfSafety: 0.0072, confidence: 0.73 },
-      { method: "graham", fairValue: 627.07, marginOfSafety: 0.049, confidence: 0.52 },
-      { method: "epv", fairValue: 620.32, marginOfSafety: 0.0377, confidence: 0.57 },
+      { method: "rim", fairValue: 627.07, marginOfSafety: 0.049, confidence: 0.52 },
     ],
   },
   {
@@ -318,7 +331,8 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0383,
     volatility: 0.2148,
     verdicts: [
-      { method: "capm", fairValue: 80.57, marginOfSafety: -0.258, confidence: 0.79 },
+      { method: "fcff", fairValue: 80.57, marginOfSafety: -0.258, confidence: 0.79 },
+      { method: "comps", fairValue: 82.18, marginOfSafety: -0.2432, confidence: 0.55 },
     ],
   },
   {
@@ -333,11 +347,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1534,
     volatility: 0.327,
     verdicts: [
-      { method: "capm", fairValue: 585.05, marginOfSafety: 0.0018, confidence: 0.91 },
+      { method: "fcff", fairValue: 585.05, marginOfSafety: 0.0018, confidence: 0.91 },
       { method: "fcfe", fairValue: 588.2, marginOfSafety: 0.0072, confidence: 0.77 },
       { method: "ddm", fairValue: 547.5, marginOfSafety: -0.0625, confidence: 0.73 },
-      { method: "graham", fairValue: 571.27, marginOfSafety: -0.0218, confidence: 0.66 },
-      { method: "epv", fairValue: 599.88, marginOfSafety: 0.0272, confidence: 0.45 },
+      { method: "rim", fairValue: 571.27, marginOfSafety: -0.0218, confidence: 0.66 },
+      { method: "comps", fairValue: 607.39, marginOfSafety: 0.0401, confidence: 0.55 },
     ],
   },
   {
@@ -352,7 +366,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2017,
     volatility: 0.2316,
     verdicts: [
-      { method: "capm", fairValue: 404.53, marginOfSafety: -0.0229, confidence: 0.8 },
+      { method: "fcff", fairValue: 404.53, marginOfSafety: -0.0229, confidence: 0.8 },
       { method: "fcfe", fairValue: 375.51, marginOfSafety: -0.093, confidence: 0.73 },
       { method: "ddm", fairValue: 395.5, marginOfSafety: -0.0447, confidence: 0.75 },
     ],
@@ -369,11 +383,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2687,
     volatility: 0.3134,
     verdicts: [
-      { method: "capm", fairValue: 53.32, marginOfSafety: -0.1627, confidence: 0.81 },
+      { method: "fcff", fairValue: 53.32, marginOfSafety: -0.1627, confidence: 0.81 },
       { method: "fcfe", fairValue: 49.87, marginOfSafety: -0.2168, confidence: 0.8 },
       { method: "ddm", fairValue: 48.64, marginOfSafety: -0.2362, confidence: 0.68 },
-      { method: "graham", fairValue: 49.82, marginOfSafety: -0.2176, confidence: 0.65 },
-      { method: "epv", fairValue: 54.28, marginOfSafety: -0.1476, confidence: 0.51 },
+      { method: "rim", fairValue: 49.82, marginOfSafety: -0.2176, confidence: 0.65 },
+      { method: "comps", fairValue: 49.4, marginOfSafety: -0.2242, confidence: 0.55 },
     ],
   },
   {
@@ -388,8 +402,9 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1222,
     volatility: 0.4585,
     verdicts: [
-      { method: "capm", fairValue: 372.1, marginOfSafety: -0.1856, confidence: 0.81 },
+      { method: "fcff", fairValue: 372.1, marginOfSafety: -0.1856, confidence: 0.81 },
       { method: "fcfe", fairValue: 396.27, marginOfSafety: -0.1327, confidence: 0.73 },
+      { method: "comps", fairValue: 391.87, marginOfSafety: -0.1423, confidence: 0.55 },
     ],
   },
   {
@@ -404,10 +419,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0483,
     volatility: 0.3218,
     verdicts: [
-      { method: "capm", fairValue: 273.77, marginOfSafety: -0.3232, confidence: 0.87 },
+      { method: "fcff", fairValue: 273.77, marginOfSafety: -0.3232, confidence: 0.87 },
       { method: "fcfe", fairValue: 292.26, marginOfSafety: -0.2775, confidence: 0.85 },
       { method: "ddm", fairValue: 279.64, marginOfSafety: -0.3087, confidence: 0.73 },
-      { method: "graham", fairValue: 278.51, marginOfSafety: -0.3115, confidence: 0.55 },
+      { method: "rim", fairValue: 278.51, marginOfSafety: -0.3115, confidence: 0.55 },
     ],
   },
   {
@@ -422,11 +437,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.3322,
     volatility: 0.1513,
     verdicts: [
-      { method: "capm", fairValue: 379.04, marginOfSafety: -0.284, confidence: 0.85 },
+      { method: "fcff", fairValue: 379.04, marginOfSafety: -0.284, confidence: 0.85 },
       { method: "fcfe", fairValue: 408.11, marginOfSafety: -0.2291, confidence: 0.71 },
       { method: "ddm", fairValue: 385.24, marginOfSafety: -0.2723, confidence: 0.7 },
-      { method: "graham", fairValue: 400.96, marginOfSafety: -0.2426, confidence: 0.53 },
-      { method: "epv", fairValue: 412.55, marginOfSafety: -0.2207, confidence: 0.46 },
+      { method: "rim", fairValue: 400.96, marginOfSafety: -0.2426, confidence: 0.53 },
+      { method: "comps", fairValue: 369.74, marginOfSafety: -0.3016, confidence: 0.55 },
     ],
   },
   {
@@ -441,8 +456,9 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.3041,
     volatility: 0.3961,
     verdicts: [
-      { method: "capm", fairValue: 42.84, marginOfSafety: -0.1864, confidence: 0.88 },
+      { method: "fcff", fairValue: 42.84, marginOfSafety: -0.1864, confidence: 0.88 },
       { method: "fcfe", fairValue: 47.44, marginOfSafety: -0.0992, confidence: 0.73 },
+      { method: "comps", fairValue: 44.24, marginOfSafety: -0.1599, confidence: 0.55 },
     ],
   },
   {
@@ -457,7 +473,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1514,
     volatility: 0.2176,
     verdicts: [
-      { method: "capm", fairValue: 528.3, marginOfSafety: 0.1261, confidence: 0.88 },
+      { method: "fcff", fairValue: 528.3, marginOfSafety: 0.1261, confidence: 0.88 },
     ],
   },
   {
@@ -472,10 +488,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.061,
     volatility: 0.3759,
     verdicts: [
-      { method: "capm", fairValue: 366.23, marginOfSafety: -0.25, confidence: 0.9 },
+      { method: "fcff", fairValue: 366.23, marginOfSafety: -0.25, confidence: 0.9 },
       { method: "fcfe", fairValue: 323.36, marginOfSafety: -0.3378, confidence: 0.72 },
       { method: "ddm", fairValue: 350.9, marginOfSafety: -0.2814, confidence: 0.73 },
-      { method: "graham", fairValue: 350.12, marginOfSafety: -0.283, confidence: 0.62 },
+      { method: "rim", fairValue: 350.12, marginOfSafety: -0.283, confidence: 0.62 },
+      { method: "comps", fairValue: 368.51, marginOfSafety: -0.2453, confidence: 0.55 },
     ],
   },
   {
@@ -490,8 +507,9 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0445,
     volatility: 0.4464,
     verdicts: [
-      { method: "capm", fairValue: 128.02, marginOfSafety: -0.2733, confidence: 0.86 },
+      { method: "fcff", fairValue: 128.02, marginOfSafety: -0.2733, confidence: 0.86 },
       { method: "fcfe", fairValue: 132.27, marginOfSafety: -0.2492, confidence: 0.79 },
+      { method: "comps", fairValue: 122.34, marginOfSafety: -0.3056, confidence: 0.55 },
     ],
   },
   {
@@ -506,7 +524,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2877,
     volatility: 0.3738,
     verdicts: [
-      { method: "capm", fairValue: 482.13, marginOfSafety: 0.0339, confidence: 0.86 },
+      { method: "fcff", fairValue: 482.13, marginOfSafety: 0.0339, confidence: 0.86 },
     ],
   },
   {
@@ -521,11 +539,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0222,
     volatility: 0.407,
     verdicts: [
-      { method: "capm", fairValue: 195.13, marginOfSafety: -0.0053, confidence: 0.86 },
+      { method: "fcff", fairValue: 195.13, marginOfSafety: -0.0053, confidence: 0.86 },
       { method: "fcfe", fairValue: 204.74, marginOfSafety: 0.0437, confidence: 0.71 },
       { method: "ddm", fairValue: 189.87, marginOfSafety: -0.0321, confidence: 0.65 },
-      { method: "graham", fairValue: 189.93, marginOfSafety: -0.0318, confidence: 0.59 },
-      { method: "epv", fairValue: 196.74, marginOfSafety: 0.0029, confidence: 0.52 },
+      { method: "rim", fairValue: 189.93, marginOfSafety: -0.0318, confidence: 0.59 },
+      { method: "comps", fairValue: 198.82, marginOfSafety: 0.0135, confidence: 0.55 },
     ],
   },
   {
@@ -540,11 +558,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.3387,
     volatility: 0.2959,
     verdicts: [
-      { method: "capm", fairValue: 40.96, marginOfSafety: -0.3909, confidence: 0.81 },
+      { method: "fcff", fairValue: 40.96, marginOfSafety: -0.3909, confidence: 0.81 },
       { method: "fcfe", fairValue: 41.9, marginOfSafety: -0.3768, confidence: 0.71 },
       { method: "ddm", fairValue: 43.15, marginOfSafety: -0.3583, confidence: 0.76 },
-      { method: "graham", fairValue: 37.36, marginOfSafety: -0.4444, confidence: 0.57 },
-      { method: "epv", fairValue: 38.47, marginOfSafety: -0.4279, confidence: 0.57 },
+      { method: "rim", fairValue: 37.36, marginOfSafety: -0.4444, confidence: 0.57 },
+      { method: "comps", fairValue: 43.29, marginOfSafety: -0.3562, confidence: 0.55 },
     ],
   },
   {
@@ -559,7 +577,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0116,
     volatility: 0.4008,
     verdicts: [
-      { method: "capm", fairValue: 116.63, marginOfSafety: -0.2138, confidence: 0.81 },
+      { method: "fcff", fairValue: 116.63, marginOfSafety: -0.2138, confidence: 0.81 },
     ],
   },
   {
@@ -574,7 +592,8 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1966,
     volatility: 0.3246,
     verdicts: [
-      { method: "capm", fairValue: 264.39, marginOfSafety: -0.1793, confidence: 0.79 },
+      { method: "fcff", fairValue: 264.39, marginOfSafety: -0.1793, confidence: 0.79 },
+      { method: "comps", fairValue: 259.1, marginOfSafety: -0.1957, confidence: 0.55 },
     ],
   },
   {
@@ -589,9 +608,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0723,
     volatility: 0.4132,
     verdicts: [
-      { method: "capm", fairValue: 492.17, marginOfSafety: 0.0525, confidence: 0.82 },
+      { method: "fcff", fairValue: 492.17, marginOfSafety: 0.0525, confidence: 0.82 },
       { method: "fcfe", fairValue: 473.56, marginOfSafety: 0.0127, confidence: 0.78 },
       { method: "ddm", fairValue: 497.97, marginOfSafety: 0.0649, confidence: 0.64 },
+      { method: "comps", fairValue: 497.66, marginOfSafety: 0.0642, confidence: 0.55 },
     ],
   },
   {
@@ -606,10 +626,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1462,
     volatility: 0.1991,
     verdicts: [
-      { method: "capm", fairValue: 456.14, marginOfSafety: -0.0683, confidence: 0.87 },
+      { method: "fcff", fairValue: 456.14, marginOfSafety: -0.0683, confidence: 0.87 },
       { method: "fcfe", fairValue: 484.78, marginOfSafety: -0.0098, confidence: 0.83 },
       { method: "ddm", fairValue: 478.81, marginOfSafety: -0.022, confidence: 0.66 },
-      { method: "graham", fairValue: 476.17, marginOfSafety: -0.0274, confidence: 0.54 },
+      { method: "rim", fairValue: 476.17, marginOfSafety: -0.0274, confidence: 0.54 },
     ],
   },
   {
@@ -624,11 +644,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2642,
     volatility: 0.4326,
     verdicts: [
-      { method: "capm", fairValue: 220.7, marginOfSafety: 0.1946, confidence: 0.81 },
+      { method: "fcff", fairValue: 220.7, marginOfSafety: 0.1946, confidence: 0.81 },
       { method: "fcfe", fairValue: 201.23, marginOfSafety: 0.0892, confidence: 0.76 },
       { method: "ddm", fairValue: 220.81, marginOfSafety: 0.1952, confidence: 0.74 },
-      { method: "graham", fairValue: 204.65, marginOfSafety: 0.1077, confidence: 0.59 },
-      { method: "epv", fairValue: 224.29, marginOfSafety: 0.214, confidence: 0.55 },
+      { method: "rim", fairValue: 204.65, marginOfSafety: 0.1077, confidence: 0.59 },
+      { method: "comps", fairValue: 199.14, marginOfSafety: 0.0779, confidence: 0.55 },
     ],
   },
   {
@@ -643,9 +663,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0265,
     volatility: 0.4558,
     verdicts: [
-      { method: "capm", fairValue: 339.3, marginOfSafety: -0.1891, confidence: 0.91 },
+      { method: "fcff", fairValue: 339.3, marginOfSafety: -0.1891, confidence: 0.91 },
       { method: "fcfe", fairValue: 344.16, marginOfSafety: -0.1775, confidence: 0.77 },
       { method: "ddm", fairValue: 346.25, marginOfSafety: -0.1725, confidence: 0.68 },
+      { method: "comps", fairValue: 336.37, marginOfSafety: -0.1961, confidence: 0.55 },
     ],
   },
   {
@@ -660,7 +681,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2114,
     volatility: 0.4085,
     verdicts: [
-      { method: "capm", fairValue: 506.47, marginOfSafety: -0.1292, confidence: 0.94 },
+      { method: "fcff", fairValue: 506.47, marginOfSafety: -0.1292, confidence: 0.94 },
       { method: "fcfe", fairValue: 538.28, marginOfSafety: -0.0745, confidence: 0.77 },
     ],
   },
@@ -676,10 +697,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2744,
     volatility: 0.4583,
     verdicts: [
-      { method: "capm", fairValue: 183.89, marginOfSafety: 0.2528, confidence: 0.88 },
+      { method: "fcff", fairValue: 183.89, marginOfSafety: 0.2528, confidence: 0.88 },
       { method: "fcfe", fairValue: 188.54, marginOfSafety: 0.2845, confidence: 0.78 },
       { method: "ddm", fairValue: 189.26, marginOfSafety: 0.2894, confidence: 0.63 },
-      { method: "graham", fairValue: 183.25, marginOfSafety: 0.2485, confidence: 0.53 },
+      { method: "rim", fairValue: 183.25, marginOfSafety: 0.2485, confidence: 0.53 },
+      { method: "comps", fairValue: 197.41, marginOfSafety: 0.3449, confidence: 0.55 },
     ],
   },
   {
@@ -694,10 +716,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0937,
     volatility: 0.1854,
     verdicts: [
-      { method: "capm", fairValue: 554.75, marginOfSafety: 0.0923, confidence: 0.85 },
+      { method: "fcff", fairValue: 554.75, marginOfSafety: 0.0923, confidence: 0.85 },
       { method: "fcfe", fairValue: 597.81, marginOfSafety: 0.1771, confidence: 0.78 },
       { method: "ddm", fairValue: 590.14, marginOfSafety: 0.162, confidence: 0.65 },
-      { method: "graham", fairValue: 577.14, marginOfSafety: 0.1364, confidence: 0.53 },
+      { method: "rim", fairValue: 577.14, marginOfSafety: 0.1364, confidence: 0.53 },
+      { method: "comps", fairValue: 545.16, marginOfSafety: 0.0734, confidence: 0.55 },
     ],
   },
   {
@@ -712,7 +735,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1854,
     volatility: 0.1411,
     verdicts: [
-      { method: "capm", fairValue: 363.23, marginOfSafety: 0.1933, confidence: 0.93 },
+      { method: "fcff", fairValue: 363.23, marginOfSafety: 0.1933, confidence: 0.93 },
       { method: "fcfe", fairValue: 360.58, marginOfSafety: 0.1846, confidence: 0.71 },
       { method: "ddm", fairValue: 368.62, marginOfSafety: 0.211, confidence: 0.63 },
     ],
@@ -729,9 +752,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2222,
     volatility: 0.2715,
     verdicts: [
-      { method: "capm", fairValue: 258.63, marginOfSafety: 0.0695, confidence: 0.89 },
+      { method: "fcff", fairValue: 258.63, marginOfSafety: 0.0695, confidence: 0.89 },
       { method: "fcfe", fairValue: 242.59, marginOfSafety: 0.0032, confidence: 0.83 },
       { method: "ddm", fairValue: 260, marginOfSafety: 0.0752, confidence: 0.7 },
+      { method: "comps", fairValue: 258.81, marginOfSafety: 0.0703, confidence: 0.55 },
     ],
   },
   {
@@ -746,11 +770,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.249,
     volatility: 0.4016,
     verdicts: [
-      { method: "capm", fairValue: 17.53, marginOfSafety: -0.4048, confidence: 0.81 },
+      { method: "fcff", fairValue: 17.53, marginOfSafety: -0.4048, confidence: 0.81 },
       { method: "fcfe", fairValue: 20.06, marginOfSafety: -0.3192, confidence: 0.76 },
       { method: "ddm", fairValue: 18.21, marginOfSafety: -0.3819, confidence: 0.67 },
-      { method: "graham", fairValue: 17.24, marginOfSafety: -0.4147, confidence: 0.66 },
-      { method: "epv", fairValue: 18.14, marginOfSafety: -0.3841, confidence: 0.49 },
+      { method: "rim", fairValue: 17.24, marginOfSafety: -0.4147, confidence: 0.66 },
+      { method: "comps", fairValue: 19.36, marginOfSafety: -0.3428, confidence: 0.55 },
     ],
   },
   {
@@ -765,7 +789,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0879,
     volatility: 0.2251,
     verdicts: [
-      { method: "capm", fairValue: 127.35, marginOfSafety: -0.3591, confidence: 0.91 },
+      { method: "fcff", fairValue: 127.35, marginOfSafety: -0.3591, confidence: 0.91 },
     ],
   },
   {
@@ -780,10 +804,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.067,
     volatility: 0.1641,
     verdicts: [
-      { method: "capm", fairValue: 431.72, marginOfSafety: -0.0241, confidence: 0.87 },
+      { method: "fcff", fairValue: 431.72, marginOfSafety: -0.0241, confidence: 0.87 },
       { method: "fcfe", fairValue: 403.01, marginOfSafety: -0.089, confidence: 0.72 },
       { method: "ddm", fairValue: 458.17, marginOfSafety: 0.0357, confidence: 0.75 },
-      { method: "graham", fairValue: 422.38, marginOfSafety: -0.0452, confidence: 0.58 },
+      { method: "rim", fairValue: 422.38, marginOfSafety: -0.0452, confidence: 0.58 },
+      { method: "comps", fairValue: 420.24, marginOfSafety: -0.05, confidence: 0.55 },
     ],
   },
   {
@@ -798,11 +823,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0444,
     volatility: 0.2823,
     verdicts: [
-      { method: "capm", fairValue: 122.42, marginOfSafety: -0.07, confidence: 0.8 },
+      { method: "fcff", fairValue: 122.42, marginOfSafety: -0.07, confidence: 0.8 },
       { method: "fcfe", fairValue: 126.52, marginOfSafety: -0.0388, confidence: 0.8 },
       { method: "ddm", fairValue: 125.23, marginOfSafety: -0.0486, confidence: 0.7 },
-      { method: "graham", fairValue: 120.99, marginOfSafety: -0.0808, confidence: 0.57 },
-      { method: "epv", fairValue: 124.27, marginOfSafety: -0.0559, confidence: 0.56 },
+      { method: "rim", fairValue: 120.99, marginOfSafety: -0.0808, confidence: 0.57 },
+      { method: "comps", fairValue: 126.27, marginOfSafety: -0.0407, confidence: 0.55 },
     ],
   },
   {
@@ -817,7 +842,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1087,
     volatility: 0.2899,
     verdicts: [
-      { method: "capm", fairValue: 241.52, marginOfSafety: -0.1821, confidence: 0.79 },
+      { method: "fcff", fairValue: 241.52, marginOfSafety: -0.1821, confidence: 0.79 },
       { method: "fcfe", fairValue: 257.23, marginOfSafety: -0.1289, confidence: 0.81 },
     ],
   },
@@ -833,7 +858,8 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.242,
     volatility: 0.4297,
     verdicts: [
-      { method: "capm", fairValue: 533.85, marginOfSafety: -0.1103, confidence: 0.79 },
+      { method: "fcff", fairValue: 533.85, marginOfSafety: -0.1103, confidence: 0.79 },
+      { method: "comps", fairValue: 501.82, marginOfSafety: -0.1637, confidence: 0.55 },
     ],
   },
   {
@@ -848,10 +874,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2826,
     volatility: 0.3741,
     verdicts: [
-      { method: "capm", fairValue: 167.31, marginOfSafety: -0.0635, confidence: 0.81 },
+      { method: "fcff", fairValue: 167.31, marginOfSafety: -0.0635, confidence: 0.81 },
       { method: "fcfe", fairValue: 177.22, marginOfSafety: -0.008, confidence: 0.72 },
       { method: "ddm", fairValue: 189.42, marginOfSafety: 0.0603, confidence: 0.73 },
-      { method: "graham", fairValue: 169.95, marginOfSafety: -0.0487, confidence: 0.53 },
+      { method: "rim", fairValue: 169.95, marginOfSafety: -0.0487, confidence: 0.53 },
+      { method: "comps", fairValue: 172.46, marginOfSafety: -0.0346, confidence: 0.55 },
     ],
   },
   {
@@ -866,7 +893,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2196,
     volatility: 0.3447,
     verdicts: [
-      { method: "capm", fairValue: 434.97, marginOfSafety: 0.2795, confidence: 0.8 },
+      { method: "fcff", fairValue: 434.97, marginOfSafety: 0.2795, confidence: 0.8 },
       { method: "fcfe", fairValue: 420.25, marginOfSafety: 0.2362, confidence: 0.75 },
       { method: "ddm", fairValue: 449.18, marginOfSafety: 0.3213, confidence: 0.72 },
     ],
@@ -883,9 +910,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0512,
     volatility: 0.2865,
     verdicts: [
-      { method: "capm", fairValue: 581.49, marginOfSafety: 0.1229, confidence: 0.93 },
+      { method: "fcff", fairValue: 581.49, marginOfSafety: 0.1229, confidence: 0.93 },
       { method: "fcfe", fairValue: 612.51, marginOfSafety: 0.1828, confidence: 0.76 },
       { method: "ddm", fairValue: 612.82, marginOfSafety: 0.1834, confidence: 0.74 },
+      { method: "comps", fairValue: 638.41, marginOfSafety: 0.2328, confidence: 0.55 },
     ],
   },
   {
@@ -900,7 +928,8 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0793,
     volatility: 0.446,
     verdicts: [
-      { method: "capm", fairValue: 266.12, marginOfSafety: 0.1772, confidence: 0.79 },
+      { method: "fcff", fairValue: 266.12, marginOfSafety: 0.1772, confidence: 0.79 },
+      { method: "comps", fairValue: 250.15, marginOfSafety: 0.1066, confidence: 0.55 },
     ],
   },
   {
@@ -915,10 +944,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0643,
     volatility: 0.1963,
     verdicts: [
-      { method: "capm", fairValue: 136.58, marginOfSafety: -0.1526, confidence: 0.79 },
+      { method: "fcff", fairValue: 136.58, marginOfSafety: -0.1526, confidence: 0.79 },
       { method: "fcfe", fairValue: 136.32, marginOfSafety: -0.1542, confidence: 0.7 },
       { method: "ddm", fairValue: 135.85, marginOfSafety: -0.1571, confidence: 0.71 },
-      { method: "graham", fairValue: 117.62, marginOfSafety: -0.2702, confidence: 0.65 },
+      { method: "rim", fairValue: 117.62, marginOfSafety: -0.2702, confidence: 0.65 },
     ],
   },
   {
@@ -933,11 +962,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0742,
     volatility: 0.176,
     verdicts: [
-      { method: "capm", fairValue: 214.14, marginOfSafety: 0.0012, confidence: 0.79 },
+      { method: "fcff", fairValue: 214.14, marginOfSafety: 0.0012, confidence: 0.79 },
       { method: "fcfe", fairValue: 223.4, marginOfSafety: 0.0445, confidence: 0.85 },
       { method: "ddm", fairValue: 211.66, marginOfSafety: -0.0104, confidence: 0.71 },
-      { method: "graham", fairValue: 201.9, marginOfSafety: -0.056, confidence: 0.53 },
-      { method: "epv", fairValue: 210.99, marginOfSafety: -0.0135, confidence: 0.44 },
+      { method: "rim", fairValue: 201.9, marginOfSafety: -0.056, confidence: 0.53 },
+      { method: "comps", fairValue: 217.03, marginOfSafety: 0.0147, confidence: 0.55 },
     ],
   },
   {
@@ -952,8 +981,9 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1162,
     volatility: 0.3103,
     verdicts: [
-      { method: "capm", fairValue: 49.91, marginOfSafety: -0.0878, confidence: 0.87 },
+      { method: "fcff", fairValue: 49.91, marginOfSafety: -0.0878, confidence: 0.87 },
       { method: "fcfe", fairValue: 54.22, marginOfSafety: -0.009, confidence: 0.82 },
+      { method: "comps", fairValue: 55.19, marginOfSafety: 0.0088, confidence: 0.55 },
     ],
   },
   {
@@ -968,7 +998,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1901,
     volatility: 0.1269,
     verdicts: [
-      { method: "capm", fairValue: 609.58, marginOfSafety: 0.102, confidence: 0.88 },
+      { method: "fcff", fairValue: 609.58, marginOfSafety: 0.102, confidence: 0.88 },
       { method: "fcfe", fairValue: 538.11, marginOfSafety: -0.0272, confidence: 0.83 },
     ],
   },
@@ -984,11 +1014,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0969,
     volatility: 0.3519,
     verdicts: [
-      { method: "capm", fairValue: 521.87, marginOfSafety: -0.1744, confidence: 0.93 },
+      { method: "fcff", fairValue: 521.87, marginOfSafety: -0.1744, confidence: 0.93 },
       { method: "fcfe", fairValue: 504.93, marginOfSafety: -0.2012, confidence: 0.84 },
       { method: "ddm", fairValue: 525.22, marginOfSafety: -0.1691, confidence: 0.67 },
-      { method: "graham", fairValue: 518.71, marginOfSafety: -0.1794, confidence: 0.61 },
-      { method: "epv", fairValue: 558.03, marginOfSafety: -0.1172, confidence: 0.47 },
+      { method: "rim", fairValue: 518.71, marginOfSafety: -0.1794, confidence: 0.61 },
+      { method: "comps", fairValue: 507.33, marginOfSafety: -0.1974, confidence: 0.55 },
     ],
   },
   {
@@ -1003,7 +1033,8 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.154,
     volatility: 0.2745,
     verdicts: [
-      { method: "capm", fairValue: 141.24, marginOfSafety: -0.0946, confidence: 0.83 },
+      { method: "fcff", fairValue: 141.24, marginOfSafety: -0.0946, confidence: 0.83 },
+      { method: "comps", fairValue: 144.06, marginOfSafety: -0.0765, confidence: 0.55 },
     ],
   },
   {
@@ -1018,7 +1049,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0069,
     volatility: 0.2246,
     verdicts: [
-      { method: "capm", fairValue: 542.62, marginOfSafety: 0.0639, confidence: 0.91 },
+      { method: "fcff", fairValue: 542.62, marginOfSafety: 0.0639, confidence: 0.91 },
       { method: "fcfe", fairValue: 593.67, marginOfSafety: 0.164, confidence: 0.78 },
     ],
   },
@@ -1034,10 +1065,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.007,
     volatility: 0.3428,
     verdicts: [
-      { method: "capm", fairValue: 207.21, marginOfSafety: -0.0853, confidence: 0.79 },
+      { method: "fcff", fairValue: 207.21, marginOfSafety: -0.0853, confidence: 0.79 },
       { method: "fcfe", fairValue: 219.92, marginOfSafety: -0.0292, confidence: 0.76 },
       { method: "ddm", fairValue: 207.25, marginOfSafety: -0.0851, confidence: 0.73 },
-      { method: "graham", fairValue: 226.08, marginOfSafety: -0.002, confidence: 0.66 },
+      { method: "rim", fairValue: 226.08, marginOfSafety: -0.002, confidence: 0.66 },
+      { method: "comps", fairValue: 202.21, marginOfSafety: -0.1074, confidence: 0.55 },
     ],
   },
   {
@@ -1052,9 +1084,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1026,
     volatility: 0.2631,
     verdicts: [
-      { method: "capm", fairValue: 107.82, marginOfSafety: -0.378, confidence: 0.92 },
+      { method: "fcff", fairValue: 107.82, marginOfSafety: -0.378, confidence: 0.92 },
       { method: "fcfe", fairValue: 105.95, marginOfSafety: -0.3888, confidence: 0.83 },
       { method: "ddm", fairValue: 114.58, marginOfSafety: -0.339, confidence: 0.69 },
+      { method: "comps", fairValue: 107.26, marginOfSafety: -0.3813, confidence: 0.55 },
     ],
   },
   {
@@ -1069,11 +1102,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1562,
     volatility: 0.1126,
     verdicts: [
-      { method: "capm", fairValue: 158.17, marginOfSafety: -0.0586, confidence: 0.91 },
+      { method: "fcff", fairValue: 158.17, marginOfSafety: -0.0586, confidence: 0.91 },
       { method: "fcfe", fairValue: 176.34, marginOfSafety: 0.0495, confidence: 0.71 },
       { method: "ddm", fairValue: 175.11, marginOfSafety: 0.0422, confidence: 0.68 },
-      { method: "graham", fairValue: 171.78, marginOfSafety: 0.0224, confidence: 0.53 },
-      { method: "epv", fairValue: 156.31, marginOfSafety: -0.0697, confidence: 0.46 },
+      { method: "rim", fairValue: 171.78, marginOfSafety: 0.0224, confidence: 0.53 },
     ],
   },
   {
@@ -1088,10 +1120,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2579,
     volatility: 0.222,
     verdicts: [
-      { method: "capm", fairValue: 711.7, marginOfSafety: 0.1575, confidence: 0.87 },
+      { method: "fcff", fairValue: 711.7, marginOfSafety: 0.1575, confidence: 0.87 },
       { method: "fcfe", fairValue: 686.43, marginOfSafety: 0.1164, confidence: 0.84 },
       { method: "ddm", fairValue: 754.37, marginOfSafety: 0.2269, confidence: 0.7 },
-      { method: "graham", fairValue: 676.53, marginOfSafety: 0.1003, confidence: 0.64 },
+      { method: "rim", fairValue: 676.53, marginOfSafety: 0.1003, confidence: 0.64 },
+      { method: "comps", fairValue: 749.69, marginOfSafety: 0.2193, confidence: 0.55 },
     ],
   },
   {
@@ -1106,7 +1139,8 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2251,
     volatility: 0.1873,
     verdicts: [
-      { method: "capm", fairValue: 617.71, marginOfSafety: 0.1206, confidence: 0.83 },
+      { method: "fcff", fairValue: 617.71, marginOfSafety: 0.1206, confidence: 0.83 },
+      { method: "comps", fairValue: 580.65, marginOfSafety: 0.0534, confidence: 0.55 },
     ],
   },
   {
@@ -1121,7 +1155,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2683,
     volatility: 0.2708,
     verdicts: [
-      { method: "capm", fairValue: 112, marginOfSafety: -0.0167, confidence: 0.87 },
+      { method: "fcff", fairValue: 112, marginOfSafety: -0.0167, confidence: 0.87 },
     ],
   },
   {
@@ -1136,11 +1170,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2947,
     volatility: 0.3732,
     verdicts: [
-      { method: "capm", fairValue: 423.14, marginOfSafety: 0.0564, confidence: 0.87 },
+      { method: "fcff", fairValue: 423.14, marginOfSafety: 0.0564, confidence: 0.87 },
       { method: "fcfe", fairValue: 403.79, marginOfSafety: 0.0081, confidence: 0.69 },
       { method: "ddm", fairValue: 396.74, marginOfSafety: -0.0095, confidence: 0.62 },
-      { method: "graham", fairValue: 396.62, marginOfSafety: -0.0098, confidence: 0.54 },
-      { method: "epv", fairValue: 432.31, marginOfSafety: 0.0793, confidence: 0.57 },
+      { method: "rim", fairValue: 396.62, marginOfSafety: -0.0098, confidence: 0.54 },
+      { method: "comps", fairValue: 413.17, marginOfSafety: 0.0315, confidence: 0.55 },
     ],
   },
   {
@@ -1155,9 +1189,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.3163,
     volatility: 0.3521,
     verdicts: [
-      { method: "capm", fairValue: 583.24, marginOfSafety: 0.1138, confidence: 0.88 },
+      { method: "fcff", fairValue: 583.24, marginOfSafety: 0.1138, confidence: 0.88 },
       { method: "fcfe", fairValue: 599.37, marginOfSafety: 0.1446, confidence: 0.74 },
       { method: "ddm", fairValue: 577.85, marginOfSafety: 0.1035, confidence: 0.62 },
+      { method: "comps", fairValue: 622.03, marginOfSafety: 0.1879, confidence: 0.55 },
     ],
   },
   {
@@ -1172,7 +1207,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.21,
     volatility: 0.2353,
     verdicts: [
-      { method: "capm", fairValue: 544.18, marginOfSafety: 0.0751, confidence: 0.83 },
+      { method: "fcff", fairValue: 544.18, marginOfSafety: 0.0751, confidence: 0.83 },
       { method: "fcfe", fairValue: 589.89, marginOfSafety: 0.1654, confidence: 0.79 },
       { method: "ddm", fairValue: 577.29, marginOfSafety: 0.1405, confidence: 0.61 },
     ],
@@ -1189,8 +1224,9 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0284,
     volatility: 0.3104,
     verdicts: [
-      { method: "capm", fairValue: 562.7, marginOfSafety: -0.0804, confidence: 0.83 },
+      { method: "fcff", fairValue: 562.7, marginOfSafety: -0.0804, confidence: 0.83 },
       { method: "fcfe", fairValue: 565.89, marginOfSafety: -0.0752, confidence: 0.73 },
+      { method: "comps", fairValue: 553.01, marginOfSafety: -0.0962, confidence: 0.55 },
     ],
   },
   {
@@ -1205,10 +1241,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1143,
     volatility: 0.2796,
     verdicts: [
-      { method: "capm", fairValue: 35.44, marginOfSafety: -0.0026, confidence: 0.88 },
+      { method: "fcff", fairValue: 35.44, marginOfSafety: -0.0026, confidence: 0.88 },
       { method: "fcfe", fairValue: 38.97, marginOfSafety: 0.0969, confidence: 0.77 },
       { method: "ddm", fairValue: 36.1, marginOfSafety: 0.0161, confidence: 0.74 },
-      { method: "graham", fairValue: 39.04, marginOfSafety: 0.0989, confidence: 0.54 },
+      { method: "rim", fairValue: 39.04, marginOfSafety: 0.0989, confidence: 0.54 },
+      { method: "comps", fairValue: 38.14, marginOfSafety: 0.0735, confidence: 0.55 },
     ],
   },
   {
@@ -1223,10 +1260,10 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0709,
     volatility: 0.3253,
     verdicts: [
-      { method: "capm", fairValue: 379.77, marginOfSafety: -0.0015, confidence: 0.82 },
+      { method: "fcff", fairValue: 379.77, marginOfSafety: -0.0015, confidence: 0.82 },
       { method: "fcfe", fairValue: 371.52, marginOfSafety: -0.0232, confidence: 0.72 },
       { method: "ddm", fairValue: 423.74, marginOfSafety: 0.1141, confidence: 0.76 },
-      { method: "graham", fairValue: 372.66, marginOfSafety: -0.0202, confidence: 0.51 },
+      { method: "rim", fairValue: 372.66, marginOfSafety: -0.0202, confidence: 0.51 },
     ],
   },
   {
@@ -1241,8 +1278,9 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2251,
     volatility: 0.3116,
     verdicts: [
-      { method: "capm", fairValue: 800.73, marginOfSafety: 0.2669, confidence: 0.79 },
+      { method: "fcff", fairValue: 800.73, marginOfSafety: 0.2669, confidence: 0.79 },
       { method: "fcfe", fairValue: 806.23, marginOfSafety: 0.2756, confidence: 0.75 },
+      { method: "comps", fairValue: 755.27, marginOfSafety: 0.195, confidence: 0.55 },
     ],
   },
   {
@@ -1257,11 +1295,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0263,
     volatility: 0.1243,
     verdicts: [
-      { method: "capm", fairValue: 485.99, marginOfSafety: -0.224, confidence: 0.86 },
+      { method: "fcff", fairValue: 485.99, marginOfSafety: -0.224, confidence: 0.86 },
       { method: "fcfe", fairValue: 483.36, marginOfSafety: -0.2282, confidence: 0.81 },
       { method: "ddm", fairValue: 499.27, marginOfSafety: -0.2028, confidence: 0.74 },
-      { method: "graham", fairValue: 488.56, marginOfSafety: -0.2199, confidence: 0.63 },
-      { method: "epv", fairValue: 482.42, marginOfSafety: -0.2297, confidence: 0.48 },
+      { method: "rim", fairValue: 488.56, marginOfSafety: -0.2199, confidence: 0.63 },
+      { method: "comps", fairValue: 479.51, marginOfSafety: -0.2344, confidence: 0.55 },
     ],
   },
   {
@@ -1276,7 +1314,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.057,
     volatility: 0.4101,
     verdicts: [
-      { method: "capm", fairValue: 581.5, marginOfSafety: 0.3022, confidence: 0.83 },
+      { method: "fcff", fairValue: 581.5, marginOfSafety: 0.3022, confidence: 0.83 },
       { method: "fcfe", fairValue: 547.16, marginOfSafety: 0.2253, confidence: 0.81 },
     ],
   },
@@ -1292,8 +1330,9 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2962,
     volatility: 0.2839,
     verdicts: [
-      { method: "capm", fairValue: 79.01, marginOfSafety: 0.2314, confidence: 0.91 },
+      { method: "fcff", fairValue: 79.01, marginOfSafety: 0.2314, confidence: 0.91 },
       { method: "fcfe", fairValue: 80.8, marginOfSafety: 0.2594, confidence: 0.76 },
+      { method: "comps", fairValue: 84.7, marginOfSafety: 0.3201, confidence: 0.55 },
     ],
   },
   {
@@ -1308,10 +1347,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.2132,
     volatility: 0.3115,
     verdicts: [
-      { method: "capm", fairValue: 602.89, marginOfSafety: -0.0033, confidence: 0.86 },
+      { method: "fcff", fairValue: 602.89, marginOfSafety: -0.0033, confidence: 0.86 },
       { method: "fcfe", fairValue: 560.97, marginOfSafety: -0.0726, confidence: 0.73 },
       { method: "ddm", fairValue: 537.69, marginOfSafety: -0.1111, confidence: 0.69 },
-      { method: "graham", fairValue: 592.61, marginOfSafety: -0.0203, confidence: 0.56 },
+      { method: "rim", fairValue: 592.61, marginOfSafety: -0.0203, confidence: 0.56 },
+      { method: "comps", fairValue: 539.13, marginOfSafety: -0.1087, confidence: 0.55 },
     ],
   },
   {
@@ -1326,7 +1366,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0042,
     volatility: 0.1902,
     verdicts: [
-      { method: "capm", fairValue: 478.11, marginOfSafety: 0.1998, confidence: 0.78 },
+      { method: "fcff", fairValue: 478.11, marginOfSafety: 0.1998, confidence: 0.78 },
       { method: "fcfe", fairValue: 455.04, marginOfSafety: 0.1419, confidence: 0.72 },
       { method: "ddm", fairValue: 503.53, marginOfSafety: 0.2636, confidence: 0.7 },
     ],
@@ -1343,11 +1383,11 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.1489,
     volatility: 0.2459,
     verdicts: [
-      { method: "capm", fairValue: 524.02, marginOfSafety: 0.3523, confidence: 0.81 },
+      { method: "fcff", fairValue: 524.02, marginOfSafety: 0.3523, confidence: 0.81 },
       { method: "fcfe", fairValue: 494.8, marginOfSafety: 0.2769, confidence: 0.77 },
       { method: "ddm", fairValue: 529.4, marginOfSafety: 0.3662, confidence: 0.66 },
-      { method: "graham", fairValue: 530.29, marginOfSafety: 0.3685, confidence: 0.6 },
-      { method: "epv", fairValue: 496.62, marginOfSafety: 0.2816, confidence: 0.57 },
+      { method: "rim", fairValue: 530.29, marginOfSafety: 0.3685, confidence: 0.6 },
+      { method: "comps", fairValue: 530.02, marginOfSafety: 0.3678, confidence: 0.55 },
     ],
   },
   {
@@ -1362,7 +1402,8 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: -0.0591,
     volatility: 0.3058,
     verdicts: [
-      { method: "capm", fairValue: 452.65, marginOfSafety: 0.123, confidence: 0.82 },
+      { method: "fcff", fairValue: 452.65, marginOfSafety: 0.123, confidence: 0.82 },
+      { method: "comps", fairValue: 479.81, marginOfSafety: 0.1904, confidence: 0.55 },
     ],
   },
   {
@@ -1377,7 +1418,7 @@ export const SAMPLE_UNIVERSE: Stock[] = [
     realisedReturn: 0.0323,
     volatility: 0.4104,
     verdicts: [
-      { method: "capm", fairValue: 72.92, marginOfSafety: -0.4107, confidence: 0.87 },
+      { method: "fcff", fairValue: 72.92, marginOfSafety: -0.4107, confidence: 0.87 },
       { method: "fcfe", fairValue: 73.06, marginOfSafety: -0.4096, confidence: 0.75 },
       { method: "ddm", fairValue: 80.23, marginOfSafety: -0.3516, confidence: 0.65 },
     ],
