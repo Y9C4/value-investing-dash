@@ -45,6 +45,15 @@ type ReturnsResponse = {
   expected_market_return: number
 }
 
+/**
+ * The quick-switch row beside the search box.
+ *
+ * A search field alone does not say what belongs in it, and the page it sits
+ * on is otherwise blank until something is typed. Three tickers that load on
+ * click say both, without a sentence of instruction.
+ */
+const EXAMPLES = ["AAPL", "JNJ", "JPM"]
+
 // A single series, so no legend box — the card title names what is plotted.
 const chartConfig = {
   close: {
@@ -290,6 +299,7 @@ export function TickerHistory({
         <Field orientation="horizontal">
           <Input
             type="search"
+            aria-label="Stock ticker"
             placeholder="Stock ticker"
             value={ticker}
             onChange={(e) => setTicker(e.target.value.toUpperCase())}
@@ -299,6 +309,27 @@ export function TickerHistory({
           </Button>
         </Field>
       </form>
+
+      {/* Shows what a request looks like rather than describing one, and stays
+          put afterwards as a one-click way back to a known-good ticker. */}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        Try
+        {EXAMPLES.map((symbol) => (
+          <Button
+            key={symbol}
+            variant={symbol === requested ? "secondary" : "outline"}
+            size="xs"
+            className="font-mono"
+            aria-pressed={symbol === requested}
+            onClick={() => {
+              setTicker(symbol)
+              setRequested(symbol)
+            }}
+          >
+            {symbol}
+          </Button>
+        ))}
+      </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

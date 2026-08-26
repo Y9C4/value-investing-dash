@@ -1,3 +1,4 @@
+import { Info } from "@/components/info"
 import {
   Card,
   CardContent,
@@ -63,7 +64,17 @@ export function DiscountRatePanel({ rates }: { rates: DiscountRates }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Discount rates</CardTitle>
+        <span className="flex items-center gap-1.5">
+          <CardTitle>Discount rates</CardTitle>
+          <Info title="Why these matter" side="bottom">
+            A higher discount rate produces a lower fair value, so every figure
+            in the table beside this one is downstream of these. The debt
+            weight is capped at 60%: market-value weights otherwise make the
+            discount rate a function of the price being valued, so a falling
+            share price would lower WACC and make the model call the same
+            equity more valuable.
+          </Info>
+        </span>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <dl className="grid grid-cols-2 gap-x-6 gap-y-5 text-sm">
@@ -112,13 +123,6 @@ export function DiscountRatePanel({ rates }: { rates: DiscountRates }) {
             note="13-week T-bill (^IRX), 252-day average"
           />
         </dl>
-
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          A higher discount rate produces a lower fair value. The debt weight is
-          capped at 60%: market-value weights otherwise make the discount rate a
-          function of the price being valued, so a falling share price would
-          lower WACC and make the model call the same equity more valuable.
-        </p>
       </CardContent>
     </Card>
   )

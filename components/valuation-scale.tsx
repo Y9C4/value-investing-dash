@@ -2,16 +2,7 @@ import {
   BAND_FILL,
   BAND_LABELS,
   valuationBand,
-  type ValuationBand,
 } from "@/lib/valuation"
-
-const BAND_ORDER: ValuationBand[] = [
-  "deep-value",
-  "undervalued",
-  "fair",
-  "overvalued",
-  "expensive",
-]
 
 /**
  * The bands are not centred on zero. Half the models credit no growth, so the
@@ -69,33 +60,6 @@ export function MarginBar({
       <span className="sr-only">
         {BAND_LABELS[band]}, {formatSignedPercent(margin)} margin of safety
       </span>
-    </div>
-  )
-}
-
-export function BandPill({ band }: { band: ValuationBand }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
-      <span
-        className="size-2 shrink-0"
-        style={{ background: BAND_FILL[band] }}
-        aria-hidden="true"
-      />
-      {BAND_LABELS[band]}
-    </span>
-  )
-}
-
-/** Legend for the diverging scale — present wherever the bars are. */
-export function ValuationLegend() {
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <span className="text-xs tracking-wider text-muted-foreground uppercase">
-        Margin of safety
-      </span>
-      {BAND_ORDER.map((band) => (
-        <BandPill key={band} band={band} />
-      ))}
     </div>
   )
 }

@@ -214,13 +214,26 @@ export type ValuationBand =
   | "unrated"
 
 /**
- * Whether any of the selected models produced a verdict for this stock. Under
- * a narrowed selection a stock can be unrated here while still carrying
- * verdicts from models the user has switched off — which is the honest
- * reading: those models were asked not to speak.
+ * Whether enough of the selected models valued this stock. Under a narrowed
+ * selection a stock can be unrated here while still carrying verdicts from
+ * models the user switched off — the honest reading: those were asked not to
+ * speak.
+ *
+ * `minModels` is the agreement floor. At 1 a lone model becomes the whole
+ * consensus, which is how a stock Comps likes but nothing else covers used to
+ * rank alongside one all five agree on.
  */
-export function isRated(stock: Stock, methods: MethodId[] = []): boolean {
-  return activeVerdicts(stock, methods).length > 0
+export function isRated(
+  stock: Stock,
+  methods: MethodId[] = [],
+  minModels = 1
+): boolean {
+  return activeVerdicts(stock, methods).length >= minModels
+}
+
+/** How many models the current selection asks for. Empty means all of them. */
+export function selectedModelCount(methods: MethodId[] = []): number {
+  return methods.length === 0 ? VALUATION_METHODS.length : methods.length
 }
 
 /**
@@ -253,6 +266,14 @@ export function valuationBand(marginOfSafety: number): ValuationBand {
  */
 export const BAND_BASIS =
   "Bands are quintiles of the S&P 500 distribution, so they rank a company against the index rather than against its own intrinsic value. The models read the market as expensive almost everywhere — the median consensus is about −34% — so an absolute scale would file three fifths of the index under “expensive”."
+
+/** Shown behind the info trigger on the agreement control. */
+export const AGREEMENT_BASIS =
+  "Coverage is uneven — Comps values almost the whole index, FCFF fewer than half — so a stock can clear the screen on one model’s opinion alone, and the models disagree on direction more often than not. This is the floor on how many of the selected models must have valued a stock before its consensus counts. Below it the stock is unrated, not cheap."
+
+/** Shown behind the info trigger on the margin-of-safety filter. */
+export const MARGIN_BASIS =
+  "Graham’s term for the discount between what a company is worth and what it costs: (fair value − price) ÷ price, averaged over the selected models and weighted by each one’s confidence. +20% means paying 80 cents for a dollar of value. The cushion is the point — buy far enough below fair value and the estimate can be wrong without losing money."
 
 export const BAND_LABELS: Record<ValuationBand, string> = {
   "deep-value": "Deep value",
@@ -287,6 +308,11 @@ export type ScreenerFilters = {
    * produced a verdict counts — the default reading.
    */
   methods: MethodId[]
+  /**
+   * How many of those models must have valued a stock before its consensus
+   * counts. Anything short of it is unrated, not cheap.
+   */
+  minModels: number
   /** Inclusive [min, max] on the consensus margin of safety. */
   marginRange: [number, number]
   maxBeta: number
@@ -297,6 +323,9 @@ export const DEFAULT_FILTERS: ScreenerFilters = {
   sectors: [],
   bands: [],
   methods: [],
+  // Two, not one: coverage is uneven enough that a floor of one lets a single
+  // model's verdict pass as a consensus.
+  minModels: 2,
   marginRange: [-1, 1],
   maxBeta: 3,
 }
@@ -325,7 +354,7 @@ export function applyFilters(
     // An unrated stock has no margin to compare, so the numeric filters below
     // would read its 0 as "fair" and let it through every range. It only
     // qualifies when the band filter asks for it explicitly.
-    if (!isRated(stock, filters.methods)) {
+    if (!isRated(stock, filters.methods, filters.minModels)) {
       return filters.bands.includes("unrated")
     }
 

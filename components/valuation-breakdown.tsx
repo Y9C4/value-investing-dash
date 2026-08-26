@@ -1,3 +1,4 @@
+import { Info } from "@/components/info"
 import {
   Card,
   CardContent,
@@ -39,7 +40,16 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
   return (
     <Card>
       <CardHeader className="flex items-baseline justify-between gap-4">
-        <CardTitle>Valuation models</CardTitle>
+        <span className="flex items-center gap-1.5">
+          <CardTitle>Valuation models</CardTitle>
+          <Info title="Reading this table" side="bottom">
+            A positive margin means the model&rsquo;s fair value sits above the
+            market price. Weight is how much say a model gets in the consensus
+            &mdash; a fixed judgement about the method, reduced where this
+            company&rsquo;s inputs are weaker than usual (an imputed tax rate,
+            an incomplete set of quarters, cash flow propped up by borrowing).
+          </Info>
+        </span>
         <span className="text-xs tracking-wider text-muted-foreground uppercase">
           {stock.verdicts.length} of {VALUATION_METHODS.length} applied
         </span>
@@ -47,8 +57,13 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
       <CardContent className="flex flex-col gap-6">
         {/* Consensus first — the headline the row-by-row table then explains. */}
         <div className="flex flex-col gap-2 border border-border px-5 py-4">
-          <span className="text-xs tracking-wider text-muted-foreground uppercase">
+          <span className="flex items-center gap-1.5 text-xs tracking-wider text-muted-foreground uppercase">
             Consensus margin of safety
+            <Info title="The band label" side="bottom">
+              The band ranks this company against the rest of the S&amp;P 500
+              rather than against its own intrinsic value, so &ldquo;deep
+              value&rdquo; means cheap relative to the index today.
+            </Info>
           </span>
           <div className="flex flex-wrap items-baseline gap-3">
             <span className="text-3xl font-semibold">
@@ -138,15 +153,11 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
           </TableBody>
         </Table>
 
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Current price {formatPrice(stock.price)}. A positive margin means the
-          model&rsquo;s fair value sits above the market price. The band label
-          above ranks this company against the S&amp;P 500 rather than against
-          its own intrinsic value. Weight is how
-          much say a model gets in the consensus above &mdash; a fixed judgement
-          about the method, reduced where this company&rsquo;s inputs are weaker
-          than usual (an imputed tax rate, an incomplete set of quarters, cash
-          flow propped up by borrowing).
+        <p className="text-xs text-muted-foreground">
+          Current price{" "}
+          <span className="font-mono text-foreground">
+            {formatPrice(stock.price)}
+          </span>
         </p>
       </CardContent>
     </Card>

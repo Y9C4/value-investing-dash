@@ -1,4 +1,3 @@
-import { PageHeader } from "@/components/page-header"
 import { TickerHistory } from "@/components/ticker-history"
 
 export const metadata = {
@@ -7,15 +6,11 @@ export const metadata = {
 
 export default function StocksPage() {
   return (
-    <>
-      <PageHeader
-        eyebrow="Step two"
-        title="Stock analysis"
-        description="Pull the price history and CAPM statistics for any ticker. Reach a company from the screener to see every model's verdict alongside it."
-      />
-      <div className="px-6 py-8 lg:px-10">
-        <TickerHistory />
-      </div>
-    </>
+    <div className="px-6 py-8 lg:px-10">
+      {/* Seeded so the page is never blank, the same reason the portfolio page
+          ships a baseline frontier. Arriving here from the screener lands on
+          `/stocks/[ticker]` instead, so nothing is being overridden. */}
+      <TickerHistory initialTicker="AAPL" />
+    </div>
   )
 }

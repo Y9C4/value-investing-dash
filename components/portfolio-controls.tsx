@@ -1,5 +1,6 @@
 "use client"
 
+import { Info } from "@/components/info"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,27 +15,28 @@ import {
 /**
  * The optimiser's constraint set, exposed.
  *
- * Not preferences: each changes the feasible set the solver searches. The
- * panel says what each does in one line, because a dial whose effect is
- * invisible gets turned at random and then believed.
+ * Not preferences: each changes the feasible set the solver searches. What each
+ * one does is behind its info trigger rather than printed under the field — a
+ * dial whose effect is invisible gets turned at random, but a paragraph under
+ * every dial gets skipped and has the same result.
  */
 
 function ControlGroup({
   title,
-  hint,
+  info,
   children,
 }: {
   title: string
-  hint: string
+  info: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <div className="flex flex-col gap-3 border-border p-5 max-lg:border-b lg:border-r lg:last:border-r-0 max-lg:last:border-b-0">
-      <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+      <span className="flex items-center gap-1.5 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
         {title}
+        {info}
       </span>
       {children}
-      <p className="text-xs leading-relaxed text-muted-foreground">{hint}</p>
     </div>
   )
 }
@@ -110,7 +112,7 @@ export function PortfolioControls({
           <h2 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
             Optimiser settings
           </h2>
-          <p className="text-sm">
+          <p className="flex items-center gap-1.5 text-sm">
             {universeSize > 0 ? (
               <>
                 Solving over{" "}
@@ -120,6 +122,11 @@ export function PortfolioControls({
             ) : (
               "Solving over the full index"
             )}
+            <Info title="Scope of the solve">
+              {universeSize > 0
+                ? "The optimiser can only allocate within the set the screener handed over, so a stock the filters rejected cannot enter the portfolio at any weight."
+                : "Nothing was handed over, so this solves across the whole index. Screen first to optimise over a filtered set — the optimiser estimates expected return from past return, so left to itself it favours whatever has already run up."}
+            </Info>
           </p>
         </div>
         <Button onClick={onRun} disabled={loading || blocked}>
@@ -130,7 +137,14 @@ export function PortfolioControls({
       <div className="grid lg:grid-cols-3">
         <ControlGroup
           title="Position size"
-          hint="Bounds on every weight. Leave blank to let the solver scale the cap to the universe — a 3% cap needs 34 names to add up to a whole portfolio. A negative minimum permits short positions down to that weight."
+          info={
+            <Info title="Position size">
+              Bounds on every weight. Leave blank to let the solver scale the
+              cap to the universe &mdash; a 3% cap needs 34 names to add up to a
+              whole portfolio. A negative minimum permits short positions down
+              to that weight.
+            </Info>
+          }
         >
           <div className="grid grid-cols-2 gap-4">
             <NumberField
@@ -169,7 +183,16 @@ export function PortfolioControls({
 
         <ControlGroup
           title="Diversification"
-          hint="An L2 penalty on the weights. Without it the optimum sits on a corner of the feasible set, so most names come back at exactly zero and the rest at exactly the cap. γ pushes the whole frontier off those corners — most visibly at its minimum-volatility end, where no return target is competing with it. Watch “Eff. names” in the anchor table."
+          info={
+            <Info title="Diversification">
+              An L2 penalty on the weights. Without it the optimum sits on a
+              corner of the feasible set, so most names come back at exactly
+              zero and the rest at exactly the cap. &gamma; pushes the whole
+              frontier off those corners &mdash; most visibly at its
+              minimum-volatility end, where no return target is competing with
+              it. Watch &ldquo;Eff. names&rdquo; in the anchor table.
+            </Info>
+          }
         >
           <div className="grid grid-cols-2 gap-4">
             <NumberField
@@ -198,7 +221,13 @@ export function PortfolioControls({
 
         <ControlGroup
           title="Resolution"
-          hint={`How many portfolios are solved along the frontier. Each is a separate optimisation, so this is the setting that decides how long the run takes — ${MIN_PORTFOLIOS} to ${MAX_PORTFOLIOS}.`}
+          info={
+            <Info title="Resolution" side="left">
+              How many portfolios are solved along the frontier. Each is a
+              separate optimisation, so this is the setting that decides how
+              long the run takes &mdash; {MIN_PORTFOLIOS} to {MAX_PORTFOLIOS}.
+            </Info>
+          }
         >
           <div className="grid grid-cols-2 gap-4">
             <NumberField

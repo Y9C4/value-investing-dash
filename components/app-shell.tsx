@@ -9,6 +9,7 @@ import {
   RiStockLine,
 } from "@remixicon/react"
 
+import { IntroDialog } from "@/components/intro-dialog"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
 
@@ -82,11 +83,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="mt-auto hidden flex-col gap-4 px-6 py-6 lg:flex">
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Value first, optimisation second. Screen on margin of safety, then
-            build the frontier from what survives.
-          </p>
+        <div className="mt-auto hidden flex-col gap-3 px-6 py-6 lg:flex">
+          <IntroDialog />
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <Link

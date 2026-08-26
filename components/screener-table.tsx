@@ -24,7 +24,10 @@ import {
 import { MarginBar, formatSignedPercent } from "@/components/valuation-scale"
 import {
   BAND_LABELS,
+  activeVerdicts,
   consensusMarginOfSafety,
+  isRated,
+  selectedModelCount,
   valuationBand,
   type Stock,
   type MethodId,
@@ -154,20 +157,26 @@ function ColumnHelp({
 export function ScreenerTable({
   stocks,
   methods = [],
+  minModels = 1,
   sort,
   direction,
   onSort,
   selected,
   onToggleSelected,
+  onToggleAll,
 }: {
   stocks: Stock[]
   /** The models currently switched on; empty means all of them. */
   methods?: MethodId[]
+  /** Agreement floor — below it a row has no consensus to report. */
+  minModels?: number
   sort: SortKey
   direction: "asc" | "desc"
   onSort: (key: SortKey) => void
   selected: string[]
   onToggleSelected: (ticker: string) => void
+  /** Ticks or clears every row currently on screen. */
+  onToggleAll: () => void
 }) {
   if (stocks.length === 0) {
     return (
@@ -183,12 +192,32 @@ export function ScreenerTable({
     )
   }
 
+  const allSelected = stocks.every((stock) => selected.includes(stock.ticker))
+  const someSelected = !allSelected && stocks.some((s) => selected.includes(s.ticker))
+
   return (
     <div className="border border-border bg-card">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-10" />
+            <TableHead className="w-10">
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={allSelected}
+                // A partly-ticked column is neither on nor off, and only the
+                // DOM property can say so.
+                ref={(el) => {
+                  if (el) el.indeterminate = someSelected
+                }}
+                onChange={onToggleAll}
+                aria-label={
+                  allSelected
+                    ? `Clear all ${stocks.length} rows`
+                    : `Select all ${stocks.length} rows`
+                }
+              />
+            </TableHead>
             {COLUMNS.map((column) => {
               const active = sort === column.key
 
@@ -237,8 +266,9 @@ export function ScreenerTable({
         </TableHeader>
         <TableBody>
           {stocks.map((stock) => {
+            const rated = isRated(stock, methods, minModels)
             const margin = consensusMarginOfSafety(stock, methods)
-            const band = valuationBand(margin)
+            const band = rated ? valuationBand(margin) : "unrated"
             const isSelected = selected.includes(stock.ticker)
 
             return (
@@ -267,13 +297,24 @@ export function ScreenerTable({
 
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <MarginBar margin={margin} className="w-40 shrink-0" />
+                    {/* An unrated row has no consensus to draw. Blank beats a
+                        bar sitting at zero, which reads as "fairly priced". */}
+                    {rated ? (
+                      <MarginBar margin={margin} className="w-40 shrink-0" />
+                    ) : (
+                      <span className="w-40 shrink-0" />
+                    )}
                     {/* Value in text ink, never the series colour. */}
                     <span className="w-16 shrink-0 text-right font-mono text-sm">
-                      {formatSignedPercent(margin)}
+                      {rated ? formatSignedPercent(margin) : "—"}
                     </span>
                     <span className="hidden text-xs whitespace-nowrap text-muted-foreground xl:inline">
                       {BAND_LABELS[band]}
+                      {" · "}
+                      <span className="font-mono">
+                        {activeVerdicts(stock, methods).length}/
+                        {selectedModelCount(methods)}
+                      </span>
                     </span>
                   </div>
                 </TableCell>

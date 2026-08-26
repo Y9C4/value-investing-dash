@@ -6,20 +6,24 @@ import {
   RiSearchLine,
 } from "@remixicon/react"
 
+import { Info } from "@/components/info"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Popover,
   PopoverContent,
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Label } from "@/components/ui/label"
 import {
+  AGREEMENT_BASIS,
   BAND_BASIS,
   BAND_FILL,
   BAND_LABELS,
+  MARGIN_BASIS,
   VALUATION_METHODS,
+  selectedModelCount,
   type MethodId,
   type ScreenerFilters,
 } from "@/lib/valuation"
@@ -37,15 +41,18 @@ const BANDS: ValuationBand[] = [
 
 function FilterGroup({
   label,
+  info,
   children,
 }: {
   label: string
+  info?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <div className="flex flex-col gap-3 border-b border-border px-6 py-5 last:border-b-0">
-      <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+      <span className="flex items-center gap-1.5 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
         {label}
+        {info}
       </span>
       {children}
     </div>
@@ -89,10 +96,9 @@ function Chip({
 }
 
 /**
- * The methodology panel for one model: what it computes, and the conditions
- * under which it declines to answer. This is a popover rather than a tooltip
- * on purpose — it is needed to read the control, and tooltip content is
- * unreachable on touch devices.
+ * The methodology panel for one model: what it computes, and when it declines
+ * to answer. A popover rather than a tooltip because it is needed to read the
+ * control, and tooltip content is unreachable on touch.
  */
 function MethodInfo({
   method,
@@ -149,27 +155,17 @@ function MethodInfo({
           </ul>
         </div>
 
-        {/* The number on the toggle, stated in words. A model that can only
-            speak to a fraction of the index is a different proposition from
-            one that covers all of it. */}
         <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
           Values <span className="font-mono">{coverage}</span> of the{" "}
           <span className="font-mono">{total}</span> stocks in the universe
-          {total > 0 && (
-            <> ({((coverage / total) * 100).toFixed(0)}%)</>
-          )}
-          . The rest meet one of the conditions above.
+          {total > 0 && <> ({((coverage / total) * 100).toFixed(0)}%)</>}.
         </p>
       </PopoverContent>
     </Popover>
   )
 }
 
-/**
- * One model, as its own switch. Unlike the sector and band chips this row
- * carries the model's full name and its coverage, because "FCFF" alone tells
- * a reader nothing about whether switching it off should matter to them.
- */
+/** One model as its own switch, carrying its full name and its coverage. */
 function MethodToggle({
   method,
   active,
@@ -230,9 +226,7 @@ function MethodToggle({
           {method.full}
         </span>
 
-        {/* Coverage as a bar: how much of the visible universe this model can
-            actually speak to. A model that covers 40 stocks is a different
-            proposition from one that covers 500. */}
+        {/* Coverage as a bar: how much of the universe this model can speak to. */}
         <span className="h-0.5 w-full bg-muted" aria-hidden="true">
           <span
             className="block h-full bg-muted-foreground/50"
@@ -243,6 +237,53 @@ function MethodToggle({
 
       <div className="py-2.5">
         <MethodInfo method={method} coverage={coverage} total={total} />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The agreement floor. Coverage is uneven, so without it a stock can clear the
+ * screen on one model's opinion while the rest of the panel never saw it.
+ */
+function AgreementControl({
+  value,
+  max,
+  onChange,
+}: {
+  value: number
+  max: number
+  onChange: (next: number) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2 border-t border-border pt-3">
+      <span className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          Valued by at least
+          <Info title="Model agreement">{AGREEMENT_BASIS}</Info>
+        </span>
+        <span className="font-mono tabular-nums">
+          {value} of {max}
+        </span>
+      </span>
+
+      <div className="flex" role="group" aria-label="Minimum models per stock">
+        {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            aria-pressed={n === value}
+            className={cn(
+              "-ml-px flex-1 border py-1 font-mono text-xs transition-colors first:ml-0",
+              n === value
+                ? "z-10 border-primary bg-primary/10 text-foreground"
+                : "border-border text-muted-foreground hover:border-ring hover:text-foreground"
+            )}
+          >
+            {n}
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -266,6 +307,8 @@ export function ScreenerFilterRail({
   onChange: (next: ScreenerFilters) => void
   onReset: () => void
 }) {
+  const modelCount = selectedModelCount(filters.methods)
+
   function toggle<T>(list: T[], value: T): T[] {
     return list.includes(value)
       ? list.filter((item) => item !== value)
@@ -307,34 +350,22 @@ export function ScreenerFilterRail({
         </div>
       </FilterGroup>
 
-      {/* Placed above the bands because it defines what a band means: the
-          consensus, and therefore every margin on screen, is computed from
-          exactly these models. */}
-      <FilterGroup label="Valuation models">
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          The consensus margin of safety is a weighted average of the models
-          switched on here, each model carrying a fixed weight. Turn some off to screen on one school of
-          valuation — cash flows alone, or book value alone — and every margin,
-          band and ranking recomputes against that view. Hover any{" "}
-          <RiInformationLine
-            className="inline size-3.5 align-text-bottom"
-            aria-hidden="true"
-          />{" "}
-          for the formula and the cases where that model declines to answer.
-        </p>
-
-        {/* Names the column of numbers on the right of each row. A bare count
-            beside a model name is ambiguous — it could be a weight, a rank or
-            a score — so it gets a heading rather than a tooltip. */}
-        <div className="flex items-baseline justify-between gap-2 border-b border-border pb-1.5">
-          <span className="text-xs tracking-wider text-muted-foreground uppercase">
-            Model
-          </span>
-          <span className="text-xs tracking-wider text-muted-foreground uppercase">
-            Stocks valued
-          </span>
-        </div>
-
+      {/* The rail reads top to bottom as one sentence: value each stock with
+          these models, then keep only these bands, at this margin. The labels
+          carry the causal order so no paragraph has to explain it. */}
+      <FilterGroup
+        label="Value each stock with"
+        info={
+          <Info title="Valuation models">
+            Each model prices a company off its own fundamentals and reports a
+            fair value. The consensus margin of safety is the
+            confidence-weighted average of the ones switched on here, so turning
+            some off re-answers every margin, band and ranking on screen. The
+            number beside a model is how many of the {total} stocks it can
+            value.
+          </Info>
+        }
+      >
         <div className="flex flex-col gap-1.5">
           {VALUATION_METHODS.map((method) => (
             <MethodToggle
@@ -356,52 +387,30 @@ export function ScreenerFilterRail({
                     : filters.methods
                 const next = toggle(current, method.id)
                 // Switching the last model off would leave no verdicts to
-                // average and empty the screen with no stated reason. Refuse
-                // the click instead.
+                // average and empty the screen with no stated reason.
                 if (next.length === 0) return
                 onChange({
                   ...filters,
                   methods: next.length === VALUATION_METHODS.length ? [] : next,
+                  // The floor cannot ask for more models than are selected.
+                  minModels: Math.min(filters.minModels, next.length),
                 })
               }}
             />
           ))}
         </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">
-            {filters.methods.length === 0
-              ? `All ${VALUATION_METHODS.length} models`
-              : `${filters.methods.length} of ${VALUATION_METHODS.length} models`}
-          </span>
-          {filters.methods.length > 0 && (
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => onChange({ ...filters, methods: [] })}
-            >
-              Use all
-            </Button>
-          )}
-        </div>
-
-        {/* Switching every model off would leave nothing to average, so the
-            screen would empty out with no explanation. */}
-        {filters.methods.length === 0 ? null : filters.methods.length === 1 ? (
-          <p className="border border-border px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-            A single model is a single opinion. Margins here carry that model&rsquo;s
-            known bias with nothing to offset it.
-          </p>
-        ) : null}
+        <AgreementControl
+          value={Math.min(filters.minModels, modelCount)}
+          max={modelCount}
+          onChange={(minModels) => onChange({ ...filters, minModels })}
+        />
       </FilterGroup>
 
-      <FilterGroup label="Valuation band">
-        {/* A relative band labelled as though it were absolute is the whole
-            failure mode here, so the basis is stated where the bands are
-            chosen rather than buried in a tooltip. */}
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {BAND_BASIS}
-        </p>
+      <FilterGroup
+        label="Then keep only"
+        info={<Info title="Valuation bands">{BAND_BASIS}</Info>}
+      >
         <div className="flex flex-wrap gap-2">
           {BANDS.map((band) => (
             <Chip
@@ -418,26 +427,10 @@ export function ScreenerFilterRail({
         </div>
       </FilterGroup>
 
-      <FilterGroup label="Sector">
-        <div className="flex flex-wrap gap-2">
-          {sectors.map((sector) => (
-            <Chip
-              key={sector}
-              active={filters.sectors.includes(sector)}
-              onClick={() =>
-                onChange({
-                  ...filters,
-                  sectors: toggle(filters.sectors, sector),
-                })
-              }
-            >
-              {sector}
-            </Chip>
-          ))}
-        </div>
-      </FilterGroup>
-
-      <FilterGroup label="Minimum margin of safety">
+      <FilterGroup
+        label="Margin of safety"
+        info={<Info title="Margin of safety">{MARGIN_BASIS}</Info>}
+      >
         <Label
           htmlFor="min-margin"
           className="flex items-center justify-between text-sm font-normal"
@@ -467,7 +460,35 @@ export function ScreenerFilterRail({
         />
       </FilterGroup>
 
-      <FilterGroup label="Maximum beta">
+      <FilterGroup label="Sector">
+        <div className="flex flex-wrap gap-2">
+          {sectors.map((sector) => (
+            <Chip
+              key={sector}
+              active={filters.sectors.includes(sector)}
+              onClick={() =>
+                onChange({
+                  ...filters,
+                  sectors: toggle(filters.sectors, sector),
+                })
+              }
+            >
+              {sector}
+            </Chip>
+          ))}
+        </div>
+      </FilterGroup>
+
+      <FilterGroup
+        label="Maximum beta"
+        info={
+          <Info title="Beta">
+            Covariance with the S&amp;P 500 over the trailing 252 trading days,
+            divided by the index&rsquo;s variance. How much of a stock&rsquo;s
+            movement is the market moving rather than the company.
+          </Info>
+        }
+      >
         <Label
           htmlFor="max-beta"
           className="flex items-center justify-between text-sm font-normal"
@@ -490,7 +511,6 @@ export function ScreenerFilterRail({
           className="w-full accent-primary"
         />
       </FilterGroup>
-
     </div>
   )
 }

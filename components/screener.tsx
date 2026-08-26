@@ -7,7 +7,6 @@ import { RiArrowRightLine } from "@remixicon/react"
 import { Button } from "@/components/ui/button"
 import { ScreenerFilterRail } from "@/components/screener-filters"
 import { ScreenerTable, type SortKey } from "@/components/screener-table"
-import { ValuationLegend } from "@/components/valuation-scale"
 import {
   BAND_FILL,
   BAND_LABELS,
@@ -169,8 +168,8 @@ export function Screener({
         default: {
           // Unrated stocks have no margin to rank on, so they sink to the
           // bottom rather than sorting as though their consensus were zero.
-          const aRated = isRated(a, filters.methods)
-          const bRated = isRated(b, filters.methods)
+          const aRated = isRated(a, filters.methods, filters.minModels)
+          const bRated = isRated(b, filters.methods, filters.minModels)
           if (!aRated && !bRated) return 0
           if (!aRated) return 1
           if (!bRated) return -1
@@ -182,7 +181,7 @@ export function Screener({
         }
       }
     })
-  }, [filtered, sort, direction, filters.methods])
+  }, [filtered, sort, direction, filters.methods, filters.minModels])
 
   const counts = useMemo(() => {
     const base = {
@@ -196,14 +195,14 @@ export function Screener({
 
     for (const stock of filtered) {
       base[
-        isRated(stock, filters.methods)
+        isRated(stock, filters.methods, filters.minModels)
           ? valuationBand(consensusMarginOfSafety(stock, filters.methods))
           : "unrated"
       ] += 1
     }
 
     return base
-  }, [filtered, filters.methods])
+  }, [filtered, filters.methods, filters.minModels])
 
   function handleSort(key: SortKey) {
     if (key === sort) {
@@ -220,6 +219,22 @@ export function Screener({
         ? current.filter((item) => item !== ticker)
         : [...current, ticker]
     )
+  }
+
+  const allVisibleSelected =
+    sorted.length > 0 && sorted.every((stock) => selected.includes(stock.ticker))
+
+  // Acts on the rows currently on screen only. Anything ticked under an
+  // earlier filter survives a clear here rather than vanishing silently.
+  function toggleAllVisible() {
+    const visible = sorted.map((stock) => stock.ticker)
+    setSelected((current) => {
+      const allOn =
+        visible.length > 0 && visible.every((t) => current.includes(t))
+      return allOn
+        ? current.filter((t) => !visible.includes(t))
+        : [...new Set([...current, ...visible])]
+    })
   }
 
   return (
@@ -245,14 +260,16 @@ export function Screener({
             computedAt={computedAt}
           />
 
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <ValuationLegend />
-
+          {/* The distribution card above already carries the band key, with
+              counts, so the row below is the actions alone. */}
+          <div className="flex flex-wrap items-center justify-end gap-4">
             <div className="flex flex-wrap items-center gap-3">
               {/* Hand the whole screened set over, not just ticked rows. This
                   is the point of screening: the frontier is built from what
-                  survived the filters rather than from the full index. */}
-              {filtered.length > 1 && (
+                  survived the filters rather than from the full index. Hidden
+                  once the selection already covers every match, where it would
+                  be the button beside it under a different name. */}
+              {filtered.length > 1 && !allVisibleSelected && (
                 <Button
                   size="sm"
                   variant={selected.length > 0 ? "outline" : "default"}
@@ -288,11 +305,13 @@ export function Screener({
           <ScreenerTable
             stocks={sorted}
             methods={filters.methods}
+            minModels={filters.minModels}
             sort={sort}
             direction={direction}
             onSort={handleSort}
             selected={selected}
             onToggleSelected={toggleSelected}
+            onToggleAll={toggleAllVisible}
           />
         </div>
       </div>

@@ -302,20 +302,20 @@ export function FrontierChart({
 
         {isBaseline && (
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Showing an illustrative baseline frontier so the shape is visible
-            immediately. Run the live optimisation to solve across the S&amp;P
-            500 with Ledoit-Wolf shrinkage — it takes a few minutes.
+            An illustrative baseline, so the shape is visible before anything
+            is solved. Run the optimisation for a real one — it takes a few
+            minutes.
           </p>
         )}
 
         {!isBaseline && !drawCml && (
           <p className="text-xs leading-relaxed text-muted-foreground">
-            No capital market line: over this set, no portfolio the constraints
-            allow out-earned the {formatPercent(data.risk_free_rate)} risk-free
-            rate across the window, so there is no tangency portfolio to draw
-            one through. The frontier itself still holds — the best available
-            Sharpe ratio is simply negative. A screen selecting on cheapness
-            rather than momentum reaches this outcome often.
+            No capital market line: nothing the constraints allow out-earned
+            the {formatPercent(data.risk_free_rate)} risk-free rate over this
+            window, so there is no tangency portfolio to draw one through. The
+            frontier still holds; the best available Sharpe is simply negative,
+            which a screen selecting on cheapness rather than momentum reaches
+            often.
           </p>
         )}
 
@@ -323,11 +323,10 @@ export function FrontierChart({
           <p className="text-xs leading-relaxed text-muted-foreground">
             With an L2 penalty of{" "}
             <span className="font-mono tabular-nums">{data.l2_gamma}</span>,
-            every point above minimises variance{" "}
-            <em>plus that penalty</em> rather than variance alone, so this curve
-            sits fractionally inside the unregularised frontier. That is the
-            trade being made deliberately: a little theoretical efficiency for
-            weights that are spread rather than piled on a handful of names.
+            every point above minimises variance <em>plus that penalty</em>, so
+            this curve sits fractionally inside the unregularised frontier — a
+            little theoretical efficiency traded for weights that are spread
+            rather than piled on a handful of names.
           </p>
         )}
       </CardContent>

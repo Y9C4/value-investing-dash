@@ -37,7 +37,7 @@ already passed for value.
 
 | | Step | |
 |---|---|---|
-| **1** | **Screen** | 5 valuation models score all 493 companies. Filter on consensus margin of safety, sector, beta, coverage. Hand the survivors to step 3 with one click. |
+| **1** | **Screen** | 5 valuation models score all 493 companies. Filter on consensus margin of safety, sector, beta, and how many models had to agree. Hand the survivors to step 3 with one click. |
 | **2** | **Analyse** | Every model's verdict on one company, with the price history, CAPM statistics, and the exact discount rates each valuation used. |
 | **3** | **Optimise** | Solve the efficient frontier over the screened set. Position bounds, short selling and L2 regularisation are all exposed — every figure on the page is downstream of them. |
 
@@ -91,7 +91,7 @@ themselves cost ~0.08s for the entire index; the bulk reads that feed them cost
 ~35s. Recomputing per request would pay a fixed toll for numbers that change
 once a day.
 
-## Four problems worth reading about
+## Five problems worth reading about
 
 <details open>
 <summary><b>The max-Sharpe portfolio that kept vanishing</b></summary>
@@ -178,6 +178,36 @@ In the screenshot below, INTC is 11% of the capital and **35% of the risk**.
 → [`risk_contributions`](api/frontier.py)
 
 ![Weight against risk contribution](docs/screenshots/holdings.png)
+
+</details>
+
+<details>
+<summary><b>A consensus of one is not a consensus</b></summary>
+
+<br>
+
+Every model refuses on some companies by design — FCFE and FCFF skip banks and
+REITs, DDM skips anything yielding under 1.5%, Comps needs five usable peers.
+Coverage is therefore lopsided: Comps values 474 of the 493 stocks, FCFF only
+240. Averaging whatever happens to be present let a stock ranked by Comps alone
+sit in the same table as one all five models agreed on, and the two are not the
+same claim. Across the index the models disagree on *direction* for 278 of the
+468 stocks two or more of them can value, so the difference is not academic.
+
+The screener now takes an agreement floor — how many of the selected models
+must have valued a stock before its consensus counts — and reports the backing
+on every row as `4/5`. Below the floor a stock is unrated rather than cheap: no
+bar, an em-dash, and no place in the ranking.
+
+| Floor | Stocks that clear it |
+|---|---|
+| 1 | 470 |
+| **2** (default) | **448** |
+| 3 | 362 |
+| 4 | 200 |
+| 5 | 83 |
+
+→ [`isRated`](lib/valuation.ts), [`AgreementControl`](components/screener-filters.tsx)
 
 </details>
 

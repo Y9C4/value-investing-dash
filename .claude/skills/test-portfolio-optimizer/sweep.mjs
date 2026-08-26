@@ -15,6 +15,17 @@
 
 import { chromium } from "playwright";
 
+/**
+ * The intro dialog opens over the app on a first visit and swallows the first
+ * click. Every page here is a first visit, so mark it seen before navigating.
+ */
+async function newPage(browser) {
+  const page = await browser.newPage();
+  await page.addInitScript(() => localStorage.setItem("margin:intro-seen", "1"));
+  return page;
+}
+
+
 const WEB_URL = process.env.WEB_URL || "http://localhost:3000";
 const API_URL = process.env.API_URL || "http://127.0.0.1:8000";
 
@@ -242,7 +253,7 @@ async function runUiSweep(cases) {
   const failures = [];
 
   for (const testCase of cases) {
-    const page = await browser.newPage();
+    const page = await newPage(browser);
     const consoleErrors = [];
     const pageErrors = [];
     page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
@@ -431,7 +442,7 @@ async function runHandoffCheck() {
 ── screener handoff (${WEB_URL}/screener) ──`);
   const failures = [];
   const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const page = await newPage(browser);
   try {
     await page.goto(`${WEB_URL}/screener`, { waitUntil: "networkidle", timeout: 90_000 });
     const link = page.locator('a[href*="/portfolio?"]').filter({ hasText: /Optimise all/i }).first();
@@ -452,8 +463,15 @@ async function runHandoffCheck() {
     // The link must also still carry the right set through a reload.
     await link.click();
     await page.waitForTimeout(2500);
-    const handed = await page.locator("text=/stocks handed over/i").first().innerText().catch(() => "");
-    const count = Number(handed.match(/(\d+)\s+stocks/)?.[1] ?? 0);
+    // The scope line in the optimiser header, which is now the only place the
+    // decoded size is stated — the standalone "screened universe" card that
+    // used to repeat it was removed as preamble.
+    const handed = await page
+      .locator("text=/Solving over/i")
+      .first()
+      .innerText()
+      .catch(() => "");
+    const count = Number(handed.match(/(\d+)\s+screened/)?.[1] ?? 0);
     const expected = Number(label.match(/(\d+)/)?.[1] ?? -1);
     if (count !== expected) {
       console.log(`  FAIL  handed over ${count} stocks, link promised ${expected}`);
@@ -515,7 +533,7 @@ async function runControlsCheck(stocks) {
 
   const failures = [];
   const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const page = await newPage(browser);
   const record = (ok, label, detail) => {
     console.log(`  ${ok ? "pass" : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
     if (!ok) failures.push({ name: `controls/${label}`, reason: detail ?? label });

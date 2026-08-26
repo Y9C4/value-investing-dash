@@ -9,6 +9,7 @@ import {
   YAxis,
 } from "recharts"
 
+import { Info } from "@/components/info"
 import {
   Card,
   CardContent,
@@ -305,7 +306,15 @@ export function SectorExposure({
   return (
     <Card>
       <CardHeader className="flex flex-wrap items-baseline justify-between gap-2">
-        <CardTitle>Sector exposure</CardTitle>
+        <span className="flex items-center gap-1.5">
+          <CardTitle>Sector exposure</CardTitle>
+          <Info title="Sector exposure" side="bottom">
+            Mean-variance optimisation has no notion of a sector &mdash; it will
+            happily concentrate one if the covariance matrix says those names
+            diversify each other. This chart is the check on that, not a
+            constraint the solver was given.
+          </Info>
+        </span>
         <span className="text-xs tracking-wider text-muted-foreground uppercase">
           {data.length} sectors
         </span>
@@ -382,9 +391,7 @@ export function SectorExposure({
           <span className="font-mono tabular-nums">
             {formatPercent(top.weight)}
           </span>
-          . Mean-variance optimisation has no notion of a sector — it will
-          happily concentrate one if the covariance matrix says those names
-          diversify each other.
+          .
           {covered < 0.995 && (
             <>
               {" "}

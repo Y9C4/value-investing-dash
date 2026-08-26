@@ -12,6 +12,7 @@ import {
   SectorExposure,
 } from "@/components/portfolio-composition"
 import { PortfolioControls } from "@/components/portfolio-controls"
+import { Info } from "@/components/info"
 import {
   Card,
   CardContent,
@@ -90,9 +91,12 @@ function ConstraintRow({
 
 export function PortfolioBuilder({
   tickers = [],
+  staleSet = false,
 }: {
   /** A screened subset handed over by the screener; empty means the full index. */
   tickers?: string[]
+  /** The `?set=` token was built against a different index and cannot be read. */
+  staleSet?: boolean
 }) {
   const [settings, setSettings] = useState<PortfolioSettings>(DEFAULT_SETTINGS)
   // Seeded so the page is never blank: the baseline renders instantly and is
@@ -174,25 +178,18 @@ export function PortfolioBuilder({
 
   return (
     <div className="flex w-full flex-col gap-6">
-      {/* States plainly that this solve is scoped to the screened set — the
-          whole reason the screener exists ahead of it. */}
-      {tickers.length > 0 && (
-        <div className="flex flex-col gap-1 border border-border bg-card px-5 py-4">
-          <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-            Screened universe
-          </span>
-          <p className="text-sm leading-relaxed">
-            Optimising over the{" "}
-            <span className="font-mono">{tickers.length}</span>{" "}
-            {tickers.length === 1 ? "stock" : "stocks"} handed over from the
-            screener
-            {typeof data.n_assets === "number" && !isBaseline
-              ? ` — ${data.n_assets} had the price history to be solved`
-              : ""}
-            . The optimiser can only allocate within this set, so a stock the
-            filters rejected cannot enter the portfolio at any weight.
-          </p>
-        </div>
+      {/* A link the screener built against a different index. It cannot be
+          decoded back to the set it promised, so the scope silently widens to
+          the whole index unless that is said out loud. */}
+      {staleSet && (
+        <p
+          role="status"
+          className="border border-border bg-card px-5 py-3 text-sm"
+        >
+          That screener link points at an older version of the index and
+          can&rsquo;t be read back. Optimising over the full index — run the
+          screen again for a fresh link.
+        </p>
       )}
 
       <PortfolioControls
@@ -268,7 +265,15 @@ export function PortfolioBuilder({
 
         <Card>
           <CardHeader>
-            <CardTitle>Anchor portfolios</CardTitle>
+            <span className="flex items-center gap-1.5">
+              <CardTitle>Anchor portfolios</CardTitle>
+              <Info title="The two anchors" side="bottom">
+                Both are read off the same solved frontier. Min volatility is
+                its left-hand end; max Sharpe is the point the capital market
+                line is tangent to. Everything else on this page describes the
+                max-Sharpe portfolio.
+              </Info>
+            </span>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <Table>
@@ -278,7 +283,19 @@ export function PortfolioBuilder({
                   <TableHead className="text-right">Return</TableHead>
                   <TableHead className="text-right">Volatility</TableHead>
                   <TableHead className="text-right">Sharpe</TableHead>
-                  <TableHead className="text-right">Eff. names</TableHead>
+                  <TableHead className="text-right">
+                    <span className="inline-flex items-center gap-1.5">
+                      Eff. names
+                      <Info title="Effective names" side="left">
+                        1/&Sigma;w&sup2; &mdash; the holding count adjusted for
+                        how lopsided the weights are. It is where the L2 penalty
+                        shows up: at the min-volatility end nothing competes
+                        with it, so raising &gamma; visibly spreads this row.
+                        Max Sharpe barely moves, because its return target is
+                        doing the binding.
+                      </Info>
+                    </span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -327,19 +344,6 @@ export function PortfolioBuilder({
                 </TableRow>
               </TableBody>
             </Table>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Both are read off the same solved frontier. Min volatility is its
-              left-hand end; max Sharpe is the point the capital market line is
-              tangent to. Everything else on this page describes the max-Sharpe
-              portfolio.
-            </p>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Effective names is 1/Σw², the holding count adjusted for how
-              lopsided the weights are. It is where the L2 penalty shows up: at
-              the min-volatility end nothing competes with it, so raising γ
-              visibly spreads that row. Max Sharpe barely moves, because its
-              return target is doing the binding.
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -433,9 +437,8 @@ export function PortfolioBuilder({
                   <span className="font-mono">
                     {data.excluded_short_history.join(", ")}
                   </span>
-                  . A stock that listed part-way through the window reaches the
-                  covariance estimator wearing a fraction of its true
-                  volatility, so it is dropped rather than trusted.
+                  . Listed part-way through the window, so the covariance
+                  estimator would see a fraction of their true volatility.
                 </p>
               )}
 
