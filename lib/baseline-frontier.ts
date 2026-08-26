@@ -22,6 +22,13 @@ export type Portfolio = {
   volatility: number
   sharpe: number
   weights: Record<string, number>
+  /**
+   * Each holding's share of portfolio variance, summing to 1 — the Euler
+   * decomposition, not an approximation. Sent for the tangency portfolio only,
+   * and absent from the shipped baseline because a risk decomposition is a
+   * measurement rather than an illustration and should not be invented.
+   */
+  risk_contributions?: Record<string, number>
 }
 
 export type CmlPoint = { volatility: number; return: number }
@@ -38,6 +45,19 @@ export type FrontierResponse = {
    * over a smaller screened set the backend widens it.
    */
   max_stock_weight?: number
+  /**
+   * The floor the solve enforced. Negative means shorting was permitted, and
+   * by how much — the flag alone never said that.
+   */
+  min_stock_weight?: number
+  /** The L2 penalty applied. Zero means the solve was left unregularised. */
+  l2_gamma?: number
+  /**
+   * Sector per holding, for the exposure breakdown. Absent or empty when the
+   * profile table could not be read; the breakdown is then simply omitted,
+   * because a sector split missing half its names is worse than none.
+   */
+  sectors?: Record<string, string>
   /** Tickers dropped for having too little price history to risk-model. */
   excluded_short_history?: string[]
   /**

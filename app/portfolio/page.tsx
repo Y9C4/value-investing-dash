@@ -1,4 +1,4 @@
-import { EfficientFrontier } from "@/components/efficient-frontier"
+import { PortfolioBuilder } from "@/components/portfolio-builder"
 import { PageHeader } from "@/components/page-header"
 import { decodeTickerSet } from "@/lib/ticker-set"
 
@@ -48,11 +48,11 @@ export default async function PortfolioPage({
             ? "Convex optimisation over the stocks that cleared the screen. Because the optimiser can only choose from names that passed a value filter, it cannot chase a stock whose Sharpe ratio looks good purely because it has already run up."
             : staleSet
               ? "That link was built against a different version of the index, so the set it points at can no longer be read back exactly. Run the screen again to get a fresh link. Optimising below covers the full index."
-              : "Convex optimisation over the screened universe, with Ledoit-Wolf shrinkage on the covariance matrix and a risk-free rate taken from the annualised US 13-week treasury. Screen first to optimise over a filtered set instead of the whole index."
+              : "Convex optimisation over the screened universe, with Ledoit-Wolf shrinkage on the covariance matrix and a risk-free rate taken from the annualised US 13-week treasury. Position bounds, short selling and the L2 penalty are yours to set — every figure below is downstream of them. Screen first to optimise over a filtered set instead of the whole index."
         }
       />
       <div className="px-6 py-8 lg:px-10">
-        <EfficientFrontier tickers={screened} />
+        <PortfolioBuilder tickers={screened} />
       </div>
     </>
   )

@@ -76,6 +76,10 @@ that when a solve is refused the stale chart is **disclaimed** — otherwise a
 red error line sits directly above a perfectly plausible curve, and the curve
 is the thing people believe.
 
+Two further browser phases run in `ui`/`both` mode: `runHandoffCheck` (the
+screener's own link) and `runControlsCheck` (the optimiser's exposed
+constraints). Both are described below.
+
 ## Why there is a soak as well as a matrix
 
 The matrix varies **what** is asked. The soak varies **how many times**, and it
@@ -120,6 +124,70 @@ check matters more than the click**: whether the click succeeds depends on how
 many cookies the reader happens to be carrying, which is why this reproduced
 for them and not in a clean headless browser. Do not replace it with "we
 clicked it and it worked."
+
+### The same bug, one layer down
+
+Fixing the link did not fix the fetch. The page URL became a 110-byte token,
+but the request that page then makes still spelled out every ticker, so
+`POST /api/efficient-frontier?…` was a ~3KB URL — and a URL is a header. At
+13KB of cookies on localhost the fetch answered 431 before reaching the
+optimiser, and the page reported it as *the optimiser* failing:
+
+| cookies | request URL | result |
+|---|---|---|
+| 12KB | 2999B | 200 |
+| 13KB | 2999B | **431** |
+| 13KB | 88B (after) | 200 |
+
+The ticker list travels in the **POST body** now, and `runHandoffCheck` also
+asserts the outgoing solve request stays under `REQUEST_BUDGET_BYTES`. That
+check lives in the handoff phase rather than in `runControlsCheck` because only
+the screener's full set reaches the worst case — a 19-stock subset is nowhere
+near the limit and would pass a broken build.
+
+**The lesson worth carrying: a URL is a header.** Anything unbounded — a ticker
+list, a set of ids, a filter — belongs in a POST body, and the guard against it
+drifting back is a size assertion, not a working click. When this regressed the
+size check failed while the request still returned 200; only the reader with
+enough cookies would have seen the 431.
+
+## The exposed constraints are checked separately too
+
+`/portfolio` lets the reader set the position bounds, the L2 penalty γ and the
+number of frontier points. Neither of the other phases touches those controls —
+the API sweep builds its own query strings and the UI sweep only clicks Run at
+the defaults — so without `runControlsCheck` a control could stop reaching the
+solver and every phase would still be green.
+
+That is a worse failure than a broken page. A position-size box that silently
+does nothing leaves the reader believing the portfolio was built the way the
+form says it was.
+
+Every assertion is on the **solved weights**, not on the outgoing request:
+
+| control | what is asserted |
+|---|---|
+| Maximum position | no weight exceeds it, *and* the response echoes the cap |
+| Minimum position | no weight below it, and every name is held |
+| Negative minimum | short positions appear and respect the floor |
+| γ | the solver echoes it back |
+| Infeasible cap | 422 whose message names the threshold to raise it to |
+| Invalid field | the Run button is disabled before anything is sent |
+
+Two of those are deliberately paranoid. The echoed cap is checked alongside the
+weights because the *automatic* cap for a 19-stock universe is ~7.9%: a solve
+that ignored the bounds entirely still lands under an 8% ceiling, so the weight
+check on its own passes a broken build. And γ is only checked for arrival,
+because its effect on the tangency portfolio is genuinely small — see below.
+
+**γ does not visibly change the max-Sharpe portfolio, and that is correct.**
+The frontier is traced by minimising variance at a target return, so at the
+tangency the return constraint is doing the binding and the penalty has little
+room left. Its effect is large at the minimum-volatility end, where nothing
+competes with it: over one 19-stock set, effective holdings there went 10.6 →
+19.0 as γ went 0 → 5 while the tangency moved 6.8 → 7.2. Do not "fix" a γ
+control that looks inert against the max-Sharpe row; look at the min-volatility
+row instead.
 
 ## Gotchas
 

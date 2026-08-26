@@ -5,9 +5,8 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, NamedTuple
 
-import cvxpy as cp
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -19,6 +18,7 @@ from supabase import Client, create_client
 from pypfopt import expected_returns
 from pypfopt import risk_models
 from pypfopt import EfficientFrontier
+from pypfopt import objective_functions
 
 import engine
 import factors
@@ -99,6 +99,18 @@ MAX_ENVELOPE_POINTS = 200
 MIN_HISTORY_COVERAGE = 0.9
 # Return span below which the frontier collapses to a single point.
 RETURN_SPAN_EPSILON = 1e-6
+# L2 regularisation, added to every solve as `gamma * ||w||^2`.
+#
+# A mean-variance solve with a box constraint is a linear-ish program in
+# disguise: its optimum sits on a vertex of the feasible set, which means most
+# weights come back at exactly zero and the survivors at exactly the cap. The
+# "optimal portfolio" then looks like an arbitrary handful of names, and moving
+# one input reshuffles which names those are. The L2 term is strictly convex, so
+# it pulls the solution off the vertex and spreads weight across more holdings.
+# Zero keeps the old behaviour; the ceiling is where the penalty has long since
+# overwhelmed the variance term and every portfolio is the equal-weight one.
+DEFAULT_L2_GAMMA = 0.0
+MAX_L2_GAMMA = 5.0
 # Ternary-search passes used to refine the tangency portfolio off the grid.
 # Each pass costs two solves; eight of them shrink the bracket to ~4% of one
 # grid step, which is far below what the chart can show. The point is not
@@ -1194,21 +1206,110 @@ def _weight_cap(n_assets: int) -> float:
     return max(MAX_STOCK_WEIGHT, CAP_SLACK / n_assets)
 
 
-def _make_efficient_frontier(
-    mu: pd.Series, S: pd.DataFrame, short_allowed: bool, cap: float
-) -> EfficientFrontier:
-    """Build an EfficientFrontier with the per-stock cap applied consistently.
+class Constraints(NamedTuple):
+    """What the solver was actually told, after defaults and feasibility.
 
-    When shorting is allowed the cap is symmetric (|w| <= cap): a plain
-    `w <= cap` would cap only the long side and leave shorts bounded solely by
-    the -1 weight floor.
+    Kept as one value so every solve in a single frontier trace provably shares
+    the same rules -- the anchors, the sweep and the tangency refinement each
+    build their own `EfficientFrontier`, and a frontier assembled from points
+    solved under different constraints is not a frontier.
     """
-    weight_bounds = (-1, 1) if short_allowed else (0, 1)
-    ef = EfficientFrontier(mu, S, weight_bounds=weight_bounds, solver="CLARABEL")
-    if short_allowed:
-        ef.add_constraint(lambda w: cp.abs(w) <= cap)
+
+    lower: float
+    upper: float
+    gamma: float
+
+
+def _resolve_constraints(
+    n_assets: int,
+    short_allowed: bool,
+    min_weight: float | None,
+    max_weight: float | None,
+    gamma: float,
+) -> Constraints:
+    """Turn the request's position-size controls into bounds a solve can meet.
+
+    Box bounds interact with `sum(w) == 1` in a way that is easy to get wrong
+    from the outside: an upper bound below `1/n` cannot add up to a whole
+    portfolio, and a lower bound above `1/n` cannot either. Both are infeasible
+    rather than merely strict, and CVXPY reports infeasibility as an opaque
+    solver failure -- so they are caught here, where the message can name the
+    number the reader has to change.
+
+    Omitting a bound keeps the behaviour the page had before the controls
+    existed: the upper bound scales to the universe (see `_weight_cap`), and
+    the lower bound is either zero or, with shorting on, the mirror of the cap.
+    """
+    if not 0.0 <= gamma <= MAX_L2_GAMMA:
+        raise HTTPException(
+            status_code=422,
+            detail=f"gamma must be between 0 and {MAX_L2_GAMMA}.",
+        )
+
+    upper = _weight_cap(n_assets) if max_weight is None else float(max_weight)
+    if min_weight is None:
+        lower = -upper if short_allowed else 0.0
     else:
-        ef.add_constraint(lambda w: w <= cap)
+        lower = float(min_weight)
+
+    if not -1.0 <= lower <= 1.0 or not -1.0 <= upper <= 1.0:
+        raise HTTPException(
+            status_code=422,
+            detail="Position sizes must be between -100% and 100%.",
+        )
+    if lower > upper:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Minimum position ({lower:.2%}) is above the maximum "
+                f"({upper:.2%})."
+            ),
+        )
+
+    # `sum(w) == 1` with `w <= upper` needs `upper * n >= 1`; likewise
+    # `w >= lower` needs `lower * n <= 1`. Report the threshold, not the
+    # violation, so there is something to type into the box.
+    if upper * n_assets < 1.0:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"A {upper:.2%} maximum position cannot fill a portfolio of "
+                f"{n_assets} stocks — the weights would sum to at most "
+                f"{upper * n_assets:.0%}. Raise it to at least "
+                f"{1.0 / n_assets:.2%}, or screen for fewer stocks."
+            ),
+        )
+    if lower * n_assets > 1.0:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"A {lower:.2%} minimum position across {n_assets} stocks "
+                f"already commits {lower * n_assets:.0%} of the portfolio. "
+                f"Lower it to at most {1.0 / n_assets:.2%}."
+            ),
+        )
+
+    return Constraints(lower=lower, upper=upper, gamma=float(gamma))
+
+
+def _make_efficient_frontier(
+    mu: pd.Series, S: pd.DataFrame, constraints: Constraints
+) -> EfficientFrontier:
+    """Build an EfficientFrontier under one shared set of constraints.
+
+    The bounds go in as PyPortfolioOpt's own `weight_bounds` rather than as an
+    added constraint, so an asymmetric range (a -1% floor against a 5% cap, say)
+    means what it says. An earlier version bounded shorts symmetrically via
+    `|w| <= cap`, which quietly made the floor unreachable from the API.
+    """
+    ef = EfficientFrontier(
+        mu,
+        S,
+        weight_bounds=(constraints.lower, constraints.upper),
+        solver="CLARABEL",
+    )
+    if constraints.gamma > 0:
+        ef.add_objective(objective_functions.L2_reg, gamma=constraints.gamma)
     return ef
 
 
@@ -1244,8 +1345,7 @@ def _trace_frontier(
     mu: pd.Series,
     S: pd.DataFrame,
     risk_free_rate: float,
-    cap: float,
-    short_allowed: bool,
+    constraints: Constraints,
     n_points: int,
 ) -> list[dict]:
     """The efficient frontier itself: `n_points` genuinely solved portfolios,
@@ -1273,14 +1373,14 @@ def _trace_frontier(
     convex set, sitting 25-50bp inside the real curve, and it stopped dead at
     the tangency point so the frontier's high-return arm was never drawn.
     """
-    ef = _make_efficient_frontier(mu, S, short_allowed, cap)
+    ef = _make_efficient_frontier(mu, S, constraints)
     ef.min_volatility()
     floor_weights = pd.Series(ef.clean_weights()).reindex(mu.index).fillna(0.0).values
     return_floor = float(floor_weights @ mu.values)
 
     # `_max_return` mutates the instance it runs on, so it gets a throwaway.
     return_ceiling = float(
-        _make_efficient_frontier(mu, S, short_allowed, cap)._max_return()
+        _make_efficient_frontier(mu, S, constraints)._max_return()
     )
 
     def described(weights: np.ndarray) -> dict:
@@ -1297,7 +1397,7 @@ def _trace_frontier(
     if return_ceiling - return_floor <= RETURN_SPAN_EPSILON:
         return [described(floor_weights)]
 
-    sweep = _make_efficient_frontier(mu, S, short_allowed, cap)
+    sweep = _make_efficient_frontier(mu, S, constraints)
     points = [described(floor_weights)]
 
     # The ceiling came from a different instance, so the last target is pulled
@@ -1318,8 +1418,7 @@ def _refine_tangency(
     mu: pd.Series,
     S: pd.DataFrame,
     risk_free_rate: float,
-    cap: float,
-    short_allowed: bool,
+    constraints: Constraints,
 ) -> dict:
     """The maximum-Sharpe portfolio, found on the frontier and then sharpened.
 
@@ -1340,7 +1439,7 @@ def _refine_tangency(
     if high - low <= RETURN_SPAN_EPSILON:
         return best
 
-    sweep = _make_efficient_frontier(mu, S, short_allowed, cap)
+    sweep = _make_efficient_frontier(mu, S, constraints)
 
     def sharpe_at(target: float) -> dict | None:
         weights = _solve_at_return(sweep, target, mu)
@@ -1375,10 +1474,79 @@ def _refine_tangency(
     return best
 
 
+def _risk_contributions(
+    weights: np.ndarray, S: pd.DataFrame
+) -> dict[str, float]:
+    """Each holding's share of total portfolio variance, summing to 1.
+
+    Weight is not risk. A 3% position in a volatile name correlated with
+    everything else can carry several times the risk of a 3% position in a
+    defensive one, and a weight table alone cannot show that -- it is the
+    difference between what the portfolio owns and what it is exposed to.
+
+    The standard Euler decomposition: `w_i * (Sw)_i / (w'Sw)`. It is exact
+    rather than an approximation because variance is homogeneous of degree two,
+    so the parts genuinely add up to the whole. A contribution can be negative
+    when a short or a hedging position reduces total variance -- that is a real
+    result and is reported rather than clipped.
+    """
+    variance = float(weights @ S.values @ weights)
+    if variance <= 0:
+        return {}
+    marginal = S.values @ weights
+    return {
+        ticker: float(weights[index] * marginal[index] / variance)
+        for index, ticker in enumerate(S.index)
+    }
+
+
+_sector_map_cache: dict[str, str] | None = None
+_sector_map_stamp: float = 0.0
+_sector_map_lock = Lock()
+
+
+def _sector_map() -> dict[str, str]:
+    """Ticker -> sector, cached, and never allowed to fail a solve.
+
+    Sector labels are decoration on the frontier response: they let the page
+    show that a mathematically diversified portfolio is three-quarters one
+    sector, which is the failure mode mean-variance optimisation is worst at
+    advertising. They are not worth turning a completed optimisation into an
+    error over, so a read failure yields an empty map and the page omits the
+    breakdown.
+    """
+    global _sector_map_cache, _sector_map_stamp
+
+    with _sector_map_lock:
+        if (
+            _sector_map_cache is not None
+            and time.time() - _sector_map_stamp <= RISK_FREE_CACHE_TTL_SECONDS
+        ):
+            return _sector_map_cache
+
+    try:
+        rows = _fetch_all_rows("company_profile", "ticker, sector")
+    except Exception:  # noqa: BLE001 - decoration must not fail the solve
+        return {}
+
+    mapping = {
+        row["ticker"]: row.get("sector") or "Unclassified"
+        for row in rows
+        if row.get("ticker")
+    }
+    with _sector_map_lock:
+        _sector_map_cache = mapping
+        _sector_map_stamp = time.time()
+    return mapping
+
+
 def build_efficient_frontier(
     ShortAllowed: bool,
     n_portfolios: int = ENVELOPE_POINTS,
     tickers: list[str] | None = None,
+    min_weight: float | None = None,
+    max_weight: float | None = None,
+    gamma: float = DEFAULT_L2_GAMMA,
 ) -> dict:
     """Build the efficient frontier for a universe of stocks.
 
@@ -1392,6 +1560,12 @@ def build_efficient_frontier(
     point of screening before optimising: the frontier is drawn over companies
     that passed a value filter, so the optimiser cannot allocate into a stock
     that is merely rising fast. Passing None optimises the full index.
+
+    `min_weight`, `max_weight` and `gamma` are the shape controls: the first two
+    are the box the weights live in, the third is how hard the solve is pushed
+    away from the corners of that box. See `_resolve_constraints` and
+    `MAX_L2_GAMMA`. All three apply identically to every solve in the trace,
+    which is what makes the resulting points a single frontier.
     """
     if not MIN_ENVELOPE_POINTS <= n_portfolios <= MAX_ENVELOPE_POINTS:
         raise HTTPException(
@@ -1455,15 +1629,17 @@ def build_efficient_frontier(
     mu = mu.clip(lower=-MU_CLIP, upper=MU_CLIP)
     S = risk_models.CovarianceShrinkage(stock_prices).ledoit_wolf()
     risk_free_rate = get_average_risk_free_rate()
-    cap = _weight_cap(int(stock_prices.shape[1]))
-
-    points = _trace_frontier(
-        mu, S, risk_free_rate, cap, ShortAllowed, n_portfolios
+    constraints = _resolve_constraints(
+        int(stock_prices.shape[1]), ShortAllowed, min_weight, max_weight, gamma
     )
-    tangency = _refine_tangency(points, mu, S, risk_free_rate, cap, ShortAllowed)
+
+    points = _trace_frontier(mu, S, risk_free_rate, constraints, n_portfolios)
+    tangency = _refine_tangency(points, mu, S, risk_free_rate, constraints)
     # The frontier is traced upward from the minimum-variance portfolio, so its
     # first point is that anchor by construction.
     minimum_variance = points[0]
+
+    contributions = _risk_contributions(tangency["weights"], S)
 
     def _summarise(point: dict) -> dict:
         weights = pd.Series(point["weights"], index=mu.index)
@@ -1478,6 +1654,13 @@ def build_efficient_frontier(
         }
 
     max_sharpe = _summarise(tangency)
+    # Only for the tangency portfolio: it is the one the page presents as "the"
+    # portfolio, and the decomposition costs a matrix-vector product per set.
+    max_sharpe["risk_contributions"] = {
+        ticker: round(contributions[ticker], 4)
+        for ticker in max_sharpe["weights"]
+        if ticker in contributions
+    }
 
     envelope = [
         {
@@ -1514,11 +1697,22 @@ def build_efficient_frontier(
         "n_portfolios": len(points),
         "n_assets": int(stock_prices.shape[1]),
         "risk_free_rate": risk_free_rate,
-        # Surfaced because it is not always the 3% the copy would imply: over a
-        # small screened set the cap has to widen for the problem to have a
-        # solution at all, and the reader is owed the constraint that was used.
-        "max_stock_weight": cap,
+        # Surfaced because it is not always what was asked for: over a small
+        # screened set the cap has to widen for the problem to have a solution
+        # at all, and the reader is owed the constraints that were used rather
+        # than the ones they typed.
+        "max_stock_weight": constraints.upper,
+        "min_stock_weight": constraints.lower,
+        "l2_gamma": constraints.gamma,
         "excluded_short_history": short_history,
+        # Sector labels for the holdings only. Absent keys mean the profile
+        # table had nothing for that ticker; an empty map means it was
+        # unreadable, and either way the page just omits the breakdown.
+        "sectors": {
+            ticker: sector
+            for ticker, sector in _sector_map().items()
+            if ticker in max_sharpe["weights"]
+        },
         "tangency_beats_risk_free": tangency_beats_risk_free,
         "max_sharpe": max_sharpe,
         "min_volatility": _summarise(minimum_variance),
@@ -1532,8 +1726,21 @@ def post_efficient_frontier(
     short_allowed: bool = False,
     n_portfolios: int = ENVELOPE_POINTS,
     tickers: str | None = None,
+    min_weight: float | None = None,
+    max_weight: float | None = None,
+    gamma: float = DEFAULT_L2_GAMMA,
 ):
-    """`tickers` is a comma-separated screened subset; omit it for the full index."""
+    """Solve the frontier.
+
+    `tickers` is a comma-separated screened subset; omit it for the full index.
+    `min_weight`/`max_weight` are the per-position bounds as fractions (0.03 is
+    3%); omit either to let `_resolve_constraints` pick it from the universe
+    size and `short_allowed`. A negative `min_weight` permits shorting on its
+    own, so `short_allowed` is only the default-setting shorthand.
+    `gamma` is the L2 penalty that spreads weight across more holdings.
+    """
     subset = tickers.split(",") if tickers else None
-    return build_efficient_frontier(short_allowed, n_portfolios, subset)
+    return build_efficient_frontier(
+        short_allowed, n_portfolios, subset, min_weight, max_weight, gamma
+    )
 

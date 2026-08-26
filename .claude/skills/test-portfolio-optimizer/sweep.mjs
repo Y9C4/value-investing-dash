@@ -257,7 +257,7 @@ async function runUiSweep(cases) {
         throw new Error(`navigation returned HTTP ${response.status()}`);
       }
 
-      const button = page.getByRole("button", { name: /Optimise|Run live optimisation/ });
+      const button = page.getByRole("button", { name: /Run optimisation/i });
       await button.waitFor({ state: "visible", timeout: 30_000 });
 
       // Wait on the request itself, not on the button's label. A click that
@@ -276,7 +276,7 @@ async function runUiSweep(cases) {
       await page.waitForFunction(
         () => {
           const b = [...document.querySelectorAll("button")].find((el) =>
-            /Optimis|Run live/.test(el.textContent ?? "")
+            /Run optimisation|Optimising/.test(el.textContent ?? "")
           );
           return b && !/Optimising/.test(b.textContent ?? "");
         },
@@ -410,6 +410,21 @@ async function runSoak(stocks, n) {
  * bug reproduced for them and not in a clean browser.
  */
 const HANDOFF_BUDGET_BYTES = 512;
+/**
+ * The same budget, for the *outgoing solve request* rather than the link.
+ *
+ * Fixing the link left the identical bug one layer down: the page URL became a
+ * 110-byte token, but the fetch it triggers still spelled out every ticker, so
+ * `POST /api/efficient-frontier?…` was a ~3KB URL. A URL is a header — it sits
+ * in the request line and counts against the same 16KB budget as cookies — so
+ * at ~13KB of cookies on localhost the request 431'd before reaching the
+ * optimiser, and the page reported it as the optimiser failing.
+ *
+ * The ticker list travels in the POST body now. This budget is what keeps it
+ * there: any attempt to put an unbounded list back in the query string fails
+ * here rather than in someone's browser six months later.
+ */
+const REQUEST_BUDGET_BYTES = 256;
 
 async function runHandoffCheck() {
   console.log(`
@@ -446,9 +461,156 @@ async function runHandoffCheck() {
     } else {
       console.log(`  pass  handed over ${count} stocks, matching the link`);
     }
+
+    // Solving the widest set the app can produce is the only place the request
+    // URL reaches its worst case, so the size guard lives here rather than in
+    // runControlsCheck, which works from a 19-stock subset.
+    await page.locator("#n-portfolios").fill("10");
+    let requestUrl = "";
+    page.on("request", (r) => {
+      if (r.url().includes("/api/efficient-frontier")) requestUrl = r.url();
+    });
+    const pending = page.waitForResponse(
+      (r) => r.url().includes("/api/efficient-frontier"),
+      { timeout: 280_000 }
+    );
+    await page.getByRole("button", { name: /Run optimisation/i }).click();
+    const solve = await pending;
+    const urlBytes = new URL(requestUrl).pathname.length + new URL(requestUrl).search.length;
+    if (urlBytes > REQUEST_BUDGET_BYTES || solve.status() !== 200) {
+      console.log(`  FAIL  solve request URL ${urlBytes}B (budget ${REQUEST_BUDGET_BYTES}B), HTTP ${solve.status()}`);
+      failures.push({
+        name: "solve-request-size",
+        reason: `request URL is ${urlBytes}B over ${count} stocks; a reader with ~13KB of cookies will get 431`,
+      });
+    } else {
+      console.log(`  pass  solve request URL ${urlBytes}B over ${count} stocks, HTTP 200`);
+    }
   } catch (err) {
     console.log(`  FAIL  ${String(err.message).slice(0, 110)}`);
     failures.push({ name: "screener-handoff", reason: err.message });
+  } finally {
+    await browser.close();
+  }
+  return failures;
+}
+
+/**
+ * The optimiser's exposed constraints, driven through the real controls.
+ *
+ * Neither other phase touches them: the API sweep sends its own query strings,
+ * and the UI sweep only clicks Run at the defaults. So nothing else notices if
+ * a control stops reaching the solver — and a position-size box that silently
+ * does nothing is worse than one that is missing, because the reader believes
+ * the portfolio was built the way the form says it was.
+ *
+ * Every assertion is on the *solved weights*, not on the request. Checking
+ * that the query string carried `max_weight=0.08` proves the form works and
+ * says nothing about whether the constraint was enforced.
+ */
+async function runControlsCheck(stocks) {
+  const subset = stocks.slice(0, 19).map((s) => s.ticker);
+  const url = `${WEB_URL}/portfolio?tickers=${subset.join(",")}`;
+  console.log(`\n── optimiser controls (${subset.length} stocks) ──`);
+
+  const failures = [];
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  const record = (ok, label, detail) => {
+    console.log(`  ${ok ? "pass" : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+    if (!ok) failures.push({ name: `controls/${label}`, reason: detail ?? label });
+  };
+
+  try {
+    await page.goto(url, { waitUntil: "networkidle", timeout: 90_000 });
+    await page.locator("#n-portfolios").fill("25");
+
+    const run = async () => {
+      const pending = page.waitForResponse(
+        (r) => r.url().includes("/api/efficient-frontier"),
+        { timeout: 280_000 }
+      );
+      await page.getByRole("button", { name: /Run optimisation/i }).click();
+      const res = await pending;
+      await page
+        .getByRole("button", { name: /Run optimisation/i })
+        .waitFor({ timeout: 60_000 });
+      return { status: res.status(), body: await res.json().catch(() => null) };
+    };
+    const weightsOf = (body) => Object.values(body.max_sharpe.weights);
+
+    let r = await run();
+    record(r.status === 200, "defaults solve", `HTTP ${r.status}`);
+    const rc = r.body?.max_sharpe?.risk_contributions ?? {};
+    const rcSum = Object.values(rc).reduce((a, b) => a + b, 0);
+    record(
+      Object.keys(rc).length > 0 && Math.abs(rcSum - 1) < 0.01,
+      "risk contributions sum to 1",
+      rcSum.toFixed(4)
+    );
+    record(
+      Object.keys(r.body?.sectors ?? {}).length > 0,
+      "sectors present for the holdings"
+    );
+
+    // The echoed cap is checked alongside the weights because the automatic
+    // cap for this universe is ~7.9%: a solve that ignored the box entirely
+    // still lands under 8%, so the weight check alone passes a broken build.
+    await page.locator("#max-weight").fill("8");
+    r = await run();
+    const largest = Math.max(...weightsOf(r.body));
+    record(
+      largest <= 0.0801 && r.body?.max_stock_weight === 0.08,
+      "max position enforced",
+      `largest ${(largest * 100).toFixed(2)}%, cap ${r.body?.max_stock_weight}`
+    );
+
+    await page.locator("#min-weight").fill("2");
+    await page.locator("#max-weight").fill("12");
+    r = await run();
+    const smallest = Math.min(...weightsOf(r.body));
+    record(
+      smallest >= 0.0199 && Object.keys(r.body.max_sharpe.weights).length === r.body.n_assets,
+      "min position holds every name",
+      `smallest ${(smallest * 100).toFixed(2)}%`
+    );
+
+    await page.locator("#min-weight").fill("-3");
+    r = await run();
+    const shorts = weightsOf(r.body).filter((w) => w < 0);
+    record(
+      shorts.length > 0 && Math.min(...weightsOf(r.body)) >= -0.0301,
+      "negative bound opens short positions",
+      `${shorts.length} short`
+    );
+
+    await page.locator("#min-weight").fill("");
+    await page.locator("#max-weight").fill("20");
+    await page.locator("#gamma").fill("2");
+    r = await run();
+    record(r.body?.l2_gamma === 2, "gamma reaches the solver", `echoed ${r.body?.l2_gamma}`);
+
+    // An infeasible cap must come back as a stated refusal naming the number
+    // to change, not as a dead page or a stale chart passed off as an answer.
+    await page.locator("#gamma").fill("0");
+    await page.locator("#max-weight").fill("1");
+    r = await run();
+    const detail = await page.locator("p.text-destructive").first().textContent().catch(() => "");
+    record(
+      r.status === 422 && /Raise it to at least/.test(detail ?? ""),
+      "infeasible cap is refused with a threshold",
+      `HTTP ${r.status}`
+    );
+
+    // And the browser must not even send a request it can already tell is bad.
+    await page.locator("#n-portfolios").fill("999");
+    record(
+      await page.getByRole("button", { name: /Run optimisation/i }).isDisabled(),
+      "invalid field blocks the run"
+    );
+  } catch (err) {
+    console.log(`  FAIL  ${String(err.message).slice(0, 110)}`);
+    failures.push({ name: "controls", reason: err.message });
   } finally {
     await browser.close();
   }
@@ -463,6 +625,7 @@ let failures = [];
 if (MODE === "api" || MODE === "both") failures.push(...(await runApiSweep(cases)));
 if (SOAK > 0) failures.push(...(await runSoak(stocks, SOAK)));
 if (MODE === "ui" || MODE === "both") failures.push(...(await runHandoffCheck()));
+if (MODE === "ui" || MODE === "both") failures.push(...(await runControlsCheck(stocks)));
 if (MODE === "ui" || MODE === "both") {
   // The UI path is slow, so it runs a representative slice rather than all of
   // them; the API sweep above already covers the full matrix.

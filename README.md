@@ -98,11 +98,54 @@ half of Node's 16KB header budget before any cookies — so the page answered
 **431 Request Header Fields Too Large** for some readers and not others,
 depending on what cookies they carried.
 
+The same reasoning applies one layer down: `/portfolio` sends the ticker list
+to `POST /api/efficient-frontier` in the **request body**, not the query
+string. A ~3KB URL there cost the same header budget and 431'd for a reader
+carrying 13KB of cookies on localhost, which the page then reported as the
+optimiser failing. The query form is still accepted for hand-built calls, which
+carry no cookies.
+
 Links stay shareable and survive a reload. If the index membership changes the
 bit positions shift, so a token carries a fingerprint of the universe it was
 built against and an outdated link is refused rather than silently decoded into
 a different portfolio. `?tickers=AAPL,MSFT,…` still works for short, hand-built
 URLs.
+
+## Shaping the optimisation
+
+`/portfolio` exposes the constraints the solver runs under, because every
+number on that page is downstream of them and a frontier with no stated
+constraint set is not a claim about anything.
+
+| control | effect |
+|---|---|
+| **Maximum position** | The per-name cap. Blank scales it to the universe: `sum(w) == 1` with `w <= c` needs `c * n >= 1`, so a 3% cap silently requires 34 holdings and a smaller screened set has no feasible portfolio at all. |
+| **Minimum position** | A floor on every weight. Positive forces every name into the portfolio — the direct way to eliminate zero weights. Negative permits shorting down to that weight. |
+| **Allow short selling** | Shorthand for a floor at `-cap`. An explicit minimum overrides it, so an asymmetric range (−1% floor against a 5% cap) means what it says. |
+| **L2 penalty (γ)** | Adds `γ‖w‖²` to the objective. |
+| **Portfolios** | How many points are solved along the frontier. Each is its own optimisation, so this is what decides run time. |
+
+An infeasible combination is refused with a 422 naming the number to change,
+rather than reaching CVXPY and coming back as an opaque solver error.
+
+### What γ actually does
+
+A box-constrained mean-variance solve puts its optimum on a *vertex* of the
+feasible set: most weights land at exactly zero and the survivors at exactly the
+cap, and nudging any input reshuffles which names those are. The L2 term is
+strictly convex, so it pulls the solution off that vertex.
+
+Its visible effect is at the **minimum-volatility end** of the frontier, not at
+the tangency. The frontier is traced by minimising variance at a target return,
+and at the max-Sharpe point that return constraint is doing the binding — there
+is little room left for the penalty. Over one 19-stock set, raising γ from 0 to
+5 moved the min-volatility portfolio from 10.6 to 19.0 effective holdings while
+the tangency went 6.8 → 7.2. The **Eff. names** column in the anchor table is
+where to watch it.
+
+With γ above zero the plotted curve minimises variance *plus the penalty*, so
+it sits fractionally inside the unregularised frontier. That is the trade being
+made on purpose, and the chart says so.
 
 ## Testing the optimiser
 
@@ -132,8 +175,11 @@ pnpm build
   over the last 252 trading days, the 2x2 covariance matrix, and the average
   annualised risk-free rate (`^IRX`)
 - `GET /valuations` — every model's verdict for every stock, precomputed
-- `POST /efficient-frontier?tickers=…&short_allowed=…&n_portfolios=…` — solves
-  the frontier over a screened subset (omit `tickers` for the whole index)
+- `POST /efficient-frontier?tickers=…&short_allowed=…&n_portfolios=…&min_weight=…&max_weight=…&gamma=…`
+  — solves the frontier over a screened subset (omit `tickers` for the whole
+  index). `min_weight`/`max_weight` are fractions, not percents (`0.03` is 3%);
+  omit either to let the service scale it to the universe. `gamma` is the L2
+  penalty. See **Shaping the optimisation** above.
 - `POST /backfill/all?full=…&skip_fundamentals=…` — **every stage in order**
 - `POST /backfill/sp500-daily-close?full=…` — daily closes
 - `POST /backfill/factor-returns` — Fama-French daily factors
