@@ -19,6 +19,21 @@ Copy `.env.example` to `.env` and fill in your Supabase project URL and **servic
 uvicorn main:app --reload --port 8000
 ```
 
+## Refreshing everything
+
+One call runs every stage in dependency order and recomputes the valuations
+last (they read the three tables above them):
+
+```bash
+curl -X POST "http://127.0.0.1:8000/backfill/all?skip_fundamentals=true"  # ~2 min, the daily shape
+curl -X POST "http://127.0.0.1:8000/backfill/all"                        # ~10 min, includes statements
+curl -X POST "http://127.0.0.1:8000/backfill/all?full=true"              # also re-pulls the 2y price window
+```
+
+The dashboard exposes the same thing as "Refresh everything" at the top of
+`/data`. See the root `readme.md` for what each flag is for and why a
+short-history ticker is not necessarily a backfill gap.
+
 ## Endpoints
 
 - `GET /health` — liveness check

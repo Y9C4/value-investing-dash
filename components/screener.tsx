@@ -22,6 +22,7 @@ import {
   type Stock,
   type ValuationBand,
 } from "@/lib/valuation"
+import { portfolioHref } from "@/lib/ticker-set"
 
 const BANDS: ValuationBand[] = [
   "deep-value",
@@ -258,9 +259,9 @@ export function Screener({
                   nativeButton={false}
                   render={
                     <Link
-                      href={`/portfolio?tickers=${filtered
-                        .map((stock) => stock.ticker)
-                        .join(",")}`}
+                      href={portfolioHref(
+                        filtered.map((stock) => stock.ticker)
+                      )}
                     />
                   }
                 >
@@ -274,7 +275,7 @@ export function Screener({
                   size="sm"
                   nativeButton={false}
                   render={
-                    <Link href={`/portfolio?tickers=${selected.join(",")}`} />
+                    <Link href={portfolioHref(selected)} />
                   }
                 >
                   Optimise {selected.length} selected

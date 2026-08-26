@@ -32,6 +32,20 @@ export type FrontierResponse = {
   /** How many stocks the solve actually ran over. Absent on older responses. */
   n_assets?: number
   risk_free_rate: number
+  /**
+   * The per-stock cap the solve actually enforced. It is not always 3%: that
+   * cap needs 34 names to be satisfiable alongside weights summing to 1, so
+   * over a smaller screened set the backend widens it.
+   */
+  max_stock_weight?: number
+  /** Tickers dropped for having too little price history to risk-model. */
+  excluded_short_history?: string[]
+  /**
+   * False when no portfolio the constraints allow out-earns the risk-free
+   * rate. The frontier is still real; the capital market line is not, so it is
+   * withheld rather than drawn sloping downwards.
+   */
+  tangency_beats_risk_free?: boolean
   max_sharpe: Portfolio
   min_volatility: Portfolio
   capital_market_line: CmlPoint[]

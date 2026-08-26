@@ -2,16 +2,18 @@ import json
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Literal
+from typing import Any, Callable, Literal
 
 import cvxpy as cp
 import numpy as np
 import pandas as pd
 import yfinance as yf
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import Client, create_client
 from pypfopt import expected_returns
@@ -39,6 +41,21 @@ RISK_FREE_TICKER = "^IRX"
 FETCH_CHUNK_SIZE = 50
 UPSERT_CHUNK_SIZE = 500
 SELECT_PAGE_SIZE = 1000
+# Paged price reads are independent round trips, so they overlap. Eight is the
+# same ceiling the fundamentals fetch settled on against the same backend.
+PRICE_FETCH_MAX_WORKERS = 6
+# The pooled Supabase session drops the occasional connection -- under that
+# concurrency, but also simply from age. Retrying costs a moment; letting it
+# through cost a 500 on a page the reader had done nothing wrong to reach.
+SUPABASE_READ_ATTEMPTS = 4
+SUPABASE_READ_BACKOFF_SECONDS = 0.25
+# The stored risk-free rate moves at most once a day but was re-read on every
+# request: an extra round trip, and one more chance to land on a dying
+# connection, for a number that had not changed.
+RISK_FREE_CACHE_TTL_SECONDS = 900
+# Closes for a settled session do not change; re-reading them per request was
+# most of what an optimisation spent its time on.
+PRICE_CACHE_TTL_SECONDS = 900
 
 # How much price history to hold. A 252-trading-day window is what every return
 # calculation asks for, and `period="1y"` yields only ~250 rows — just short of
@@ -54,19 +71,51 @@ INCREMENTAL_OVERLAP_DAYS = 5
 
 # Frontier constraints: no single name may exceed 3% of the portfolio, and
 # historical mean returns are capped to keep extreme estimates from dominating.
+#
+# The 3% figure is the cap for a full-index solve and CANNOT be applied blindly
+# to a screened subset. `sum(w) == 1` with `w <= cap` is infeasible unless
+# `cap * n >= 1`, so a 3% cap silently requires at least 34 names -- and the
+# screener hands over as few as 5. `_weight_cap` scales the cap to the universe
+# instead. See its docstring for why the slack factor matters.
 MAX_STOCK_WEIGHT = 0.03
+# Require at most n/1.5 holdings, so the cap never binds every weight at once.
+# A cap of exactly 1/n is feasible but degenerate: every name is pinned to the
+# cap and the "optimisation" can only return the equal-weight portfolio.
+CAP_SLACK = 1.5
 MU_CLIP = 0.50
 ENVELOPE_POINTS = 100
 # Below this, the covariance matrix is too small for the optimisation to say
 # anything meaningful about diversification.
 MIN_FRONTIER_TICKERS = 5
 MIN_ENVELOPE_POINTS = 2
-MAX_ENVELOPE_POINTS = 500
+# Every frontier point is now a solved portfolio rather than a point on a
+# straight line between two anchors, so the ceiling reflects real solver cost
+# (~0.3s per point over the full index).
+MAX_ENVELOPE_POINTS = 200
+# A ticker needs this share of the price frame's sessions to be optimised over.
+# `CovarianceShrinkage` fills missing returns with zeros, so a recent listing
+# arrives at the solver wearing a fraction of its true volatility and gets
+# loaded up on. Dropping it is more honest than pricing risk it never showed.
+MIN_HISTORY_COVERAGE = 0.9
+# Return span below which the frontier collapses to a single point.
+RETURN_SPAN_EPSILON = 1e-6
+# Ternary-search passes used to refine the tangency portfolio off the grid.
+# Each pass costs two solves; eight of them shrink the bracket to ~4% of one
+# grid step, which is far below what the chart can show. The point is not
+# precision for its own sake — it guarantees the tangency is at least as good
+# as every plotted point, so the capital market line cannot cut through the
+# curve it is supposed to touch.
+TANGENCY_REFINEMENT_STEPS = 8
 # How far past the frontier the capital market line runs (levered portfolios).
 CML_LEVERAGE_EXTENSION = 1.4
 
 with open(SP500_TICKERS_PATH, encoding="utf-8") as f:
     SP500_TICKERS: list[str] = json.load(f)
+
+# One cached close series per ticker, shared across requests. See `get_prices_df`.
+_price_column_cache: dict[str, pd.Series] = {}
+_price_cache_stamp: float = 0.0
+_price_cache_lock = Lock()
 
 _supabase_url = os.environ.get("SUPABASE_URL")
 _supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
@@ -85,6 +134,52 @@ def get_supabase() -> Client:
             ),
         )
     return _supabase_client
+
+
+def _supabase_read(build: Callable[[Client], Any]) -> Any:
+    """Run one idempotent Supabase read, retrying a dropped connection.
+
+    The client holds a single pooled HTTP/2 session, and PostgREST retires a
+    connection with GOAWAY once it has carried a few hundred streams. Whatever
+    request is in flight when that arrives dies with `RemoteProtocolError`,
+    which reached the dashboard as a 500 on a page the reader had done nothing
+    wrong to reach. Because the trigger is the *connection's* age rather than
+    anything about the query, the failures looked random and were blamed on
+    whatever the reader happened to be doing at the time -- optimising twenty
+    stocks rather than nineteen, say.
+
+    Every caller is a read, so re-running one has no side effects and there is
+    no correctness reason to distinguish causes on the way in. Only the last
+    attempt is allowed to surface, leaving a genuine, permanent error with its
+    own type and message intact.
+    """
+    for attempt in range(SUPABASE_READ_ATTEMPTS):
+        try:
+            return build(get_supabase())
+        except HTTPException:
+            # A deliberate 404/500 from inside the query is an answer, not a
+            # fault to retry.
+            raise
+        except Exception:  # noqa: BLE001 - see docstring
+            if attempt == SUPABASE_READ_ATTEMPTS - 1:
+                raise
+            time.sleep(SUPABASE_READ_BACKOFF_SECONDS * (2**attempt))
+    return None
+
+
+@app.exception_handler(Exception)
+def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Turn any unhandled error into the same JSON shape as a deliberate one.
+
+    Without this, FastAPI answers a crash with the bare text `Internal Server
+    Error`. The dashboard parses every response as JSON, so that reply threw a
+    second time in the browser and the page died with no indication of what had
+    gone wrong. A caller is always owed a readable reason.
+    """
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {exc}"},
+    )
 
 
 @app.get("/health")
@@ -168,14 +263,42 @@ def get_history(
 RETURNS_LOOKBACK_DAYS = 252
 
 
-def get_average_risk_free_rate() -> float:
-    supabase = get_supabase()
-    res = supabase.table("average_risk_free_rate").select("annual_risk_free_rate").execute()
+_risk_free_rate: float | None = None
+_risk_free_stamp: float = 0.0
+_risk_free_lock = Lock()
 
-    if not res.data or res.data[0]["annual_risk_free_rate"] is None:
+
+def get_average_risk_free_rate() -> float:
+    """The stored annualised 13-week treasury rate, cached and retried.
+
+    Every frontier solve needs this one number, and it was re-read from
+    Supabase each time. That put a second round trip on the most-travelled
+    endpoint in the app, unprotected, so a retired connection took down an
+    optimisation that had already done all its real work.
+    """
+    global _risk_free_rate, _risk_free_stamp
+
+    with _risk_free_lock:
+        if (
+            _risk_free_rate is not None
+            and time.time() - _risk_free_stamp <= RISK_FREE_CACHE_TTL_SECONDS
+        ):
+            return _risk_free_rate
+
+    rows = _supabase_read(
+        lambda db: db.table("average_risk_free_rate")
+        .select("annual_risk_free_rate")
+        .execute()
+    ).data
+
+    if not rows or rows[0]["annual_risk_free_rate"] is None:
         raise HTTPException(status_code=404, detail="No risk-free rate data")
 
-    return res.data[0]["annual_risk_free_rate"]
+    with _risk_free_lock:
+        _risk_free_rate = rows[0]["annual_risk_free_rate"]
+        _risk_free_stamp = time.time()
+
+    return _risk_free_rate
 
 
 @app.get("/returns/{ticker}")
@@ -214,11 +337,10 @@ def get_returns_df(ticker: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     - the 2x2 variance-covariance matrix of stock_log_return and
       market_log_return.
     """
-    supabase = get_supabase()
     symbol = ticker.upper()
 
-    res = (
-        supabase.table("daily_excess_returns")
+    res = _supabase_read(
+        lambda db: db.table("daily_excess_returns")
         .select("date, close, stock_log_return, market_log_return, excess_log_return")
         .eq("ticker", symbol)
         .order("date")
@@ -251,13 +373,22 @@ def _latest_stored_date(table: str, column: str = "date") -> str | None:
     has and fetches only the gap. A daily cron ships one trading day; a run
     after a five-day outage ships five, with no special casing.
     """
-    supabase = get_supabase()
-    res = (
-        supabase.table(table)
+    res = _supabase_read(
+        lambda db: db.table(table)
         .select(column)
         .order(column, desc=True)
         .limit(1)
         .execute()
+    )
+    if not res.data:
+        return None
+    return res.data[0][column]
+
+
+def _earliest_stored_date(table: str, column: str = "date") -> str | None:
+    """The oldest value of `column` in `table`, or None when it is empty."""
+    res = _supabase_read(
+        lambda db: db.table(table).select(column).order(column).limit(1).execute()
     )
     if not res.data:
         return None
@@ -361,13 +492,49 @@ def backfill_factor_returns():
     )
 
 
+def _tickers_needing_full_history(candidates: list[str]) -> set[str]:
+    """Tickers that must be fetched over the whole window, not just the gap.
+
+    The incremental window is derived from one global newest-date across the
+    whole table, which is right for a ticker that has been tracked all along
+    and wrong for one that has not. A name added to `sp500_tickers.json` after
+    the table was first populated gets its first backfill starting from
+    "five days ago", lands a handful of rows, and from then on looks like an
+    up-to-date ticker — so it accrues history one day at a time and never fills
+    in the two years behind it. Nothing about a later run fixes that, which is
+    why it is worth detecting rather than waiting out.
+
+    The test is one query: whoever was trading on the earliest date the table
+    holds is fully tracked. Anyone else gets the full window. A genuinely
+    recent listing is re-fetched harmlessly — yfinance returns what exists, the
+    upsert dedupes, and it costs a few seconds once.
+    """
+    earliest = _earliest_stored_date("daily_close_prices")
+    if earliest is None:
+        return set(candidates)
+
+    present = {
+        row["ticker"]
+        for row in _supabase_read(
+            lambda db: db.table("daily_close_prices")
+            .select("ticker")
+            .eq("date", earliest)
+            .execute()
+        ).data
+    }
+    return {ticker for ticker in candidates if ticker not in present}
+
+
 @app.post("/backfill/sp500-daily-close")
-def backfill_sp500_daily_close():
+def backfill_sp500_daily_close(full: bool = False):
     """Daily closes for the S&P 500 plus the index and risk-free series.
 
     Incremental: only the span since the newest stored date is fetched, so the
     daily cron run costs ~24s rather than the ~4min a full 2-year refresh takes.
-    An empty table falls back to a full `PRICE_HISTORY_PERIOD` fetch.
+    An empty table falls back to a full `PRICE_HISTORY_PERIOD` fetch, as does
+    any ticker that is not yet fully tracked (see
+    `_tickers_needing_full_history`). Pass `full=true` to force the whole window
+    for everything.
     """
     started = time.monotonic()
 
@@ -381,54 +548,74 @@ def backfill_sp500_daily_close():
     # frozen; the upsert makes re-fetching the same dates free.
     fetch_start = (
         date.fromisoformat(latest) - timedelta(days=INCREMENTAL_OVERLAP_DAYS)
-        if latest
+        if latest and not full
         else None
     )
-    window = (
-        {"start": fetch_start.isoformat()}
-        if fetch_start
-        else {"period": PRICE_HISTORY_PERIOD}
+
+    backfill_fully = (
+        set(all_tickers)
+        if fetch_start is None
+        else _tickers_needing_full_history(all_tickers)
     )
+    if backfill_fully and fetch_start is not None:
+        errors.append(
+            "full-window backfill for untracked tickers: "
+            + ", ".join(sorted(backfill_fully))
+        )
 
-    for chunk in _chunk(all_tickers, FETCH_CHUNK_SIZE):
-        try:
-            data = yf.download(
-                tickers=chunk,
-                interval="1d",
-                group_by="ticker",
-                auto_adjust=False,
-                threads=True,
-                progress=False,
-                **window,
-            )
-        except Exception as exc:  # noqa: BLE001 - report and continue
-            failed_tickers.extend(chunk)
-            errors.append(f"chunk {chunk[0]}..{chunk[-1]}: {exc}")
-            continue
+    incremental = [t for t in all_tickers if t not in backfill_fully]
 
-        for ticker in chunk:
+    passes: list[tuple[list[str], dict]] = []
+    if incremental:
+        passes.append((incremental, {"start": fetch_start.isoformat()}))
+    if backfill_fully:
+        passes.append((sorted(backfill_fully), {"period": PRICE_HISTORY_PERIOD}))
+
+    for pass_tickers, window in passes:
+        cold = "period" in window
+        for chunk in _chunk(pass_tickers, FETCH_CHUNK_SIZE):
             try:
-                ticker_df = data[ticker] if len(chunk) > 1 else data
-                ticker_rows = _extract_close_rows(ticker, ticker_df)
+                data = yf.download(
+                    tickers=chunk,
+                    interval="1d",
+                    group_by="ticker",
+                    auto_adjust=False,
+                    threads=True,
+                    progress=False,
+                    **window,
+                )
             except Exception as exc:  # noqa: BLE001 - report and continue
-                failed_tickers.append(ticker)
-                errors.append(f"{ticker}: {exc}")
+                failed_tickers.extend(chunk)
+                errors.append(f"chunk {chunk[0]}..{chunk[-1]}: {exc}")
                 continue
 
-            # On an incremental run an empty frame is the normal case — it
-            # means nothing new has traded since the last backfill — so it
-            # only counts as a failure during a cold full fetch.
-            if not ticker_rows:
-                if fetch_start is None:
+            for ticker in chunk:
+                try:
+                    ticker_df = data[ticker] if len(chunk) > 1 else data
+                    ticker_rows = _extract_close_rows(ticker, ticker_df)
+                except Exception as exc:  # noqa: BLE001 - report and continue
                     failed_tickers.append(ticker)
-                    errors.append(f"{ticker}: no data returned")
-                continue
+                    errors.append(f"{ticker}: {exc}")
+                    continue
 
-            rows.extend(ticker_rows)
+                # On an incremental run an empty frame is the normal case — it
+                # means nothing new has traded since the last backfill — so it
+                # only counts as a failure during a cold full fetch.
+                if not ticker_rows:
+                    if cold:
+                        failed_tickers.append(ticker)
+                        errors.append(f"{ticker}: no data returned")
+                    continue
+
+                rows.extend(ticker_rows)
 
     rows_upserted = _upsert_rows(
         "daily_close_prices", rows, "date,ticker", errors
     )
+
+    # Stored closes just moved; the frontier's cache must not serve the old ones.
+    with _price_cache_lock:
+        _price_column_cache.clear()
 
     return _backfill_result(
         started,
@@ -525,13 +712,12 @@ def _fetch_all_rows(table: str, columns: str) -> list[dict]:
     Supabase caps a response at 1000 rows regardless of the requested range
     (`max_rows` in config.toml), so the page size is the ceiling, not a choice.
     """
-    supabase = get_supabase()
     rows: list[dict] = []
     start = 0
 
     while True:
-        page = (
-            supabase.table(table)
+        page = _supabase_read(
+            lambda db, start=start: db.table(table)
             .select(columns)
             .range(start, start + SELECT_PAGE_SIZE - 1)
             .execute()
@@ -551,14 +737,13 @@ def _fetch_recent_prices() -> pd.DataFrame:
     models only ever look at 252 trading days, so an unbounded read would grow
     the egress bill every time history accumulates, for data that is discarded.
     """
-    supabase = get_supabase()
     cutoff = (date.today() - timedelta(days=engine.PRICE_WINDOW_DAYS)).isoformat()
 
     rows: list[dict] = []
     start = 0
     while True:
-        page = (
-            supabase.table("daily_close_prices")
+        page = _supabase_read(
+            lambda db, start=start: db.table("daily_close_prices")
             .select("date, ticker, close")
             .gte("date", cutoff)
             .order("date")
@@ -693,6 +878,80 @@ def _optional_float(value) -> float | None:
         return None
 
 
+@app.post("/backfill/all")
+def backfill_all(full: bool = False, skip_fundamentals: bool = False):
+    """Every backfill stage, in dependency order, in one call.
+
+    The stages were deliberately separate buttons so a 20-second factor refresh
+    need not drag an eight-minute fundamentals fetch behind it. That reasoning
+    holds for routine upkeep and fails for the case it did not anticipate:
+    bringing a stale database fully current, where running them by hand means
+    knowing the order and noticing that valuations must come last. Both are
+    easy to get wrong and neither is interesting.
+
+    Order matters. Valuations read prices, factors and fundamentals, so they run
+    last; the three feeders are independent of one another. A stage that fails
+    does not stop the ones after it — the report says what happened to each —
+    except that valuations are skipped if every feeder failed, since they would
+    only recompute the same numbers from the same stale tables.
+
+    `skip_fundamentals=true` drops the ~8 minute stage, which is the right
+    choice for a daily refresh: statements change quarterly, prices change
+    every session. That leaves prices, factors and valuations — about two
+    minutes.
+    """
+    started = time.monotonic()
+
+    stages: list[tuple[str, Callable[[], dict]]] = [
+        ("daily_close_prices", lambda: backfill_sp500_daily_close(full=full)),
+        ("factor_returns", backfill_factor_returns),
+    ]
+    if not skip_fundamentals:
+        # This one pass already writes the statements, the company profile and
+        # the dividend history — they all come off the same yfinance objects.
+        # Adding a separate profile refresh here would re-walk all 500 tickers
+        # for tables this stage has just written.
+        stages.append(("quarterly_fundamentals", backfill_quarterly_fundamentals))
+
+    results: dict[str, dict] = {}
+    feeders_ok = 0
+
+    for name, run in stages:
+        try:
+            results[name] = run()
+            if not results[name].get("errors"):
+                feeders_ok += 1
+            else:
+                feeders_ok += 1  # partial success still refreshes the table
+        except HTTPException as exc:
+            results[name] = {"failed": True, "detail": str(exc.detail)}
+        except Exception as exc:  # noqa: BLE001 - one stage must not sink the rest
+            results[name] = {"failed": True, "detail": f"{type(exc).__name__}: {exc}"}
+
+    if feeders_ok == 0:
+        results["valuations"] = {
+            "skipped": True,
+            "detail": "Every upstream stage failed; valuations would only "
+            "recompute the same numbers from the same stale tables.",
+        }
+    else:
+        try:
+            results["valuations"] = backfill_valuations()
+        except HTTPException as exc:
+            results["valuations"] = {"failed": True, "detail": str(exc.detail)}
+        except Exception as exc:  # noqa: BLE001
+            results["valuations"] = {"failed": True, "detail": f"{type(exc).__name__}: {exc}"}
+
+    failed = [name for name, result in results.items() if result.get("failed")]
+
+    return {
+        "ok": not failed,
+        "failed_stages": failed,
+        "duration_seconds": round(time.monotonic() - started, 1),
+        "stages": results,
+    }
+
+
 @app.get("/valuations")
 def get_valuations():
     """The scored universe, in the shape the screener consumes.
@@ -810,63 +1069,146 @@ def get_valuations():
     return {"computed_at": computed_at, "count": len(stocks), "stocks": stocks}
 
 
-def get_sp500_prices_df() -> pd.DataFrame:
-    """Fetch daily close prices for every S&P 500 constituent plus the ^GSPC
-    index, pivoted wide (index=date, columns=ticker).
+def _fetch_price_page(chunk: list[str], start: int) -> list[dict]:
+    """One page of closes for `chunk`, starting at row `start`.
+
+    Reading the index in parallel is enough to have the far end hang up
+    mid-request on its own, on top of the connection ageing out that
+    `_supabase_read` describes -- so this was where the retry originally lived.
+    It is shared now because every other read had the same problem.
+    """
+    return _supabase_read(
+        lambda db: db.table("daily_close_prices")
+        .select("date, ticker, close")
+        .in_("ticker", chunk)
+        .order("date")
+        .order("ticker")
+        .range(start, start + SELECT_PAGE_SIZE - 1)
+        .execute()
+    ).data
+
+
+def _fetch_price_chunk(chunk: list[str]) -> list[dict]:
+    """Every stored close for one group of tickers, paged to exhaustion."""
+    rows: list[dict] = []
+    start = 0
+    while True:
+        page = _fetch_price_page(chunk, start)
+        rows.extend(page)
+        if len(page) < SELECT_PAGE_SIZE:
+            break
+        start += SELECT_PAGE_SIZE
+    return rows
+
+
+def get_prices_df(tickers: list[str]) -> pd.DataFrame:
+    """Daily closes for exactly `tickers`, pivoted wide (index=date, columns=ticker).
+
+    Three things about how this reads, all of which were costing ~80s per
+    optimisation:
+
+    PostgREST caps a response at `SELECT_PAGE_SIZE` rows, so the whole index is
+    ~258 sequential round trips. They do not depend on each other, so they are
+    now issued in parallel.
+
+    It used to fetch all 500 constituents no matter how few were asked for,
+    which meant optimising ten screened names paid the full-index read. The
+    caller's ticker list is now pushed all the way down into the query.
+
+    Closes for a completed session never change, so a frame once read is worth
+    keeping. The cache is per-ticker rather than per-request, so a small
+    screened solve warms the columns a later, wider solve reuses.
 
     Deliberately does not fetch the risk-free series or compute log returns —
     the frontier only needs prices plus a single average risk-free rate, which
     comes from `get_average_risk_free_rate()`.
     """
-    supabase = get_supabase()
-    tickers = [*SP500_TICKERS, SP500_INDEX_TICKER]
+    global _price_cache_stamp
 
-    rows: list[dict] = []
-    for chunk in _chunk(tickers, FETCH_CHUNK_SIZE):
-        start = 0
-        while True:
-            page = (
-                supabase.table("daily_close_prices")
-                .select("date, ticker, close")
-                .in_("ticker", chunk)
-                .order("date")
-                .order("ticker")
-                .range(start, start + SELECT_PAGE_SIZE - 1)
-                .execute()
-            ).data
-            rows.extend(page)
-            if len(page) < SELECT_PAGE_SIZE:
-                break
-            start += SELECT_PAGE_SIZE
+    with _price_cache_lock:
+        if time.time() - _price_cache_stamp > PRICE_CACHE_TTL_SECONDS:
+            _price_column_cache.clear()
+            _price_cache_stamp = time.time()
+        missing = [t for t in tickers if t not in _price_column_cache]
 
-    if not rows:
+    if missing:
+        # Force the client's lazily-built internals into existence on this
+        # thread before any others touch it. Letting six workers race that
+        # construction produced rare, unrelated-looking errors from inside the
+        # library on the first wide read after the cache emptied.
+        get_supabase().table("daily_close_prices")
+
+        chunks = list(_chunk(missing, FETCH_CHUNK_SIZE))
+        with ThreadPoolExecutor(max_workers=PRICE_FETCH_MAX_WORKERS) as executor:
+            fetched = list(executor.map(_fetch_price_chunk, chunks))
+
+        rows = [row for chunk_rows in fetched for row in chunk_rows]
+        if rows:
+            frame = pd.DataFrame(rows)
+            frame["date"] = pd.to_datetime(frame["date"])
+            frame["close"] = pd.to_numeric(frame["close"])
+            frame = frame.drop_duplicates(subset=["date", "ticker"])
+            wide = frame.pivot(index="date", columns="ticker", values="close")
+            with _price_cache_lock:
+                for ticker in wide.columns:
+                    _price_column_cache[ticker] = wide[ticker]
+
+        # A ticker with no stored rows is cached as empty rather than re-read on
+        # every request; `build_efficient_frontier` drops it for short history.
+        with _price_cache_lock:
+            for ticker in missing:
+                _price_column_cache.setdefault(
+                    ticker, pd.Series(dtype="float64", name=ticker)
+                )
+
+    with _price_cache_lock:
+        columns = {
+            ticker: _price_column_cache[ticker]
+            for ticker in tickers
+            if ticker in _price_column_cache
+            and not _price_column_cache[ticker].empty
+        }
+
+    if not columns:
         raise HTTPException(
             status_code=404,
             detail="No close price data. Run /backfill/sp500-daily-close first.",
         )
 
-    df = pd.DataFrame(rows)
-    df["date"] = pd.to_datetime(df["date"])
-    df["close"] = pd.to_numeric(df["close"])
-    df = df.drop_duplicates(subset=["date", "ticker"])
-    return df.pivot(index="date", columns="ticker", values="close").sort_index()
+    return pd.DataFrame(columns).sort_index()
+
+
+def _weight_cap(n_assets: int) -> float:
+    """The per-stock cap actually enforceable over `n_assets` names.
+
+    A cap `c` combined with `sum(w) == 1` implies `c * n >= 1`, so the 3% target
+    quietly demands 34 holdings. Screened subsets are routinely smaller than
+    that, and the optimisation was not failing to *find* a good portfolio in
+    those cases -- it was being handed a constraint set with no feasible point
+    at all, then reporting it as an opaque solver error.
+
+    Widening the cap to `CAP_SLACK / n` for small universes keeps the
+    diversification intent (no name may dominate) while guaranteeing the
+    feasible set is non-empty and roomy enough to choose within.
+    """
+    return max(MAX_STOCK_WEIGHT, CAP_SLACK / n_assets)
 
 
 def _make_efficient_frontier(
-    mu: pd.Series, S: pd.DataFrame, short_allowed: bool
+    mu: pd.Series, S: pd.DataFrame, short_allowed: bool, cap: float
 ) -> EfficientFrontier:
     """Build an EfficientFrontier with the per-stock cap applied consistently.
 
-    When shorting is allowed the cap is symmetric (|w| <= 3%): a plain
-    `w <= 0.03` would cap only the long side and leave shorts bounded solely by
+    When shorting is allowed the cap is symmetric (|w| <= cap): a plain
+    `w <= cap` would cap only the long side and leave shorts bounded solely by
     the -1 weight floor.
     """
     weight_bounds = (-1, 1) if short_allowed else (0, 1)
     ef = EfficientFrontier(mu, S, weight_bounds=weight_bounds, solver="CLARABEL")
     if short_allowed:
-        ef.add_constraint(lambda w: cp.abs(w) <= MAX_STOCK_WEIGHT)
+        ef.add_constraint(lambda w: cp.abs(w) <= cap)
     else:
-        ef.add_constraint(lambda w: w <= MAX_STOCK_WEIGHT)
+        ef.add_constraint(lambda w: w <= cap)
     return ef
 
 
@@ -881,17 +1223,170 @@ def _portfolio_stats(
     return annual_return, volatility, sharpe
 
 
+def _solve_at_return(
+    ef: EfficientFrontier, target: float, mu: pd.Series
+) -> np.ndarray | None:
+    """Minimum-variance weights subject to a return floor, or None if that
+    target is out of reach.
+
+    Called repeatedly on one `EfficientFrontier`. The first call builds the
+    CVXPY problem and later ones only rebind the target parameter, which is
+    what makes sweeping the whole frontier affordable.
+    """
+    try:
+        ef.efficient_return(target_return=float(target))
+    except Exception:
+        return None
+    return pd.Series(ef.clean_weights()).reindex(mu.index).fillna(0.0).values
+
+
+def _trace_frontier(
+    mu: pd.Series,
+    S: pd.DataFrame,
+    risk_free_rate: float,
+    cap: float,
+    short_allowed: bool,
+    n_points: int,
+) -> list[dict]:
+    """The efficient frontier itself: `n_points` genuinely solved portfolios,
+    ordered from minimum volatility to maximum return.
+
+    This replaces two anchor solves plus a straight-line blend between them,
+    and it is the fix for the tangency portfolio going missing.
+    `EfficientFrontier.max_sharpe` re-parameterises the problem so that
+    `(mu - rf) @ w == 1`, which has no solution whenever the constraints admit
+    no portfolio out-earning the risk-free rate. That is not an edge case here:
+    a value screen selects names on weak trailing returns, and the per-stock
+    cap forces the portfolio to hold enough of them that its attainable return
+    lands under the T-bill rate. The solve then failed outright, taking the
+    whole response with it.
+
+    Every solve below instead minimises variance at a target return, which is
+    feasible for any target between the minimum-variance portfolio's return and
+    the maximum attainable one. The tangency portfolio is then *found* among
+    the results rather than solved for directly, so it can no longer fail to
+    exist -- when nothing beats the risk-free rate the best Sharpe is simply
+    negative, which is a true statement about the screened set rather than an
+    error.
+
+    A blend of two anchors was also never the frontier: it is a chord across a
+    convex set, sitting 25-50bp inside the real curve, and it stopped dead at
+    the tangency point so the frontier's high-return arm was never drawn.
+    """
+    ef = _make_efficient_frontier(mu, S, short_allowed, cap)
+    ef.min_volatility()
+    floor_weights = pd.Series(ef.clean_weights()).reindex(mu.index).fillna(0.0).values
+    return_floor = float(floor_weights @ mu.values)
+
+    # `_max_return` mutates the instance it runs on, so it gets a throwaway.
+    return_ceiling = float(
+        _make_efficient_frontier(mu, S, short_allowed, cap)._max_return()
+    )
+
+    def described(weights: np.ndarray) -> dict:
+        annual_return, volatility, sharpe = _portfolio_stats(
+            weights, mu, S, risk_free_rate
+        )
+        return {
+            "return": annual_return,
+            "volatility": volatility,
+            "sharpe": sharpe,
+            "weights": weights,
+        }
+
+    if return_ceiling - return_floor <= RETURN_SPAN_EPSILON:
+        return [described(floor_weights)]
+
+    sweep = _make_efficient_frontier(mu, S, short_allowed, cap)
+    points = [described(floor_weights)]
+
+    # The ceiling came from a different instance, so the last target is pulled
+    # a hair inside it rather than risking a rejection on a rounding
+    # difference. Interior targets are unaffected.
+    span = return_ceiling - return_floor
+    targets = np.linspace(return_floor, return_ceiling - span * 1e-9, n_points)
+    for target in targets[1:]:
+        weights = _solve_at_return(sweep, target, mu)
+        if weights is not None:
+            points.append(described(weights))
+
+    return points
+
+
+def _refine_tangency(
+    points: list[dict],
+    mu: pd.Series,
+    S: pd.DataFrame,
+    risk_free_rate: float,
+    cap: float,
+    short_allowed: bool,
+) -> dict:
+    """The maximum-Sharpe portfolio, found on the frontier and then sharpened.
+
+    The grid gives the tangency point to within one step. Sharpe is unimodal
+    along the frontier, so a ternary search over the bracketing interval closes
+    that gap for a dozen extra solves -- worth it, because the capital market
+    line is drawn through this point and a visibly non-tangent CML is the
+    thing this chart exists to show.
+    """
+    best_index = max(range(len(points)), key=lambda i: points[i]["sharpe"])
+    best = points[best_index]
+
+    if len(points) < 3:
+        return best
+
+    low = points[max(best_index - 1, 0)]["return"]
+    high = points[min(best_index + 1, len(points) - 1)]["return"]
+    if high - low <= RETURN_SPAN_EPSILON:
+        return best
+
+    sweep = _make_efficient_frontier(mu, S, short_allowed, cap)
+
+    def sharpe_at(target: float) -> dict | None:
+        weights = _solve_at_return(sweep, target, mu)
+        if weights is None:
+            return None
+        annual_return, volatility, sharpe = _portfolio_stats(
+            weights, mu, S, risk_free_rate
+        )
+        return {
+            "return": annual_return,
+            "volatility": volatility,
+            "sharpe": sharpe,
+            "weights": weights,
+        }
+
+    for _ in range(TANGENCY_REFINEMENT_STEPS):
+        if high - low <= RETURN_SPAN_EPSILON:
+            break
+        left_target = low + (high - low) / 3.0
+        right_target = high - (high - low) / 3.0
+        left, right = sharpe_at(left_target), sharpe_at(right_target)
+        if left is None or right is None:
+            break
+        for candidate in (left, right):
+            if candidate["sharpe"] > best["sharpe"]:
+                best = candidate
+        if left["sharpe"] < right["sharpe"]:
+            low = left_target
+        else:
+            high = right_target
+
+    return best
+
+
 def build_efficient_frontier(
     ShortAllowed: bool,
     n_portfolios: int = ENVELOPE_POINTS,
     tickers: list[str] | None = None,
 ) -> dict:
-    """Build the efficient-frontier envelope for a universe of stocks.
+    """Build the efficient frontier for a universe of stocks.
 
-    Optimises two anchor portfolios under identical constraints — the max-Sharpe
-    (tangency) portfolio and the minimum-volatility portfolio — then sweeps a
-    blend of the two weight vectors across `n_portfolios` steps to trace an
-    envelope of further efficient portfolios for plotting.
+    Traces the frontier as `n_portfolios` separately solved minimum-variance
+    portfolios, then reads the tangency (max-Sharpe) and minimum-volatility
+    anchors off it. Doing it in that order — frontier first, anchors second —
+    is what keeps the tangency portfolio from going missing; see
+    `_trace_frontier` for why solving for it directly kept failing.
 
     `tickers` narrows the optimisation to a screened subset. This is the whole
     point of screening before optimising: the frontier is drawn over companies
@@ -907,8 +1402,8 @@ def build_efficient_frontier(
             ),
         )
 
-    prices = get_sp500_prices_df()
-    # ^GSPC is fetched for reference but is an index, not an investable holding.
+    # ^GSPC is deliberately not requested: it is an index, not an investable
+    # holding, and nothing downstream of here uses it.
     universe = SP500_TICKERS
     if tickers:
         requested = {t.strip().upper() for t in tickers if t.strip()}
@@ -925,14 +1420,34 @@ def build_efficient_frontier(
                 ),
             )
 
-    stock_prices = prices[[t for t in universe if t in prices.columns]]
+    # Only the names being optimised are read. A ten-stock screened solve used
+    # to pay for all 500.
+    stock_prices = get_prices_df(universe)
+
+    # A ticker that only listed part-way through the window reaches the
+    # covariance estimator with its missing returns zero-filled, which reads as
+    # unnaturally low risk and attracts weight the company never earned. Drop
+    # those before anything is estimated from them.
+    coverage = stock_prices.notna().sum() / len(stock_prices.index)
+    short_history = sorted(coverage.index[coverage < MIN_HISTORY_COVERAGE])
+    stock_prices = stock_prices[coverage.index[coverage >= MIN_HISTORY_COVERAGE]]
 
     if stock_prices.shape[1] < MIN_FRONTIER_TICKERS:
+        # Name the dropped tickers. Without them this reads as "your 5 stocks
+        # are somehow only 4", which is not something a reader can act on.
+        because = (
+            f" {', '.join(short_history)} "
+            f"{'was' if len(short_history) == 1 else 'were'} excluded for "
+            f"having under {MIN_HISTORY_COVERAGE:.0%} of the price history the "
+            f"risk model needs."
+            if short_history
+            else ""
+        )
         raise HTTPException(
             status_code=422,
             detail=(
-                f"Only {stock_prices.shape[1]} of the requested tickers have "
-                f"stored price history; need {MIN_FRONTIER_TICKERS}."
+                f"Only {stock_prices.shape[1]} of the {len(universe)} requested "
+                f"tickers can be optimised; need {MIN_FRONTIER_TICKERS}.{because}"
             ),
         )
 
@@ -940,69 +1455,73 @@ def build_efficient_frontier(
     mu = mu.clip(lower=-MU_CLIP, upper=MU_CLIP)
     S = risk_models.CovarianceShrinkage(stock_prices).ledoit_wolf()
     risk_free_rate = get_average_risk_free_rate()
+    cap = _weight_cap(int(stock_prices.shape[1]))
 
-    ef_sharpe = _make_efficient_frontier(mu, S, ShortAllowed)
-    ef_sharpe.max_sharpe(risk_free_rate=risk_free_rate)
-    sharpe_weights = pd.Series(ef_sharpe.clean_weights()).reindex(mu.index).fillna(0.0)
+    points = _trace_frontier(
+        mu, S, risk_free_rate, cap, ShortAllowed, n_portfolios
+    )
+    tangency = _refine_tangency(points, mu, S, risk_free_rate, cap, ShortAllowed)
+    # The frontier is traced upward from the minimum-variance portfolio, so its
+    # first point is that anchor by construction.
+    minimum_variance = points[0]
 
-    ef_minvol = _make_efficient_frontier(mu, S, ShortAllowed)
-    ef_minvol.min_volatility()
-    minvol_weights = pd.Series(ef_minvol.clean_weights()).reindex(mu.index).fillna(0.0)
-
-    # Blend the two anchors' weights; both sum to 1, so every blend does too.
-    envelope = []
-    for t in np.linspace(0.0, 1.0, n_portfolios):
-        blended = (1 - t) * sharpe_weights.values + t * minvol_weights.values
-        annual_return, volatility, sharpe = _portfolio_stats(
-            blended, mu, S, risk_free_rate
-        )
-        envelope.append(
-            {
-                "t": float(t),
-                "return": annual_return,
-                "volatility": volatility,
-                "sharpe": sharpe,
-            }
-        )
-
-    def _summarise(weights: pd.Series) -> dict:
-        annual_return, volatility, sharpe = _portfolio_stats(
-            weights.values, mu, S, risk_free_rate
-        )
+    def _summarise(point: dict) -> dict:
+        weights = pd.Series(point["weights"], index=mu.index)
         holdings = weights[weights.abs() > 1e-4].sort_values(ascending=False)
         return {
-            "return": annual_return,
-            "volatility": volatility,
-            "sharpe": sharpe,
+            "return": point["return"],
+            "volatility": point["volatility"],
+            "sharpe": point["sharpe"],
             "weights": {
                 ticker: round(float(weight), 4) for ticker, weight in holdings.items()
             },
         }
 
-    max_sharpe = _summarise(sharpe_weights)
+    max_sharpe = _summarise(tangency)
+
+    envelope = [
+        {
+            # Position along the frontier, min-volatility end to max-return
+            # end. Kept for the chart's benefit; it is an ordering, not a
+            # blend weight as it was when two anchors were interpolated.
+            "t": float(index / (len(points) - 1)) if len(points) > 1 else 0.0,
+            "return": point["return"],
+            "volatility": point["volatility"],
+            "sharpe": point["sharpe"],
+        }
+        for index, point in enumerate(points)
+    ]
 
     # Capital market line: from the risk-free asset through the tangency
-    # (max-Sharpe) portfolio, extended past it into levered territory.
-    slope = (
-        (max_sharpe["return"] - risk_free_rate) / max_sharpe["volatility"]
-        if max_sharpe["volatility"]
-        else 0.0
-    )
-    max_volatility = (
-        max(point["volatility"] for point in envelope) * CML_LEVERAGE_EXTENSION
-    )
-    capital_market_line = [
-        {"volatility": volatility, "return": risk_free_rate + slope * volatility}
-        for volatility in (0.0, max_volatility)
-    ]
+    # (max-Sharpe) portfolio, extended past it into levered territory. It only
+    # describes anything when some portfolio actually out-earns the risk-free
+    # asset; below that the "line" would slope downwards and imply that taking
+    # risk pays negatively, so it is withheld and the flag says why.
+    tangency_beats_risk_free = max_sharpe["sharpe"] > 0
+    capital_market_line: list[dict] = []
+    if tangency_beats_risk_free and max_sharpe["volatility"]:
+        slope = (max_sharpe["return"] - risk_free_rate) / max_sharpe["volatility"]
+        max_volatility = (
+            max(point["volatility"] for point in envelope) * CML_LEVERAGE_EXTENSION
+        )
+        capital_market_line = [
+            {"volatility": volatility, "return": risk_free_rate + slope * volatility}
+            for volatility in (0.0, max_volatility)
+        ]
 
     return {
         "short_allowed": ShortAllowed,
-        "n_portfolios": n_portfolios,
+        "n_portfolios": len(points),
         "n_assets": int(stock_prices.shape[1]),
         "risk_free_rate": risk_free_rate,
+        # Surfaced because it is not always the 3% the copy would imply: over a
+        # small screened set the cap has to widen for the problem to have a
+        # solution at all, and the reader is owed the constraint that was used.
+        "max_stock_weight": cap,
+        "excluded_short_history": short_history,
+        "tangency_beats_risk_free": tangency_beats_risk_free,
         "max_sharpe": max_sharpe,
-        "min_volatility": _summarise(minvol_weights),
+        "min_volatility": _summarise(minimum_variance),
         "capital_market_line": capital_market_line,
         "envelope": envelope,
     }

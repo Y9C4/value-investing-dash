@@ -32,11 +32,23 @@ export async function POST(request: Request) {
     )
   }
 
-  const body = await upstream.json()
-
-  if (!upstream.ok) {
-    return Response.json(body, { status: upstream.status })
+  // Never assume the upstream body is JSON. A crash in the market-data service
+  // answers with plain text, and parsing that threw here — turning a solve that
+  // failed for a describable reason into an unhandled 500 and a dead page.
+  const raw = await upstream.text()
+  let body: unknown
+  try {
+    body = JSON.parse(raw)
+  } catch {
+    return Response.json(
+      {
+        detail:
+          raw.slice(0, 500) ||
+          `Market data service returned ${upstream.status} with an empty body`,
+      },
+      { status: upstream.ok ? 502 : upstream.status }
+    )
   }
 
-  return Response.json(body)
+  return Response.json(body, { status: upstream.status })
 }

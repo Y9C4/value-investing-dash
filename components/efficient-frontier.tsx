@@ -39,7 +39,10 @@ import { BASELINE_FRONTIER, type FrontierResponse } from "@/lib/baseline-frontie
 
 const DEFAULT_PORTFOLIOS = 100
 const MIN_PORTFOLIOS = 2
-const MAX_PORTFOLIOS = 500
+// Every frontier point is a solved portfolio now rather than a step along a
+// line between two anchors, so the ceiling tracks real solver cost. Must stay
+// in step with MAX_ENVELOPE_POINTS in the market-data service.
+const MAX_PORTFOLIOS = 200
 
 /**
  * Three identities, which is the all-pairs cap for a scatter — any two marks
@@ -128,13 +131,24 @@ export function EfficientFrontier({
       const res = await fetch(`/api/efficient-frontier?${query}`, {
         method: "POST",
       })
-      const body = await res.json()
+
+      // A framework error page is HTML, not JSON. Parsing it unguarded threw
+      // an unreadable SyntaxError over whatever actually went wrong.
+      const raw = await res.text()
+      let body: { detail?: string } | null = null
+      try {
+        body = JSON.parse(raw)
+      } catch {
+        throw new Error(
+          `The optimiser returned an unreadable response (HTTP ${res.status}).`
+        )
+      }
 
       if (!res.ok) {
         throw new Error(body?.detail ?? "Failed to build the efficient frontier")
       }
 
-      setData(body as FrontierResponse)
+      setData(body as unknown as FrontierResponse)
       setIsBaseline(false)
     } catch (err) {
       // Keep the previous render on screen rather than dropping to a blank
@@ -162,10 +176,20 @@ export function EfficientFrontier({
       ? (data.max_sharpe.return - data.risk_free_rate) /
         data.max_sharpe.volatility
       : 0
-  const cmlData = [
-    { volatility: 0, return: data.risk_free_rate },
-    { volatility: cmlLimit, return: data.risk_free_rate + cmlSlope * cmlLimit },
-  ]
+  // A screened set can contain no portfolio that beats the risk-free asset —
+  // routine when the filters select on cheapness rather than momentum. The
+  // frontier is still real, but a line tangent to it would slope downwards and
+  // claim that risk is paid negatively, so it is withheld and said out loud.
+  const hasTangency = data.tangency_beats_risk_free !== false && cmlSlope > 0
+  const cmlData = hasTangency
+    ? [
+        { volatility: 0, return: data.risk_free_rate },
+        {
+          volatility: cmlLimit,
+          return: data.risk_free_rate + cmlSlope * cmlLimit,
+        },
+      ]
+    : []
 
   const anchors = [
     {
@@ -249,7 +273,21 @@ export function EfficientFrontier({
           </p>
         )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <div className="flex flex-col gap-1 border border-destructive/40 bg-destructive/5 px-5 py-4">
+            <span className="text-xs font-semibold tracking-widest text-destructive uppercase">
+              Not optimised
+            </span>
+            <p className="text-sm text-destructive">{error}</p>
+            {/* Without this the red line sits directly above a perfectly
+                plausible curve, and the curve is the thing people believe. */}
+            <p className="text-xs text-muted-foreground">
+              {isBaseline
+                ? "The chart below is still the illustrative baseline, not a result for this set."
+                : "The chart below is the previous successful solve, not a result for this set."}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -468,6 +506,39 @@ export function EfficientFrontier({
               Showing an illustrative baseline frontier so the shape is visible
               immediately. Run the live optimisation to solve across the S&amp;P
               500 with Ledoit-Wolf shrinkage — it takes a few minutes.
+            </p>
+          )}
+
+          {!isBaseline && !hasTangency && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              No capital market line: over this set, no portfolio the
+              constraints allow out-earned the{" "}
+              {formatPercent(data.risk_free_rate)} risk-free rate across the
+              window, so there is no tangency portfolio to draw one through.
+              The frontier itself still holds — the best available Sharpe ratio
+              is simply negative. A screen selecting on cheapness rather than
+              momentum reaches this outcome often.
+            </p>
+          )}
+
+          {!isBaseline && typeof data.max_stock_weight === "number" && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Position cap {formatPercent(data.max_stock_weight)} per name
+              {data.max_stock_weight > 0.0301 && typeof data.n_assets === "number"
+                ? ` — widened from the usual 3% because a 3% cap cannot be spread across only ${data.n_assets} stocks and still sum to 100%`
+                : ""}
+              .
+              {data.excluded_short_history &&
+                data.excluded_short_history.length > 0 && (
+                  <>
+                    {" "}
+                    Excluded for insufficient price history:{" "}
+                    <span className="font-mono">
+                      {data.excluded_short_history.join(", ")}
+                    </span>
+                    .
+                  </>
+                )}
             </p>
           )}
         </CardContent>

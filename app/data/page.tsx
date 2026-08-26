@@ -1,5 +1,6 @@
 import { BackfillCard } from "@/components/backfill-card"
 import { PageHeader } from "@/components/page-header"
+import { RefreshAllCard } from "@/components/refresh-all-card"
 import { VALUATION_METHODS } from "@/lib/valuation"
 
 export const metadata = {
@@ -21,6 +22,7 @@ export default function DataPage() {
         description="Everything downstream — the screener, the valuations, the frontier — reads from these tables. Each stage only fetches what it is missing, so a daily refresh is cheap and a cold start is the expensive one."
       />
       <div className="grid gap-6 px-6 py-8 lg:grid-cols-2 lg:px-10">
+        <RefreshAllCard />
         <BackfillCard
           title="Daily close prices"
           description="Closes for the S&P 500 plus the index and the 13-week T-bill. Fetches only the span since the newest stored date; a cold table pulls two years so a full 252-trading-day window is always available."
