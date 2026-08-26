@@ -40,10 +40,9 @@ import {
  * The portfolio workspace: the constraints that shape a solve, and everything
  * the solve produced.
  *
- * The page used to show a frontier and a weight table, which answered "what is
- * the optimum" without answering "the optimum under what?". Every number here
- * is downstream of a constraint set someone can now change, so the constraints
- * are stated on the page next to the result rather than buried in a service.
+ * Every number here is downstream of a constraint set, so the constraints are
+ * stated next to the result rather than buried in a service. A frontier with
+ * no stated constraints is not a claim about anything.
  */
 
 const STAR_POINTS = "5,0 6.2,3.6 10,3.6 6.9,5.9 8.1,9.5 5,7.3 1.9,9.5 3.1,5.9 0,3.6 3.8,3.6"

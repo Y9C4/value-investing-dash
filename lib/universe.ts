@@ -4,13 +4,11 @@ import { VALUATION_METHODS, type MethodId, type Stock } from "@/lib/valuation"
 /**
  * Loads the scored universe for the screener and the stock pages.
  *
- * The live data comes from `GET /valuations`, which reads a precomputed table
- * rather than valuing on demand — the models cost ~0.1s for the whole index
- * while the reads that feed them cost ~70s, so recomputing per request would
- * pay a fixed toll for data that only changes once a day.
+ * `GET /valuations` reads a precomputed table: the models cost ~0.1s for the
+ * whole index but the reads feeding them cost ~70s, so valuing on demand would
+ * pay a fixed toll for data that changes once a day.
  *
- * When the service is unreachable the baseline sample is served instead, the
- * same way the portfolio page falls back to `BASELINE_FRONTIER`: an
+ * When the service is unreachable the baseline sample is served instead — an
  * illustrative screen beats an empty one, provided it is labelled.
  */
 

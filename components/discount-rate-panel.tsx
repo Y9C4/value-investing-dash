@@ -9,15 +9,13 @@ import type { DiscountRates } from "@/lib/valuation"
 /**
  * The rates every valuation on this page was discounted at.
  *
- * CAPM and WACC live here rather than in the model table because they are not
- * fair-value models — they produce a rate, not an intrinsic value per share.
- * Listing CAPM alongside FCFE and DDM is what left a permanently empty "CAPM"
- * row on every stock page while the UI claimed nine live models.
+ * CAPM and WACC sit here rather than in the model table because they produce
+ * a rate, not a value per share. Listing CAPM beside FCFE left a permanently
+ * empty row on every stock page.
  *
- * The numbers come from `ticker_statistics`, written by the same pass that
- * produced the verdicts, so this panel cannot drift from the rate the models
- * actually used. Computing a WACC here for display would reintroduce exactly
- * the class of bug this replaced.
+ * The numbers come from `ticker_statistics`, written by the pass that produced
+ * the verdicts, so the panel cannot drift from the rate the models used.
+ * Computing a WACC here for display would reintroduce that bug.
  */
 
 function formatPercent(value: number | null | undefined) {

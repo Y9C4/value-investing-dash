@@ -14,10 +14,8 @@ import {
  * One backfill stage, with its own button and result readout.
  *
  * Every backfill endpoint returns the same result shape, so one component
- * serves all of them. They stay separate buttons rather than a single "refresh
- * everything" so a five-second factor refresh does not require sitting through
- * an eight-minute fundamentals fetch, and so a failure in one stage leaves the
- * others alone.
+ * serves all of them. They stay separate buttons so a five-second factor
+ * refresh need not drag an eight-minute fundamentals fetch behind it.
  */
 
 type BackfillResult = {

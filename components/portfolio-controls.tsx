@@ -14,10 +14,9 @@ import {
 /**
  * The optimiser's constraint set, exposed.
  *
- * These are not preferences — each one changes the feasible set the solver
- * searches, and therefore which portfolio comes back. The panel says what each
- * does in one line, because a dial whose effect is invisible gets turned at
- * random and then believed.
+ * Not preferences: each changes the feasible set the solver searches. The
+ * panel says what each does in one line, because a dial whose effect is
+ * invisible gets turned at random and then believed.
  */
 
 function ControlGroup({

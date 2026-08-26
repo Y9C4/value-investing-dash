@@ -7,14 +7,11 @@ export const metadata = {
 }
 
 /**
- * Receives the screened set from the screener as `?set=<token>`. The handoff is
- * a URL rather than client state on purpose: a scoped optimisation stays
- * shareable and survives a reload.
+ * Receives the screened set as `?set=<token>` — a URL rather than client
+ * state, so a scoped optimisation stays shareable and survives a reload.
  *
- * The set is a fixed-size bitmask over the index rather than a list of names —
- * see `lib/ticker-set.ts` for why spelling out ~500 tickers made the page
- * unreachable. `?tickers=A,AAPL,…` is still honoured so older links and
- * hand-built URLs keep working; only the screener's own links use the token.
+ * The token is a bitmask over the index, not a list of names; see
+ * `lib/ticker-set.ts`. `?tickers=A,AAPL,…` still works for hand-built URLs.
  */
 export default async function PortfolioPage({
   searchParams,

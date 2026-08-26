@@ -6,9 +6,8 @@ export const maxDuration = 300
 /**
  * The ticker list from a JSON body, or null when there isn't one.
  *
- * Deliberately forgiving: a request with no body, an empty body or a body that
- * is not JSON is a caller using the query-string form, not an error. Only a
- * genuine array of strings counts.
+ * Deliberately forgiving: no body, an empty body or non-JSON means a caller
+ * using the query-string form, not an error.
  */
 async function readBodyTickers(request: Request): Promise<string | null> {
   try {
@@ -26,41 +25,31 @@ export async function POST(request: Request) {
   const shortAllowed = searchParams.get("short_allowed") === "true"
   const nPortfolios = searchParams.get("n_portfolios")
 
-  // A screened subset from the screener. Omitted means the full index.
-  //
-  // It arrives in the body, because spelling out ~500 tickers makes a ~3KB URL
-  // and a URL is a header: it counts against the 16KB header budget alongside
-  // the caller's cookies, and past ~13KB of those the server answered 431
-  // before the request reached anything. The query form is still accepted for
-  // hand-built calls and for the sweep, which carry no cookies.
+  // A screened subset, or the full index when omitted. It arrives in the body
+  // because ~500 tickers make a ~3KB URL, and a URL is a header: past ~13KB of
+  // cookies the server answered 431 before reaching anything. The query form
+  // still works for hand-built calls, which carry no cookies.
   const tickers = (await readBodyTickers(request)) ?? searchParams.get("tickers")
 
   const query = new URLSearchParams({ short_allowed: String(shortAllowed) })
-  if (nPortfolios) {
-    query.set("n_portfolios", nPortfolios)
-  }
-  if (tickers) {
-    query.set("tickers", tickers)
-  }
+  if (nPortfolios) query.set("n_portfolios", nPortfolios)
+  if (tickers) query.set("tickers", tickers)
 
-  // Position bounds and the L2 penalty. Forwarded only when present: omitting
-  // a bound is how the caller asks the solver to scale it to the universe, and
-  // sending "" or 0 in its place would mean something quite different. Values
-  // are not range-checked here — the service owns feasibility, and it is the
-  // only side that knows how many stocks survived the history filter.
+  // Forwarded only when present: omitting a bound is how the caller asks the
+  // solver to scale it to the universe, and "" or 0 would mean something else.
+  // Not range-checked here — only the service knows how many stocks survived
+  // the history filter.
   for (const key of ["min_weight", "max_weight", "gamma"] as const) {
     const value = searchParams.get(key)
-    if (value !== null && value !== "") {
-      query.set(key, value)
-    }
+    if (value !== null && value !== "") query.set(key, value)
   }
 
   let upstream: Response
   try {
-    upstream = await fetch(
-      `${MARKET_DATA_API_URL}/efficient-frontier?${query}`,
-      { method: "POST", signal: AbortSignal.timeout(280_000) }
-    )
+    upstream = await fetch(`${MARKET_DATA_API_URL}/efficient-frontier?${query}`, {
+      method: "POST",
+      signal: AbortSignal.timeout(280_000),
+    })
   } catch {
     return Response.json(
       { detail: "Market data service is unreachable" },
@@ -68,9 +57,8 @@ export async function POST(request: Request) {
     )
   }
 
-  // Never assume the upstream body is JSON. A crash in the market-data service
-  // answers with plain text, and parsing that threw here — turning a solve that
-  // failed for a describable reason into an unhandled 500 and a dead page.
+  // Never assume the upstream body is JSON: a crash answers with plain text,
+  // and parsing that turned a describable failure into an unhandled 500.
   const raw = await upstream.text()
   let body: unknown
   try {

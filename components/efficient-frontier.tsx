@@ -338,11 +338,9 @@ export function FrontierChart({
 /**
  * Sharpe ratio measured along the frontier.
  *
- * The frontier chart shows where the tangency portfolio sits; this shows
- * *why*. Sharpe is unimodal along the curve, so the peak is the whole story —
- * and its shape says how much the answer would change if the constraints
- * moved. A flat plateau means the max-Sharpe portfolio is one of many nearly
- * as good; a sharp spike means it is a knife-edge worth distrusting.
+ * The frontier chart shows where the tangency portfolio sits; this shows how
+ * confidently. A flat plateau means the max-Sharpe portfolio is one of many
+ * nearly as good; a sharp spike means it is a knife-edge worth distrusting.
  */
 export function SharpeCurve({
   data,

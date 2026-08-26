@@ -3,16 +3,12 @@ import type { Stock } from "@/lib/valuation"
 /**
  * A deterministic sample of the S&P 500, kept as the screener's fallback.
  *
- * The live universe comes from `GET /valuations` via `lib/universe.ts`. This
- * stands in when the market data service is unreachable, the same way
- * `BASELINE_FRONTIER` keeps the portfolio page from opening on a blank chart —
- * an illustrative screen beats an empty one, provided it says so, which the
- * distribution header does.
+ * Stands in when the market data service is unreachable. Prices and fair
+ * values are invented, and the distribution header says so.
  *
- * Prices and fair values here are invented, not market data. Sectors follow
- * the yfinance taxonomy so the fallback and the live data filter alike, and
- * the method mix mirrors the live model set so the coverage counters and
- * model toggles behave the same against the fallback as against real data.
+ * Sectors follow the yfinance taxonomy and the method mix mirrors the live
+ * model set, so filters, coverage counters and toggles behave identically
+ * against the fallback and against real data.
  */
 
 export const SAMPLE_UNIVERSE: Stock[] = [

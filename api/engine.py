@@ -1,13 +1,10 @@
 """Runs every valuation model across the whole universe.
 
-The shape of this module is dictated by one measurement: the models themselves
-take ~0.08s for all 500 stocks, while reading the data they need takes ~35s.
-The cost is entirely I/O, so everything is bulk-loaded exactly once into
-in-memory frames and the per-ticker loop touches no network at all.
-
-That is also why valuations are precomputed into a table rather than derived on
-request — the read is a fixed cost that does not shrink when only one stock is
-wanted.
+The shape of this module is dictated by one measurement: the models take
+~0.08s for all 500 stocks, while reading the data they need takes ~35s. So
+everything is bulk-loaded once into in-memory frames and the per-ticker loop
+touches no network at all. It is also why valuations are precomputed into a
+table rather than derived on request.
 """
 
 from __future__ import annotations
@@ -91,12 +88,10 @@ def sector_multiples(
 ) -> dict[str, dict[str, float]]:
     """Median EV/EBITDA and P/E for every sector with enough usable peers.
 
-    This is why the universe is valued in two passes. A relative valuation needs
-    the peer set priced before any single company can be measured against it,
-    and `value_one` sees one ticker at a time, so the medians cannot be built
-    there. Sectors below `MIN_COMPS_PEERS` are omitted entirely rather than
-    given a thin median -- `comps_verdict` then refuses for those companies,
-    which is the same "absence means does not apply" contract as everywhere else.
+    This is why the universe is valued in two passes: a relative valuation needs
+    the peer set priced first, and `value_one` sees one ticker at a time.
+    Sectors below `MIN_COMPS_PEERS` are omitted rather than given a thin median,
+    and `comps_verdict` then refuses for those companies.
     """
     buckets: dict[str, dict[str, list[float]]] = {}
 
@@ -172,11 +167,10 @@ def value_one(
 ) -> tuple[list[dict], dict]:
     """Every model's verdict on one stock, plus the discount rates used.
 
-    Models that do not apply are absent from the verdict list rather than
-    present with a zero. The rates come back separately because they are not
-    verdicts -- a cost of equity is not a fair value per share -- but they are
-    computed here and were previously thrown away, which left the UI unable to
-    show the rate any of these numbers was discounted at."""
+    Models that do not apply are absent rather than present with a zero. The
+    rates come back separately because a cost of equity is not a fair value per
+    share, but the UI has to show what these numbers were discounted at.
+    """
     verdicts: list[dict] = []
     sector = (profile or {}).get("sector")
 
@@ -241,14 +235,11 @@ def value_one(
     revenue_growth = V._finite((profile or {}).get("revenue_growth"))
     earnings_growth = V._finite((profile or {}).get("earnings_growth"))
     observed = revenue_growth if revenue_growth is not None else earnings_growth
-    # The 0.12 ceiling is NOT redundant with MAX_GROWTH, which clamps only the
-    # rate fed into the projection. The discount-spread guards in `fcfe_verdict`
-    # and `fcff_verdict` deliberately test the rate BEFORE that clamp, so an
-    # absurd estimate refuses instead of being capped into looking reasonable.
-    # Without this ceiling, a yfinance revenue-growth figure of 40% halves to
-    # 20%, exceeds every cost of equity, and silently costs the fast-growing
-    # names a verdict -- 89 tickers sit above it, and dropping it blocked 25
-    # extra FCFE and 22 extra FCFF.
+    # NOT redundant with MAX_GROWTH, which clamps only what reaches the
+    # projection. The discount-spread guards test the rate BEFORE that clamp,
+    # so an absurd estimate refuses instead of being capped into looking
+    # reasonable. Without this ceiling a 40% revenue-growth figure halves to
+    # 20%, exceeds every cost of equity, and silently costs 89 names a verdict.
     growth = 0.04 if observed is None else max(0.0, min(0.12, observed * 0.5))
 
     fcfe = V.fcfe_verdict(

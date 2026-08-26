@@ -194,7 +194,7 @@ k<sub>d</sub>, tax rate, E/V and D/V, and the resulting WACC — with the formul
 beside each. This is the panel a finance reader actually wants to interrogate,
 and it is where CAPM belongs.
 
-Extend `GET /valuations` (`api/main.py:681-763`) to pass the new columns through;
+Extend `GET /valuations` (`api/universe.py`) to pass the new columns through;
 it already reads `ticker_statistics` at :706-711.
 
 ---

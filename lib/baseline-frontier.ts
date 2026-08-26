@@ -1,13 +1,12 @@
 /**
  * A precomputed efficient frontier, shipped with the app.
  *
- * Solving across ~500 tickers takes minutes, so the portfolio builder renders
- * this baseline immediately and swaps in the live solve when it lands. It is
- * illustrative, not live market data — every surface that shows it must say so
- * (see the `isBaseline` flag threaded through the builder).
+ * Solving ~500 tickers takes minutes, so the builder renders this immediately
+ * and swaps in the live solve when it lands. Illustrative, not market data —
+ * every surface showing it must say so (the `isBaseline` flag).
  *
- * Shape is identical to POST /api/efficient-frontier so the two are
- * interchangeable at the component boundary.
+ * Shape matches POST /api/efficient-frontier, so the two are interchangeable
+ * at the component boundary.
  */
 
 export type EnvelopePoint = {

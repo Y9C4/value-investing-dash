@@ -1,17 +1,13 @@
 """Fama-French factor returns: download, parse, and store.
 
-The Ken French data library publishes daily factor returns as zipped CSVs. One
-`factor_returns` table serves FF3, FF5 and Carhart-4 — the Mkt-RF/SMB/HML
+One `factor_returns` table serves FF3, FF5 and Carhart-4 — the Mkt-RF/SMB/HML
 series are identical across the 3- and 5-factor files, so only the 5-factor
 file and the separate momentum file are fetched.
 
-Two things about the source format bite if unhandled:
-
-- Values are in PERCENT. They are divided by 100 on ingest so the table stores
-  decimals, matching the log returns everything else uses.
-- Each file contains a daily section followed by a blank line and then an
-  annual section. Parsing past the blank line silently fills the table with
-  year numbers masquerading as dates.
+Two things about the source format bite if unhandled: values are in PERCENT
+(divided by 100 on ingest), and each file has a daily section followed by a
+blank line and an annual one (parsing past it fills the table with years
+masquerading as dates).
 """
 
 from __future__ import annotations

@@ -1,36 +1,36 @@
-"use client";
+"use client"
 
-import { useLayoutEffect, useState } from "react";
-import { RiMoonLine, RiSunLine } from "@remixicon/react";
-import { Button } from "@/components/ui/button";
+import { RiMoonLine, RiSunLine } from "@remixicon/react"
 
-function getStoredTheme(): "dark" | "light" {
-  if (typeof window === "undefined") return "light";
-  const stored = localStorage.getItem("theme");
-  if (stored === "dark" || stored === "light") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
+import { Button } from "@/components/ui/button"
 
+/**
+ * Dark-mode switch.
+ *
+ * Holds no state: the `dark` class on <html> is the source of truth, set
+ * before first paint by the blocking script in `app/layout.tsx`, and both
+ * icons are rendered with CSS choosing between them. So there is nothing to
+ * hydrate and the icon cannot disagree with the page it sits on — which is
+ * exactly what a React state mirror of the class gets wrong on the first
+ * paint of a dark page.
+ */
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<"dark" | "light">("light");
-
-  // Re-apply after React clears the class on the dev Strict Mode remount. No-op in production.
-  useLayoutEffect(() => {
-    const stored = getStoredTheme();
-    setTheme(stored);
-    document.documentElement.classList.toggle("dark", stored === "dark");
-  }, []);
-
   function toggle() {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    localStorage.setItem("theme", next);
-    document.documentElement.classList.toggle("dark", next === "dark");
+    const root = document.documentElement
+    const next = root.classList.contains("dark") ? "light" : "dark"
+    localStorage.setItem("theme", next)
+    root.classList.toggle("dark", next === "dark")
   }
 
   return (
-    <Button variant="outline" size="icon" onClick={toggle} aria-label="Toggle dark mode">
-      {theme === "dark" ? <RiSunLine className="size-4" /> : <RiMoonLine className="size-4" />}
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={toggle}
+      aria-label="Toggle dark mode"
+    >
+      <RiMoonLine className="size-4 dark:hidden" />
+      <RiSunLine className="hidden size-4 dark:block" />
     </Button>
-  );
+  )
 }

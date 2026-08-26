@@ -1,13 +1,11 @@
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
-yfinance>=0.2.50
-supabase>=2.9.0
 python-dotenv>=1.0.1
+supabase>=2.9.0
+yfinance>=0.2.50
 pandas>=2.2.0
-jupyterlab>=4.2.0
-ipykernel>=6.29.0
+numpy==2.2.6
+scipy==1.15.3
 pyportfolioopt==1.6.0
 cvxpy==1.7.5
 clarabel==0.11.1
-numpy==2.2.6
-scipy==1.15.3

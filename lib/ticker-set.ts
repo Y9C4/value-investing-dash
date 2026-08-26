@@ -3,25 +3,17 @@ import UNIVERSE from "@/api/data/sp500_tickers.json"
 /**
  * Compact URL encoding for a screened set of tickers.
  *
- * The screener used to hand its result to the portfolio builder as
- * `?tickers=A,AAPL,ABBV,…`. For a screen that passes most of the index that is
- * ~3KB of query string, and Next echoes the URL into the request line, the
- * `Next-Url` header *and* `Referer` on a client-side navigation — so 3KB of
- * URL costs ~9.2KB of a 16KB header budget (Node's `--max-http-header-size`
- * default). Cookies and ordinary browser headers then push it over and the
- * server answers `431 Request Header Fields Too Large`, which the browser
- * reports as a dead page rather than as anything to do with the screen.
+ * `?tickers=A,AAPL,…` reached ~3KB, and Next echoes the URL into the request
+ * line, `Next-Url` *and* `Referer` — ~9.2KB of Node's 16KB header budget, so
+ * ordinary cookies pushed it into a 431 that the browser reports as a dead
+ * page rather than as anything to do with the screen.
  *
- * Every ticker the screener can emit comes from a known, fixed universe, so
- * the set is representable as one bit per constituent. That is 503 bits — 84
- * base64 characters — and it does not grow with the number of selected names:
- * selecting the whole index costs the same as selecting one stock.
+ * The universe is known and fixed, so the set is one bit per constituent: 503
+ * bits, 84 base64 characters, and the whole index costs the same as one stock.
  *
- * The token carries a fingerprint of the universe it was built against.
- * Without it, a link shared before the index changed would silently decode
- * into a *different* portfolio — the bit positions shift when a constituent is
- * added or removed. A wrong answer is worse than a refusal, so a stale token
- * is rejected rather than approximated.
+ * The token carries a fingerprint of the universe it was built against,
+ * because the bit positions shift when a constituent changes. A stale token is
+ * refused rather than decoded into a different portfolio.
  */
 
 // Sorted rather than trusting file order, so the bit positions depend only on

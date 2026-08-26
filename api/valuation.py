@@ -3,16 +3,13 @@
 Each model is a pure function over plain inputs, returning a verdict dict or
 None. Returning None is a first-class outcome and the reason the models are
 trustworthy: a bank has no meaningful free cash flow, a non-payer has no
-dividend stream, a loss-maker has no Graham number. In every one of those cases
-the honest answer is silence, not a number. `valuations` rows are only written
-for models that produced something, so absence in the UI means "this model
-does not apply here" rather than "fair value is zero".
+dividend stream, a loss-maker has no Graham number. Rows are only written
+for models that produced something, so absence in the UI means "does not
+apply here" rather than "fair value is zero".
 
-Factor models do not appear here as verdicts. FF3/FF5 produce an expected
-return, not an intrinsic value per share, so mapping their alpha to an implied
-price was never a valuation - it was a risk model wearing a valuation costume.
-The regression survives because its genuinely correct use does: it supplies the
-cost of equity that the cash-flow models below discount at.
+Factor models are not verdicts. FF3/FF5 produce an expected return, not an
+intrinsic value per share. What survives is their correct use: supplying the
+cost of equity that the cash-flow models discount at.
 """
 
 from __future__ import annotations
@@ -59,25 +56,17 @@ MAX_WACC = 0.20
 # This is a modelling judgement, not a fact about the company.
 MAX_DEBT_WEIGHT = 0.60
 
-# DDM values the dividend stream and nothing else, so it can only speak to
-# companies that actually return most of their value that way. Below roughly a
-# 1.5% yield the dividend explains so little of the price that Gordon growth
-# reduces to a statement about payout policy rather than about value — Apple at
-# a 0.35% yield cannot be justified at any sane discount rate. Such names get
-# no DDM verdict rather than a uniformly bearish one.
+# DDM values the dividend stream and nothing else. Below ~1.5% yield the
+# dividend explains too little of the price for Gordon growth to be a statement
+# about value — Apple at 0.35% cannot be justified at any sane discount rate —
+# so those names get no DDM verdict rather than a uniformly bearish one.
 MIN_DDM_YIELD = 0.015
 
 # How much say each methodology gets in the consensus. These are JUDGEMENTS
 # about the models, not measurements of any company: FCFF and FCFE model cash
 # generation directly and are trusted most; RIM anchors on book value and reads
-# low for asset-light compounders, so it is heard but not loudly.
-#
-# They were previously multiplied by a `stability` argument that `engine.py`
-# hardcoded to 0.8 for every ticker in the index, which made a column labelled
-# "confidence" a per-model constant wearing the costume of a measurement. The
-# per-company adjustments that remain below are the ones that genuinely vary:
-# a dividend record's payment stability, cash flow propped up by borrowing, an
-# imputed tax rate, an incomplete set of quarters.
+# low for asset-light compounders, so it is heard but not loudly. Only the
+# per-company adjustments below genuinely vary.
 WEIGHT_FCFF = 0.80
 WEIGHT_FCFE = 0.75
 # Comps answer a different question from the four models above -- "what would
@@ -114,14 +103,10 @@ def _verdict(
 ) -> dict | None:
     """Assemble a verdict, rejecting nonsense fair values.
 
-    A fair value at or below zero, or an order of magnitude away from the market
-    price in EITHER direction, means the model's assumptions broke rather than
-    that a bargain (or a disaster) was found.
-
-    The symmetry is load-bearing. This guard used to reject only fair values
-    above 10x the price, which discarded the most undervalued readings while
-    keeping the most overvalued ones -- a censoring rule that pushed every
-    consensus downward and then looked like evidence the market was expensive.
+    A fair value at or below zero, or an order of magnitude from the market
+    price in EITHER direction, means the model's assumptions broke. The
+    symmetry matters: rejecting only the high side censors the undervalued
+    readings and tilts every consensus downward.
     """
     fair = _finite(fair_value)
     if fair is None or fair <= 0 or price <= 0:
@@ -250,17 +235,12 @@ def ddm_verdict(
     """Two-stage dividend discount: the trailing dividend grown explicitly for
     PROJECTION_YEARS, then at TERMINAL_GROWTH in perpetuity.
 
-    Refuses for non-payers rather than returning zero — the absence of a
-    dividend is not evidence of zero value, it means this model has nothing to
-    say about the company.
+    Refuses for non-payers. No dividend is not evidence of zero value; it means
+    this model has nothing to say about the company.
 
-    Single-stage Gordon was the wrong shape here. The closed form cannot
-    represent a company whose dividend grows faster than its own discount rate,
-    so its ke > g guard refused 109 of the 248 qualifying payers in the index —
-    Wells Fargo, Nike, FedEx, Schlumberger, all compounding a dividend off a low
-    base. That is a limitation of the formula, not a fact about the companies,
-    and the fix is the shape FCFE and FCFF already use: grow explicitly for a
-    decade, then hand the remainder to a GDP-rate perpetuity.
+    Two-stage rather than single-stage Gordon because the closed form cannot
+    represent a dividend growing faster than its own discount rate: its ke > g
+    guard refused 109 of the index's 248 qualifying payers.
     """
     dividend = _finite(trailing_dividend)
     if dividend is None or dividend <= 0 or payment_count < 8:
@@ -355,14 +335,12 @@ def wacc_components(
 ) -> dict:
     """Every input to WACC, and the resulting rate, as one dict.
 
-    Extracted so the discount-rate panel can show exactly the numbers the DCF
-    discounted at, computed once. A separate implementation written for display
-    is precisely how a UI ends up quoting a WACC the model never used -- which
-    is the failure this codebase already had, with EPV's on-screen formula
-    naming WACC while the code passed it a cost of equity.
+    Extracted so the discount-rate panel shows exactly the numbers the DCF
+    discounted at. A second implementation written for display is how a UI ends
+    up quoting a WACC the model never used.
 
-    `equity_value` is the market value of equity, measured as price x shares by
-    the caller so it agrees with the price the verdict is scored against.
+    `equity_value` is price x shares, measured by the caller so it agrees with
+    the price the verdict is scored against.
     """
     # Cost of debt is what the company actually pays on money it has borrowed,
     # so it is a yield on GROSS debt. Netting cash out here would invent a
@@ -377,12 +355,10 @@ def wacc_components(
         imputed_debt_cost = True
     cost_of_debt = max(MIN_COST_OF_DEBT, min(MAX_COST_OF_DEBT, cost_of_debt))
 
-    # The WEIGHTS use net debt, because the equity bridge subtracts net debt.
-    # Weighting on gross debt while bridging on net counts a cash pile twice:
-    # once as a heavier (and cheaper) debt weight that pulls WACC down and
-    # lifts enterprise value, then again as cash added back on the way to
-    # equity. Net cash floors at zero rather than going negative -- a company
-    # holding more cash than debt has a 100% equity weight, not a subsidy.
+    # The weights use NET debt, because the equity bridge subtracts net debt.
+    # Gross weights against a net bridge counts a cash pile twice. Net cash
+    # floors at zero: more cash than debt is a 100% equity weight, not a
+    # subsidy.
     bridge_debt = _finite(net_debt) or 0.0
     weight_debt = max(0.0, bridge_debt)
 
@@ -441,13 +417,11 @@ def fcff_verdict(
     if ebit is None or capex is None or share_count is None or share_count <= 0:
         return None
 
-    # Equity is measured from the same price the margin of safety is computed
-    # against, times the same share count the fair value is divided by at the
-    # end. `company_profile.market_cap` -- what this used to read -- is a
-    # yfinance snapshot written by a DIFFERENT backfill, and disagreed with
-    # price x shares by 13% for CHTR ($20,792M against $18,401M). Whichever of
-    # the two is closer to the truth, using one for the discount-rate weights
-    # and the other for the per-share division cannot both be right.
+    # Measured from the same price the margin of safety uses, times the same
+    # share count the fair value is divided by. `company_profile.market_cap` is
+    # a yfinance snapshot from a different backfill and disagreed by 13% on
+    # CHTR; one number for the weights and another for the division cannot both
+    # be right.
     equity_mv = price * share_count
     if equity_mv <= 0:
         return None
@@ -503,16 +477,13 @@ def comps_verdict(
 ) -> dict | None:
     """Relative valuation against the median multiples of the company's sector.
 
-    Answers "what would this be worth if the market priced it like the median
-    of its peers", which is not the same question the discounted cash flow
-    models answer and is the reason it earns a place beside them. The honest
-    caveat is that it inherits whatever the sector is doing: if every peer is
-    expensive, comps will call an expensive company fair.
+    Answers "what would this be worth priced like its peers", a different
+    question from the cash-flow models and the reason it sits beside them. It
+    inherits whatever the sector is doing: if every peer is expensive, comps
+    calls an expensive company fair.
 
-    Uses EV/EBITDA and P/E where each is available and averages the implied
-    per-share values, rather than preferring one -- they fail in different
-    places (EV/EBITDA is blind to capital structure cost, P/E to leverage), so
-    the average is steadier than either.
+    Averages the values implied by EV/EBITDA and P/E rather than preferring
+    one. They fail in different places, so the average is steadier than either.
     """
     if quarters_used < 4 or not sector_multiples:
         return None

@@ -1,23 +1,14 @@
 /**
  * The optimiser's exposed controls, and the rules for turning what someone
- * typed into a request the solver can actually meet.
+ * typed into a request the solver can meet.
  *
- * Every field is kept as a string rather than a number. A controlled numeric
- * input has to be able to hold "", "-" and "0." mid-typing, and coercing those
- * to a number on every keystroke either snaps the caret around or silently
- * substitutes a value nobody asked for. Parsing happens once, here, at the
- * boundary.
- *
- * Empty means *auto* for the two position bounds, and auto is not the same as
- * zero: the backend scales the cap to the size of the universe, because a 3%
- * cap cannot add up to a whole portfolio across fewer than 34 names. Leaving
- * the field blank defers to that; typing a number overrides it.
+ * Every field is a string, not a number: a controlled numeric input has to be
+ * able to hold "", "-" and "0." mid-typing. Parsing happens once, here.
  */
 
 export const MIN_PORTFOLIOS = 2
-// Every frontier point is a solved portfolio rather than a step along a line
-// between two anchors, so the ceiling tracks real solver cost. Must stay in
-// step with MAX_ENVELOPE_POINTS in the market-data service.
+// Each point is a real solve, so the ceiling tracks solver cost. Must stay in
+// step with MAX_ENVELOPE_POINTS in api/frontier.py.
 export const MAX_PORTFOLIOS = 200
 export const DEFAULT_PORTFOLIOS = 100
 export const MAX_GAMMA = 5
@@ -27,7 +18,7 @@ export type PortfolioSettings = {
   portfolios: string
   /** Shorthand for a symmetric negative floor; an explicit minWeight wins. */
   shortAllowed: boolean
-  /** Percent. Blank defers to the backend, negative permits shorting. */
+  /** Percent. Blank defers to the backend; negative permits shorting. */
   minWeight: string
   /** Percent. Blank defers to the backend's universe-scaled cap. */
   maxWeight: string
@@ -55,10 +46,9 @@ function parseOptionalPercent(value: string): number | null | undefined {
 /**
  * Field-level problems, empty when the settings are sendable.
  *
- * Only what can be judged without knowing the universe size is checked here.
- * Whether a 2% cap can fill a portfolio depends on how many stocks survived
- * the history filter, which the browser does not know — the backend answers
- * that one, and names the threshold in its message.
+ * Only what can be judged without knowing the universe size. Whether a 2% cap
+ * can fill a portfolio depends on how many stocks survived the history filter,
+ * which the browser does not know — the backend answers that one.
  */
 export function validateSettings(settings: PortfolioSettings): SettingsErrors {
   const errors: SettingsErrors = {}
@@ -106,17 +96,11 @@ export function validateSettings(settings: PortfolioSettings): SettingsErrors {
 /**
  * The request for `POST /api/efficient-frontier`.
  *
- * The settings go in the query string and the **ticker list goes in the body**,
- * which is the whole reason this returns a request rather than a query.
- * Spelling out the index inline made the URL ~3KB, and a URL is a header: it
- * sits in the request line and counts against Node's 16KB header budget
- * alongside every cookie the reader happens to be carrying. At 13KB of cookies
- * the dev server answered `431 Request Header Fields Too Large` and the page
- * reported an optimiser failure for a request the optimiser never saw.
- *
- * Moving it to the body takes the request line from ~3KB to under 100 bytes.
- * Only the unbounded field moves: the scalars stay in the query so the call is
- * still legible in a network panel, and they cannot grow.
+ * Settings go in the query string; the **ticker list goes in the body**, which
+ * is why this returns a request rather than a query. A URL is a header — it
+ * counts against Node's 16KB budget alongside the reader's cookies — and
+ * spelling out the index inline made it ~3KB, so the page 431'd for anyone
+ * carrying 13KB of cookies.
  *
  * Blank bounds are omitted rather than sent as zero, which is what keeps
  * "auto" distinguishable from "no short side" on the wire.
@@ -153,12 +137,10 @@ export function buildFrontierRequest(
 }
 
 /**
- * Sum of squared weights — the Herfindahl index. Its reciprocal is the
- * effective number of holdings, which is the honest answer to "how diversified
- * is this?": a sixty-name portfolio with fifty-five of them at a rounding
- * error is not a sixty-name portfolio. It is also the number that visibly
- * moves when the bounds tighten, which is what makes those controls legible
- * rather than mystery dials.
+ * Effective number of holdings: the reciprocal Herfindahl index, `1 / Σw²`.
+ *
+ * The honest answer to "how diversified is this?" — a sixty-name portfolio
+ * with fifty-five at a rounding error is not a sixty-name portfolio.
  */
 export function effectiveHoldings(weights: Record<string, number>): number {
   const herfindahl = Object.values(weights).reduce(

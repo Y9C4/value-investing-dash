@@ -14,11 +14,9 @@ import type { Stock } from "@/lib/valuation"
  * The stock detail layout: price and risk on the left, every model's verdict on
  * the right.
  *
- * The split follows the reading order of the question being asked — what has
- * this company done, then what is it worth. The valuation table takes the full
- * right column because it is the longest thing on the page and the reason to be
- * here; boxing it into a quadrant would make the one panel worth reading the
- * one that scrolls.
+ * The split follows the question being asked: what has this company done,
+ * then what is it worth. The valuation table takes the full right column
+ * because it is the reason to be on the page.
  */
 export function StockDetail({ stock }: { stock: Stock }) {
   const { data, loading, error } = useTickerReturns(stock.ticker)

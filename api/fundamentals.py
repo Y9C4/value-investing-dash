@@ -1,18 +1,14 @@
-"""Extraction of quarterly fundamentals, company profile and dividends.
-
-Everything here fetches from yfinance and reshapes into rows for the
-`quarterly_fundamentals`, `company_profile` and `dividend_history` tables.
+"""Quarterly fundamentals, company profile and dividends, from yfinance.
 
 Two hazards drive the design:
 
 - **Row names vary by ticker.** `Interest Expense` is missing for companies
-  with no debt, `Tax Rate For Calcs` for loss-makers, `Free Cash Flow` for
-  banks. `_row` therefore returns None rather than defaulting to zero — a
-  missing line item is not zero, and treating it as zero produces a
-  plausible-looking wrong valuation, which is worse than no valuation.
-- **Signs are as-reported.** yfinance gives `Capital Expenditure` and
-  `Cash Dividends Paid` as negative numbers. They are stored that way, so free
-  cash flow is `operating_cash_flow + capital_expenditure`.
+  with no debt, `Free Cash Flow` for banks. `_row` returns None rather than
+  defaulting to zero: a missing line item is not zero, and treating it as
+  zero produces a plausible-looking wrong valuation.
+- **Signs are as-reported.** `Capital Expenditure` and `Cash Dividends Paid`
+  arrive negative and are stored that way, so free cash flow is
+  `operating_cash_flow + capital_expenditure`.
 """
 
 from __future__ import annotations

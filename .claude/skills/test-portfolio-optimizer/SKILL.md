@@ -1,6 +1,6 @@
 ---
 name: test-portfolio-optimizer
-description: Test the portfolio optimiser (efficient frontier / tangency portfolio) across many screened stock sets, via HTTP and a real headless browser. Use when changing api/main.py's frontier code, components/efficient-frontier.tsx, or the backfills that feed them — and whenever someone reports the optimiser failing, erroring, hanging, or showing "page not working".
+description: Test the portfolio optimiser (efficient frontier / tangency portfolio) across many screened stock sets, via HTTP and a real headless browser. Use when changing api/frontier.py, components/efficient-frontier.tsx, or the backfills that feed them — and whenever someone reports the optimiser failing, erroring, hanging, or showing "page not working".
 ---
 
 Sweeps `POST /efficient-frontier` and the `/portfolio` page across many
@@ -210,7 +210,7 @@ row instead.
   positions shift when a constituent is added or removed — an old shared link
   would otherwise decode into a *different* portfolio and plot it without
   complaint. `?tickers=` is still honoured for short, hand-built URLs.
-- **Reads are retried, writes are not.** `_supabase_read` in `api/main.py`
+- **Reads are retried, writes are not.** `db.read` in `api/db.py`
   wraps every read in the request path, because re-running a read has no side
   effects. Do not extend it over an upsert or a delete without thinking about
   what a repeated write does.

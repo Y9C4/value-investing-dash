@@ -13,11 +13,9 @@ import {
 /**
  * Runs every backfill stage in dependency order behind one button.
  *
- * The per-stage cards below this one are still the right tool for routine
- * upkeep — there is no reason a factor refresh should drag an eight-minute
- * fundamentals fetch behind it. This exists for the other case: bringing a
- * stale database current without having to remember that valuations read the
- * three tables above them and therefore have to run last.
+ * The per-stage cards below remain the right tool for routine upkeep. This is
+ * for the other case: bringing a stale database current without having to
+ * remember that valuations read the three tables above them and run last.
  */
 
 type StageResult = {

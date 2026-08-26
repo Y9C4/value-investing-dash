@@ -27,14 +27,10 @@ export async function POST() {
     return Response.json(body, { status: upstream.status })
   }
 
-  // Every stage feeds the scored universe, so a success here makes whatever
-  // the screener has cached out of date. Purge it now rather than leaving the
-  // new numbers invisible until the revalidate window lapses.
-  // `expire: 0` rather than the "max" profile: that one serves stale content
-  // while refreshing behind it, so the first visit after a backfill would still
-  // show the old numbers — the opposite of what someone who just pressed the
-  // button expects. (`updateTag` would be the idiomatic choice, but it is only
-  // callable from Server Actions, not a Route Handler.)
+  // A success here makes whatever the screener cached out of date. `expire: 0`
+  // rather than the "max" profile, which serves stale content while refreshing
+  // behind it — the first visit after a backfill would still show the old
+  // numbers. (`updateTag` is idiomatic but only callable from Server Actions.)
   revalidateTag(VALUATIONS_CACHE_TAG, { expire: 0 })
 
   return Response.json(body)

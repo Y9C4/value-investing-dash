@@ -1,21 +1,16 @@
 /**
  * The valuation layer the screener is built on.
  *
- * Every method here is wired to real math in `api/valuation.py` and scored
- * across the S&P 500 by `POST /backfill/valuations`. Each reports the same
- * contract — a fair value and a confidence — so the UI never needs to know
- * which model produced a number.
+ * Every method is wired to real math in `api/valuation.py` and scored across
+ * the index by `POST /backfill/valuations`. All report the same contract — a
+ * fair value and a confidence — so the UI never needs to know which model
+ * produced a number.
  *
- * A model that cannot speak to a company emits NO verdict rather than a zero:
- * a bank has no meaningful free cash flow, a non-payer has no dividend stream,
- * a company with negative book value has no residual income. Absence in the
- * breakdown means "does not apply here", which is why `verdicts` is ragged and
- * coverage is worth filtering on.
+ * A model that cannot speak to a company emits NO verdict rather than a zero,
+ * which is why `verdicts` is ragged and coverage is worth filtering on.
  *
- * CAPM and the Fama-French regressions are deliberately NOT in this list. They
- * produce an expected return, not an intrinsic value per share; their real job
- * is supplying the cost of equity the models below discount at, which is shown
- * in the discount-rate panel rather than as a fair value.
+ * CAPM and Fama-French are deliberately absent: they produce an expected
+ * return, not a value per share. They appear in the discount-rate panel.
  */
 
 export type MethodId = "fcfe" | "fcff" | "comps" | "ddm" | "rim"
@@ -131,14 +126,10 @@ export type MethodVerdict = {
 /**
  * The rates a company's valuations were discounted at.
  *
- * Not verdicts, which is why they are not in `verdicts`: CAPM and the
- * Fama-French regressions produce an expected return, not an intrinsic value
- * per share. Listing CAPM as a fair-value model is what left a permanently
- * empty row on every stock page.
+ * Not verdicts: a cost of equity is not a value per share, and listing CAPM
+ * as a fair-value model left a permanently empty row on every stock page.
  *
- * Every field is nullable. A company with too little on file to build a
- * capital structure still has a cost of equity, and a missing WACC is not a
- * WACC of zero.
+ * Every field is nullable — a missing WACC is not a WACC of zero.
  */
 export type DiscountRates = {
   /** 13-week T-bill (^IRX), averaged over the same 252-day window. */
@@ -188,15 +179,12 @@ export function activeVerdicts(
 }
 
 /**
- * Consensus margin of safety across the methods that produced a verdict,
- * weighted by each method's declared weight (see WEIGHT_* in
- * `api/valuation.py`). This is the number the screener sorts on and the
- * diverging scale encodes.
+ * Consensus margin of safety, weighted by each method's declared weight (see
+ * WEIGHT_* in `api/valuation.py`). The number the screener sorts on.
  *
- * Passing `methods` narrows the consensus to those models only. That is the
- * point of the model toggles: restricting to DDM and FCFE asks "what does a
- * cash-returns view alone say about this company", and the whole screen —
- * margins, bands, distribution, ranking — answers that question instead.
+ * `methods` narrows the consensus to those models only, which is the point of
+ * the toggles: picking DDM and FCFE re-answers the whole screen — margins,
+ * bands, distribution, ranking — from a cash-returns view alone.
  */
 export function consensusMarginOfSafety(
   stock: Stock,
@@ -239,23 +227,17 @@ export function isRated(stock: Stock, methods: MethodId[] = []): boolean {
  * Buckets the consensus into the five bands the screener's diverging scale
  * paints.
  *
- * THESE BANDS ARE RELATIVE, NOT ABSOLUTE. They are the quintiles of the actual
- * S&P 500 distribution, so "deep value" means "in the cheapest fifth of the
- * index" and not "trading below its intrinsic worth". The UI says so wherever
- * a band is named; a reader who assumes otherwise is being misled.
+ * THESE BANDS ARE RELATIVE, NOT ABSOLUTE — quintiles of the actual S&P 500
+ * distribution, so "deep value" means "cheapest fifth of the index", not
+ * "below intrinsic worth". The UI says so wherever a band is named.
  *
- * The reason is a fact about the models, not a presentation choice. Measured
- * over the index, the consensus median sits near -34%: the cash-flow models
- * discount at a median cost of equity around 12% while halving observed growth
- * and capping it at 6% against a 3% perpetuity, so they read the market as
- * expensive almost everywhere (FCFE negative on 76% of names, FCFF on 78%).
- * Centring the bands on zero is more honest about each number but useless as a
- * filter — it files three fifths of the index under "expensive" and cannot
- * discriminate within it.
+ * That is forced by the models, not chosen: the consensus median sits near
+ * -34%, because the cash-flow models discount at ~12% while halving observed
+ * growth against a 3% perpetuity. Centring on zero would file three fifths of
+ * the index under "expensive" and fail to discriminate within it.
  *
- * So the honest construction is a relative one, labelled as relative. If the
- * discount-rate work ever moves that median toward zero, recompute these cut
- * points from the new distribution rather than leaving them frozen here.
+ * If the discount-rate work moves that median, recompute these cut points from
+ * the new distribution rather than leaving them frozen here.
  */
 export function valuationBand(marginOfSafety: number): ValuationBand {
   if (marginOfSafety >= 0.03) return "deep-value"
