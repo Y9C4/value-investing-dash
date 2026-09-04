@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 
+import config
 import db
+import jobs
 import market
 
 # Added by migration 20260821000000. Selecting them before it is applied fails
@@ -66,6 +68,45 @@ def _discount_rates(stats: dict, risk_free: float) -> dict:
             "equityWeight": _optional_float(stats.get("equity_weight")),
             "taxRate": _optional_float(stats.get("tax_rate")),
         }
+    }
+
+
+def _index_level() -> dict | None:
+    """The benchmark's last close and its one-session change.
+
+    The market context bar states where the index stands, which is the piece
+    of a real dashboard that says the numbers beside it are current. Two rows
+    off the covering index added by migration 20260904000000, so this costs a
+    single index-only scan rather than anything proportional to the universe.
+
+    None on any failure: a missing index level hides one strip of chrome and
+    must never take the screener down with it.
+    """
+    try:
+        rows = db.read(
+            lambda client: client.table("daily_close_prices")
+            .select("date, close")
+            .eq("ticker", config.SP500_INDEX_TICKER)
+            .order("date", desc=True)
+            .limit(2)
+            .execute()
+        ).data
+    except Exception:  # noqa: BLE001 - chrome, not data
+        return None
+
+    if not rows:
+        return None
+
+    close = float(rows[0]["close"])
+    # A single stored session means there is a level but no change to report;
+    # null beats inventing a 0.00% move on the first day of a fresh database.
+    previous = float(rows[1]["close"]) if len(rows) > 1 else None
+
+    return {
+        "ticker": config.SP500_INDEX_TICKER,
+        "date": rows[0]["date"],
+        "close": close,
+        "change": (close / previous - 1) if previous else None,
     }
 
 
@@ -135,4 +176,15 @@ def scored() -> dict:
             }
         )
 
-    return {"computed_at": computed_at, "count": len(stocks), "stocks": stocks}
+    return {
+        "computed_at": computed_at,
+        "count": len(stocks),
+        "risk_free_rate": risk_free,
+        "index": _index_level(),
+        # When each feeder table was last filled, as opposed to when the models
+        # last ran over it. Carried in the payload so the front end gets it on
+        # a read it already makes, rather than paying a second round trip for
+        # one line of chrome.
+        "data_freshness": jobs.latest(),
+        "stocks": stocks,
+    }

@@ -17,7 +17,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import {
-  AGREEMENT_BASIS,
   BAND_BASIS,
   BAND_FILL,
   BAND_LABELS,
@@ -242,53 +241,6 @@ function MethodToggle({
   )
 }
 
-/**
- * The agreement floor. Coverage is uneven, so without it a stock can clear the
- * screen on one model's opinion while the rest of the panel never saw it.
- */
-function AgreementControl({
-  value,
-  max,
-  onChange,
-}: {
-  value: number
-  max: number
-  onChange: (next: number) => void
-}) {
-  return (
-    <div className="flex flex-col gap-2 border-t border-border pt-3">
-      <span className="flex items-baseline justify-between gap-2 text-xs">
-        <span className="flex items-center gap-1.5 text-muted-foreground">
-          Valued by at least
-          <Info title="Model agreement">{AGREEMENT_BASIS}</Info>
-        </span>
-        <span className="font-mono tabular-nums">
-          {value} of {max}
-        </span>
-      </span>
-
-      <div className="flex" role="group" aria-label="Minimum models per stock">
-        {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => onChange(n)}
-            aria-pressed={n === value}
-            className={cn(
-              "-ml-px flex-1 border py-1 font-mono text-xs transition-colors first:ml-0",
-              n === value
-                ? "z-10 border-primary bg-primary/10 text-foreground"
-                : "border-border text-muted-foreground hover:border-ring hover:text-foreground"
-            )}
-          >
-            {n}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export function ScreenerFilterRail({
   filters,
   sectors,
@@ -342,7 +294,7 @@ export function ScreenerFilterRail({
           <RiSearchLine className="size-4 shrink-0 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Ticker or company"
+            placeholder="Ticker or name"
             value={filters.search}
             onChange={(e) => onChange({ ...filters, search: e.target.value })}
             className="border-transparent"
@@ -392,19 +344,21 @@ export function ScreenerFilterRail({
                 onChange({
                   ...filters,
                   methods: next.length === VALUATION_METHODS.length ? [] : next,
-                  // The floor cannot ask for more models than are selected.
-                  minModels: Math.min(filters.minModels, next.length),
                 })
               }}
             />
           ))}
         </div>
 
-        <AgreementControl
-          value={Math.min(filters.minModels, modelCount)}
-          max={modelCount}
-          onChange={(minModels) => onChange({ ...filters, minModels })}
-        />
+        {/* What the switches above add up to. The per-model coverage bars say
+            what each model can reach; this says what the consensus on screen
+            is actually made of. */}
+        <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
+          A stock is rated when any of these{" "}
+          <span className="font-mono">{modelCount}</span> models valued it, and
+          its consensus is their confidence-weighted average. The count beside
+          each margin says how many of them actually spoke.
+        </p>
       </FilterGroup>
 
       <FilterGroup

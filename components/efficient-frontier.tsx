@@ -89,10 +89,13 @@ export function FrontierChart({
   data,
   isBaseline,
   loading,
+  solving,
 }: {
   data: FrontierResponse
   isBaseline: boolean
   loading: boolean
+  /** What the in-flight solve was asked for, for the progress readout. */
+  solving?: { portfolios: number; assets: number; seconds: number }
 }) {
   const envelopeData = data.envelope.map((point) => ({
     volatility: point.volatility,
@@ -140,12 +143,18 @@ export function FrontierChart({
       <CardHeader className="flex flex-wrap items-baseline justify-between gap-4">
         <CardTitle>Efficient frontier</CardTitle>
         {/* The provenance of what's on screen is never ambiguous. */}
-        <span className="text-xs tracking-wider text-muted-foreground uppercase">
-          {loading
-            ? "Solving…"
-            : isBaseline
-              ? "Illustrative baseline"
-              : `Live · ${data.n_portfolios} portfolios`}
+        {/* A solve is five to twenty seconds of real work. Saying what is
+            being solved, over how many names, and how long it has been going
+            is the difference between a page that is working and a page that
+            looks stuck. */}
+        <span className="font-mono text-xs tracking-wider text-muted-foreground uppercase tabular-figures">
+          {loading && solving
+            ? `Solving ${solving.portfolios} portfolios over ${solving.assets} names · ${solving.seconds}s`
+            : loading
+              ? "Solving…"
+              : isBaseline
+                ? "Illustrative baseline"
+                : `Live · ${data.n_portfolios} portfolios${data.cached ? " · cached" : ""}`}
         </span>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -242,10 +251,19 @@ export function FrontierChart({
               legendType="none"
               tooltipType="none"
             />
+            {/* Monotone interpolation, not straight segments. The frontier is
+                a concave curve, so joining solved points with chords draws it
+                fractionally inside itself and the seams show at low point
+                counts. Monotone cubic preserves the ordering it is given and
+                cannot invent a peak between two points, which is what makes it
+                safe to use on a curve the reader is meant to trust — and it is
+                what lets a budget-capped 24-point solve look like a 200-point
+                one. */}
             <Line
               data={envelopeData}
               dataKey="return"
               name="Efficient frontier"
+              type="monotone"
               stroke="var(--color-envelope)"
               strokeWidth={2}
               strokeLinecap="round"

@@ -10,9 +10,9 @@ export function PageHeader({
   actions?: React.ReactNode
 }) {
   return (
-    <header className="border-b border-border bg-card px-6 py-8 lg:px-10">
+    <header className="border-b border-border bg-card px-6 py-5 lg:px-10">
       <div className="flex flex-wrap items-end justify-between gap-6">
-        <div className="flex max-w-2xl flex-col gap-2">
+        <div className="flex max-w-2xl flex-col gap-1.5">
           {eyebrow && (
             <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
               {eyebrow}

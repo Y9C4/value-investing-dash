@@ -11,7 +11,7 @@ Setup, endpoints, deployment and the reasoning behind the design are in the
 python -m venv .venv
 .venv/Scripts/activate            # source .venv/bin/activate on macOS/Linux
 pip install -r requirements.txt   # add -r requirements-dev.txt for notebooks
-cp .env.example .env              # Supabase URL + service role key
+cp .env.example .env              # Supabase URL, service role key, backfill token
 
 uvicorn main:app --reload --port 8000
 ```
@@ -27,6 +27,7 @@ uvicorn main:app --reload --port 8000
 | `backfill.py` | ingest jobs, in dependency order |
 | `market.py` | price and return reads, with their caches |
 | `universe.py` | assembles the scored universe the screener consumes |
+| `jobs.py` | records each scheduled ingest to `job_runs`, and reads the latest back |
 | `db.py` | Supabase access: one client, one retry policy, paging and batching |
 | `fundamentals.py` / `factors.py` | yfinance and Ken French ingest |
 | `config.py` | the universe, credentials, shared constants |

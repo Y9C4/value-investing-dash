@@ -8,7 +8,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-mono-face);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -72,8 +72,13 @@
   --card-foreground: oklch(0.147 0.004 49.25);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.147 0.004 49.25);
-  --primary: oklch(0.488 0.243 264.376);
-  --primary-foreground: oklch(0.97 0.014 254.604);
+  /* Chrome, deliberately not a data hue. Primary used to sit in the same blue
+     neighbourhood as --series-1 and --seq-3, so the screener's CTA competed
+     with the frontier line for the same meaning. Ink here, paper in dark: it
+     can never be mistaken for a series, and it reads as the most emphatic
+     thing on a page whose data is coloured. */
+  --primary: oklch(0.216 0.006 56.043);
+  --primary-foreground: oklch(0.985 0.001 106.423);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.97 0.001 106.424);
@@ -121,6 +126,10 @@
   --grid: oklch(0.923 0.003 48.717);
   --axis: oklch(0.869 0.005 56.366);
 
+  /* Scrollbar thumb. A step darker than --axis: a chart axis is read at rest,
+     a scrollbar has to be found and grabbed. */
+  --scrollbar: oklch(0.79 0.006 56.366);
+
   --radius: 0rem;
   --sidebar: oklch(0.985 0.001 106.423);
   --sidebar-foreground: oklch(0.147 0.004 49.25);
@@ -141,8 +150,9 @@
   --card-foreground: oklch(0.985 0.001 106.423);
   --popover: oklch(0.216 0.006 56.043);
   --popover-foreground: oklch(0.985 0.001 106.423);
-  --primary: oklch(0.424 0.199 265.638);
-  --primary-foreground: oklch(0.97 0.014 254.604);
+  /* Inverted, for the same reason. */
+  --primary: oklch(0.985 0.001 106.423);
+  --primary-foreground: oklch(0.216 0.006 56.043);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.268 0.007 34.298);
@@ -182,6 +192,7 @@
 
   --grid: oklch(1 0 0 / 8%);
   --axis: oklch(1 0 0 / 16%);
+  --scrollbar: oklch(1 0 0 / 26%);
 
   --sidebar: oklch(0.216 0.006 56.043);
   --sidebar-foreground: oklch(0.985 0.001 106.423);
@@ -212,6 +223,47 @@
   th,
   .tabular-figures {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Scrollbars are chrome, and this app has a lot of them: the screener is two
+     independently scrolling panes, the table scrolls in both axes, and the
+     filter rail scrolls inside a fixed height. A default OS scrollbar is a
+     rounded grey slab that reads as part of the operating system rather than
+     part of the page, which is exactly wrong on a surface that has been made
+     square everywhere else.
+
+     Both syntaxes are declared because the standard properties are recent:
+     Firefox has always had them, Chromium 121+ honours them and from that
+     version ignores the ::-webkit rules entirely. Older Chromium and Safari
+     fall through to the pseudo-elements. The two produce the same object.
+
+     `scrollbar-width` is not an inherited property, so it goes on the
+     universal selector; `scrollbar-color` is, and rides along. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar);
+    /* A transparent border with background-clip is the only way to inset a
+       webkit thumb — there is no padding on a scrollbar part. */
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  *:hover::-webkit-scrollbar-thumb {
+    background-color: var(--muted-foreground);
   }
 }
 

@@ -1,39 +1,13 @@
-import { revalidateTag } from "next/cache"
+import { proxyBackfill } from "@/lib/market-data-service"
 
-import { VALUATIONS_CACHE_TAG } from "@/lib/universe"
-
-const MARKET_DATA_API_URL =
-  process.env.MARKET_DATA_API_URL ?? "http://127.0.0.1:8000"
-
+// ~500 tickers at 8 workers measured ~8 minutes end to end, which is well past
+// the 280s the other backfills use — and past what Vercel Hobby allows. That is
+// survivable only because this route is disabled in production: the scheduled
+// refresh calls the service directly, with no serverless function in between.
 export const maxDuration = 800
 
 export async function POST() {
-  let upstream: Response
-  try {
-    upstream = await fetch(
-      `${MARKET_DATA_API_URL}/backfill/quarterly-fundamentals`,
-      // ~500 tickers at 8 workers measured ~8 minutes end to end, which is
-      // well past the 280s the other backfills use.
-      { method: "POST", signal: AbortSignal.timeout(780_000) }
-    )
-  } catch {
-    return Response.json(
-      { detail: "Market data service is unreachable" },
-      { status: 502 }
-    )
-  }
-
-  const body = await upstream.json()
-
-  if (!upstream.ok) {
-    return Response.json(body, { status: upstream.status })
-  }
-
-  // A success here makes whatever the screener cached out of date. `expire: 0`
-  // rather than the "max" profile, which serves stale content while refreshing
-  // behind it — the first visit after a backfill would still show the old
-  // numbers. (`updateTag` is idiomatic but only callable from Server Actions.)
-  revalidateTag(VALUATIONS_CACHE_TAG, { expire: 0 })
-
-  return Response.json(body)
+  return proxyBackfill("/backfill/quarterly-fundamentals", {
+    timeoutMs: 780_000,
+  })
 }

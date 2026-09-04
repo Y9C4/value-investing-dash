@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 
 import { PageHeader } from "@/components/page-header"
 import { StockDetail } from "@/components/stock-detail"
+import { StockSearch } from "@/components/stock-search"
 import { loadUniverse } from "@/lib/universe"
 
 export default async function StockPage({
@@ -17,6 +18,15 @@ export default async function StockPage({
 
   return (
     <>
+      {/* The same strip as the parent route, in the same place, so moving
+          between stocks never means going back to a different page first. */}
+      <div className="border-b border-border bg-card px-6 py-4 lg:px-10">
+        <StockSearch
+          stocks={stocks.map(({ ticker, name }) => ({ ticker, name }))}
+          current={stock.ticker}
+        />
+      </div>
+
       {/* Title only. Which company this is, is information; a sentence
           describing the cards below it is not — they have their own titles. */}
       <PageHeader

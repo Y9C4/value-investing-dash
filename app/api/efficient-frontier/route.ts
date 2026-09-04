@@ -1,5 +1,5 @@
-const MARKET_DATA_API_URL =
-  process.env.MARKET_DATA_API_URL ?? "http://127.0.0.1:8000"
+import { MARKET_DATA_API_URL, originHeaders } from "@/lib/market-data-service"
+import { checkRateLimit, clientKey } from "@/lib/rate-limit"
 
 export const maxDuration = 300
 
@@ -21,6 +21,21 @@ async function readBodyTickers(request: Request): Promise<string | null> {
 }
 
 export async function POST(request: Request) {
+  // Checked before the body is read, so a caller in a loop costs this function
+  // nothing beyond the header parse. The solver's own two limits — the point
+  // budget and the hourly compute budget — sit behind this one and are what
+  // bound the damage a caller who evades it can do.
+  const verdict = checkRateLimit(clientKey(request))
+  if (!verdict.allowed) {
+    return Response.json(
+      { detail: verdict.detail },
+      {
+        status: 429,
+        headers: { "Retry-After": String(verdict.retryAfterSeconds) },
+      }
+    )
+  }
+
   const { searchParams } = new URL(request.url)
   const shortAllowed = searchParams.get("short_allowed") === "true"
   const nPortfolios = searchParams.get("n_portfolios")
@@ -48,6 +63,9 @@ export async function POST(request: Request) {
   try {
     upstream = await fetch(`${MARKET_DATA_API_URL}/efficient-frontier?${query}`, {
       method: "POST",
+      // Proves the request came through this app rather than from something
+      // pointed straight at the service URL, which the browser never sees.
+      headers: originHeaders(),
       signal: AbortSignal.timeout(280_000),
     })
   } catch {
@@ -74,5 +92,12 @@ export async function POST(request: Request) {
     )
   }
 
-  return Response.json(body, { status: upstream.status })
+  // The solver sends `Retry-After` when its hourly compute budget is spent.
+  // Dropping it would turn a "come back in twenty minutes" into a bare 429.
+  const retryAfter = upstream.headers.get("retry-after")
+
+  return Response.json(body, {
+    status: upstream.status,
+    headers: retryAfter ? { "Retry-After": retryAfter } : undefined,
+  })
 }

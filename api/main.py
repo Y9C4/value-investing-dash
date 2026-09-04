@@ -14,11 +14,15 @@ Routes only. Each one delegates to the module that owns the work:
 
 from __future__ import annotations
 
+import secrets
+import threading
+from contextlib import asynccontextmanager
 from typing import Literal
 
 import yfinance as yf
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 import backfill
@@ -27,7 +31,37 @@ import frontier
 import market
 import universe
 
-app = FastAPI(title="Margin market data service")
+
+def _warm_price_cache() -> None:
+    """Pull the full price frame into the process cache.
+
+    Runs on a background thread at startup so the first visitor does not pay
+    for it. On a scale-to-zero host every cold start begins with an empty
+    cache, and that read is most of what a small solve costs: ~6.5s of a 6.8s
+    request, only 0.25s of which is actually solving.
+
+    Failure is silent by design. This is an optimisation, not a dependency —
+    if Supabase is unreachable at boot the service must still start and answer
+    /health, or the platform will restart it in a loop.
+    """
+    try:
+        market.prices_df(config.SP500_TICKERS)
+    except Exception:  # noqa: BLE001 - see docstring
+        pass
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    threading.Thread(target=_warm_price_cache, daemon=True).start()
+    yield
+
+
+app = FastAPI(title="Margin market data service", lifespan=lifespan)
+
+# The scored universe is ~350KB of highly repetitive JSON and compresses about
+# 5.7x. It is read on every screener revalidation, so this is the single
+# cheapest reduction available in the egress bill.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,6 +69,47 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+def require_backfill_token(x_backfill_token: str = Header(default="")) -> None:
+    """Gate the ingest routes on a shared secret.
+
+    CORS does not protect these: it is a browser convention, and `curl` ignores
+    it. Without this, anyone holding the service URL can start a ten-minute
+    yfinance crawl, pin the CPU and spend the Supabase egress quota.
+
+    `compare_digest` rather than `==` so the comparison does not leak the
+    token's prefix through its own runtime.
+    """
+    if not config.BACKFILL_TOKEN:
+        raise HTTPException(
+            status_code=503,
+            detail="BACKFILL_TOKEN is not configured; backfills are closed.",
+        )
+    if not secrets.compare_digest(x_backfill_token, config.BACKFILL_TOKEN):
+        raise HTTPException(
+            status_code=401, detail="Invalid or missing backfill token."
+        )
+
+
+def require_margin_origin(x_margin_origin: str = Header(default="")) -> None:
+    """Require that a solve arrived through the dashboard's own proxy.
+
+    The browser never sees the service URL — it calls the Next route handler,
+    which calls this service server-side — so making that structural costs a
+    header and removes the whole class of "someone found the Cloud Run URL and
+    looped it".
+
+    Off when the secret is unset, which is what keeps `pnpm dev` against a
+    local service and the sweep script working with no extra configuration.
+    """
+    if not config.MARGIN_ORIGIN_SECRET:
+        return
+    if not secrets.compare_digest(x_margin_origin, config.MARGIN_ORIGIN_SECRET):
+        raise HTTPException(
+            status_code=403,
+            detail="This endpoint is only callable through the Margin dashboard.",
+        )
 
 
 @app.exception_handler(Exception)
@@ -165,7 +240,7 @@ def get_valuations():
     return universe.scored()
 
 
-@app.post("/backfill/all")
+@app.post("/backfill/all", dependencies=[Depends(require_backfill_token)])
 def post_backfill_all(full: bool = False, skip_fundamentals: bool = False):
     """Every stage in dependency order.
 
@@ -176,37 +251,39 @@ def post_backfill_all(full: bool = False, skip_fundamentals: bool = False):
     return backfill.everything(full=full, skip_fundamentals=skip_fundamentals)
 
 
-@app.post("/backfill/sp500-daily-close")
+@app.post("/backfill/sp500-daily-close", dependencies=[Depends(require_backfill_token)])
 def post_backfill_daily_close(full: bool = False):
     """Daily closes for the index constituents, ^GSPC and ^IRX."""
     return backfill.daily_close(full=full)
 
 
-@app.post("/backfill/factor-returns")
+@app.post("/backfill/factor-returns", dependencies=[Depends(require_backfill_token)])
 def post_backfill_factor_returns():
     """Fama-French daily factors from the Ken French library."""
     return backfill.factor_returns()
 
 
-@app.post("/backfill/quarterly-fundamentals")
+@app.post(
+    "/backfill/quarterly-fundamentals", dependencies=[Depends(require_backfill_token)]
+)
 def post_backfill_quarterly_fundamentals():
     """Statements, company profile and dividend history — the heavy one."""
     return backfill.company_fundamentals(profile_only=False)
 
 
-@app.post("/backfill/company-profile")
+@app.post("/backfill/company-profile", dependencies=[Depends(require_backfill_token)])
 def post_backfill_company_profile():
     """Profile fields only: a cheap refresh of what moves daily."""
     return backfill.company_fundamentals(profile_only=True)
 
 
-@app.post("/backfill/valuations")
+@app.post("/backfill/valuations", dependencies=[Depends(require_backfill_token)])
 def post_backfill_valuations():
     """Recompute every model. Run after any of the three feeders above."""
     return backfill.valuations()
 
 
-@app.post("/efficient-frontier")
+@app.post("/efficient-frontier", dependencies=[Depends(require_margin_origin)])
 def post_efficient_frontier(
     short_allowed: bool = False,
     n_portfolios: int = frontier.ENVELOPE_POINTS,

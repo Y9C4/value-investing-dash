@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useSyncExternalStore } from "react"
+import { useState } from "react"
 import {
   RiCloseLine,
   RiFilter3Line,
@@ -20,23 +20,6 @@ import {
 } from "@/components/ui/dialog"
 import { VALUATION_METHODS } from "@/lib/valuation"
 
-/** Set once the intro has been dismissed, so it opens for first-time visitors only. */
-const SEEN_KEY = "margin:intro-seen"
-
-/** Nothing mutates this outside the dismiss handler, so there is nothing to subscribe to. */
-function subscribe() {
-  return () => {}
-}
-
-function hasSeenIntro() {
-  try {
-    return localStorage.getItem(SEEN_KEY) !== null
-  } catch {
-    // Private mode or blocked storage: treat as seen rather than interrupt.
-    return true
-  }
-}
-
 const STEPS = [
   {
     icon: RiFilter3Line,
@@ -46,7 +29,7 @@ const STEPS = [
   {
     icon: RiStockLine,
     label: "Analyse",
-    body: "Open a company for its per-model fair values and the rates they were discounted at.",
+    body: "Open a stock for its per-model fair values and the rates they were discounted at.",
   },
   {
     icon: RiPieChartLine,
@@ -55,27 +38,21 @@ const STEPS = [
   },
 ]
 
+/**
+ * The same three steps the landing page opens with, kept as a dialog for the
+ * reader who arrives on a deep link and wants the premise without leaving the
+ * page they came for.
+ *
+ * It used to open itself on a first visit, which was the right call when `/`
+ * redirected straight into a 448-row table and nothing else explained the
+ * project. Now that the landing page does, an interstitial over the first
+ * screen is just something to dismiss.
+ */
 export function IntroDialog() {
-  // localStorage is unreadable on the server, so the first render assumes the
-  // intro has been seen and the client corrects it. Until someone opens or
-  // dismisses it, that read is what decides whether the dialog is showing.
-  const seen = useSyncExternalStore(subscribe, hasSeenIntro, () => true)
-  const [override, setOverride] = useState<boolean | null>(null)
-  const open = override ?? !seen
-
-  function change(next: boolean) {
-    setOverride(next)
-    if (!next) {
-      try {
-        localStorage.setItem(SEEN_KEY, "1")
-      } catch {
-        // Nothing to persist to; the intro just reappears next visit.
-      }
-    }
-  }
+  const [open, setOpen] = useState(false)
 
   return (
-    <Dialog open={open} onOpenChange={change}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
           <Button
@@ -96,7 +73,7 @@ export function IntroDialog() {
             <DialogDescription id="intro-summary">
               A value screener wired to a portfolio optimiser.{" "}
               {VALUATION_METHODS.length} valuation models price every S&amp;P
-              500 company off its own fundamentals — cash flows, dividends,
+              500 stock off its own fundamentals — cash flows, dividends,
               book value — and never off its price history.
             </DialogDescription>
           </div>

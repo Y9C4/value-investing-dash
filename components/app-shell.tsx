@@ -23,7 +23,7 @@ const NAV = [
   {
     href: "/stocks",
     label: "Analysis",
-    hint: "Value one company",
+    hint: "Value one stock",
     icon: RiStockLine,
   },
   {
@@ -34,18 +34,37 @@ const NAV = [
   },
 ]
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  contextBar,
+  /** Maintenance is local-only; see `isDataPageEnabled`. */
+  showDataLink = false,
+}: {
+  children: React.ReactNode
+  /**
+   * The as-of strip. Rendered on the server and handed down, because this
+   * shell is a client component and the data behind the strip is a cached
+   * server read.
+   */
+  contextBar?: React.ReactNode
+  showDataLink?: boolean
+}) {
   const pathname = usePathname()
 
   return (
     <div className="flex min-h-full flex-col lg:flex-row">
       <aside className="flex shrink-0 flex-col border-b border-border bg-sidebar lg:h-screen lg:w-64 lg:border-r lg:border-b-0">
-        <div className="flex items-center gap-2.5 px-6 py-6">
-          <RiLineChartLine className="size-5 text-primary" />
+        {/* Straight to step one. There is no landing page to go back to —
+            the workflow starts at the screener and ends at the portfolio. */}
+        <Link
+          href="/screener"
+          className="flex items-center gap-2.5 px-6 py-6 transition-opacity hover:opacity-70"
+        >
+          <RiLineChartLine className="size-5 text-series-1" />
           <span className="font-heading text-sm font-semibold tracking-widest uppercase">
             Margin
           </span>
-        </div>
+        </Link>
 
         {/* The three steps of the workflow, in the order they're performed. */}
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:overflow-visible lg:pb-0">
@@ -87,17 +106,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <IntroDialog />
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Link
-              href="/data"
-              className={cn(
-                "text-xs tracking-widest uppercase transition-colors hover:text-foreground",
-                pathname.startsWith("/data")
-                  ? "text-foreground"
-                  : "text-muted-foreground"
-              )}
-            >
-              Data
-            </Link>
+            {showDataLink && (
+              <Link
+                href="/data"
+                className={cn(
+                  "text-xs tracking-widest uppercase transition-colors hover:text-foreground",
+                  pathname.startsWith("/data")
+                    ? "text-foreground"
+                    : "text-muted-foreground"
+                )}
+              >
+                Data
+              </Link>
+            )}
           </div>
         </div>
 
@@ -107,6 +128,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="min-w-0 flex-1 lg:h-screen lg:overflow-y-auto">
+        {/* Sticky against the main column's own scroll: the as-of state is
+            only useful while the numbers it describes are on screen. */}
+        {contextBar && (
+          <div className="sticky top-0 z-30 bg-card">{contextBar}</div>
+        )}
         {children}
       </main>
     </div>

@@ -2,7 +2,11 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { RiArrowRightLine } from "@remixicon/react"
+import {
+  RiArrowRightLine,
+  RiDownloadLine,
+  RiEqualizerLine,
+} from "@remixicon/react"
 
 import { Button } from "@/components/ui/button"
 import { ScreenerFilterRail } from "@/components/screener-filters"
@@ -22,6 +26,8 @@ import {
   type ValuationBand,
 } from "@/lib/valuation"
 import { portfolioHref } from "@/lib/ticker-set"
+import { useScrollPane } from "@/lib/use-scroll-pane"
+import { cn } from "@/lib/utils"
 
 const BANDS: ValuationBand[] = [
   "deep-value",
@@ -33,42 +39,114 @@ const BANDS: ValuationBand[] = [
 ]
 
 /**
- * Distribution of the current result set across the five bands. It is the
- * screener's "shape of the market" readout — a stacked bar rather than five
+ * The width at which the filter rail and a full-width table both fit.
+ *
+ * Measured, not guessed: the table's natural width is a little over 1,000px,
+ * the rail is 20rem, and the app chrome takes another 336px. Below this the
+ * rail was silently clipping four columns off the right of the table, so it
+ * starts collapsed instead and the toolbar button opens it.
+ */
+const RAIL_BREAKPOINT = 1700
+
+/** How many facets are away from their defaults, for the toolbar button. */
+function activeFilterCount(filters: ScreenerFilters): number {
+  let count = 0
+  if (filters.search.trim()) count += 1
+  count += filters.sectors.length
+  count += filters.bands.length
+  count += filters.methods.length
+  if (
+    filters.marginRange[0] !== DEFAULT_FILTERS.marginRange[0] ||
+    filters.marginRange[1] !== DEFAULT_FILTERS.marginRange[1]
+  ) {
+    count += 1
+  }
+  if (filters.maxBeta !== DEFAULT_FILTERS.maxBeta) count += 1
+  return count
+}
+
+/**
+ * The screen, as a file.
+ *
+ * Analysts export. A screener that can only be read on screen is a demo of a
+ * screener, and the whole result set is already in memory — this is a `Blob`
+ * and an anchor, not a feature.
+ */
+function downloadCsv(stocks: Stock[], methods: MethodId[]) {
+  const header = [
+    "ticker",
+    "name",
+    "sector",
+    "price",
+    "market_cap_usd_bn",
+    "consensus_margin_of_safety",
+    "models_agreeing",
+    "realised_return_1y",
+    "volatility_1y",
+    "beta",
+    "pe_ratio",
+  ]
+
+  const rows = stocks.map((stock) => {
+    const rated = isRated(stock, methods)
+    return [
+      stock.ticker,
+      // Company names carry commas. Quote everything free-text and double any
+      // quote inside it, which is the whole of RFC 4180 that matters here.
+      `"${stock.name.replace(/"/g, '""')}"`,
+      `"${stock.sector.replace(/"/g, '""')}"`,
+      stock.price.toFixed(2),
+      stock.marketCap.toFixed(2),
+      // Blank, not 0, where the models declined to reach a consensus: a zero
+      // in a spreadsheet is a claim that the company is fairly priced.
+      rated ? consensusMarginOfSafety(stock, methods).toFixed(4) : "",
+      stock.verdicts.length,
+      stock.realisedReturn.toFixed(4),
+      stock.volatility.toFixed(4),
+      stock.beta.toFixed(3),
+      stock.peRatio > 0 ? stock.peRatio.toFixed(2) : "",
+    ].join(",")
+  })
+
+  const blob = new Blob([[header.join(","), ...rows].join("\n")], {
+    type: "text/csv;charset=utf-8",
+  })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = `margin-screen-${new Date().toISOString().slice(0, 10)}.csv`
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * Distribution of the current result set across the five bands — the
+ * screener's "shape of the market" readout, as a stacked bar rather than five
  * numbers, so an over-tight filter is visible at a glance.
+ *
+ * One strip rather than the card this used to be. It sits directly above a
+ * table whose useful height is whatever the window has left, so every pixel it
+ * takes is a row that cannot be read without scrolling — and a legend, a bar
+ * and a heading do not need three stacked lines to be legible.
  */
 function BandDistribution({
   counts,
   total,
-  isBaseline,
-  computedAt,
 }: {
   counts: Record<ValuationBand, number>
   total: number
-  isBaseline: boolean
-  computedAt: string | null
 }) {
   return (
-    <div className="flex flex-col gap-3 border border-border bg-card px-6 py-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-          Distribution
-        </span>
-        {/* Where the numbers came from. A screen built on illustrative data
-            looks identical to a live one, so it has to say which it is. */}
-        <span className="text-xs text-muted-foreground">
-          {isBaseline
-            ? "Illustrative sample — market data service unreachable"
-            : computedAt
-              ? `Live · valued ${new Date(computedAt).toLocaleDateString(
-                  "en-US",
-                  { month: "short", day: "numeric", year: "numeric" }
-                )}`
-              : "Live"}
-        </span>
-      </div>
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border border-border bg-card px-4 py-2">
+      <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+        Distribution
+      </span>
 
-      <div className="flex h-6 w-full gap-0.5" role="img" aria-hidden="true">
+      <div
+        className="flex h-2.5 min-w-48 flex-1 gap-px"
+        role="img"
+        aria-hidden="true"
+      >
         {BANDS.map((band) => {
           const share = total === 0 ? 0 : counts[band] / total
           if (share === 0) return null
@@ -86,7 +164,7 @@ function BandDistribution({
         })}
       </div>
 
-      <dl className="flex flex-wrap gap-x-5 gap-y-2">
+      <dl className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {BANDS.map((band) => (
           <div key={band} className="flex items-center gap-1.5">
             <span
@@ -105,20 +183,24 @@ function BandDistribution({
   )
 }
 
-export function Screener({
-  stocks,
-  isBaseline = false,
-  computedAt = null,
-}: {
-  stocks: Stock[]
-  /** True when the live service was unreachable and the sample is standing in. */
-  isBaseline?: boolean
-  computedAt?: string | null
-}) {
+export function Screener({ stocks }: { stocks: Stock[] }) {
   const [filters, setFilters] = useState<ScreenerFilters>(DEFAULT_FILTERS)
   const [sort, setSort] = useState<SortKey>("margin")
   const [direction, setDirection] = useState<"asc" | "desc">("desc")
   const [selected, setSelected] = useState<string[]>([])
+
+  /**
+   * Null while the rail's visibility is still whatever CSS chose for this
+   * viewport, which is what keeps the first paint free of a layout flash on a
+   * wide screen. The first toggle reads the width once and takes over.
+   */
+  const [railOpen, setRailOpen] = useState<boolean | null>(null)
+
+  // The rail is a pane in its own right: taller than the window on a laptop,
+  // and the page behind it no longer scrolls now that the table owns the
+  // vertical space. Without this the sector facets are simply unreachable.
+  const { ref: railRef, maxHeight: railMaxHeight } =
+    useScrollPane<HTMLDivElement>()
 
   const sectors = useMemo(
     () =>
@@ -157,6 +239,8 @@ export function Screener({
       switch (sort) {
         case "ticker":
           return a.ticker.localeCompare(b.ticker) * factor
+        case "marketCap":
+          return (a.marketCap - b.marketCap) * factor
         case "beta":
           return (a.beta - b.beta) * factor
         case "peRatio":
@@ -168,8 +252,8 @@ export function Screener({
         default: {
           // Unrated stocks have no margin to rank on, so they sink to the
           // bottom rather than sorting as though their consensus were zero.
-          const aRated = isRated(a, filters.methods, filters.minModels)
-          const bRated = isRated(b, filters.methods, filters.minModels)
+          const aRated = isRated(a, filters.methods)
+          const bRated = isRated(b, filters.methods)
           if (!aRated && !bRated) return 0
           if (!aRated) return 1
           if (!bRated) return -1
@@ -181,7 +265,7 @@ export function Screener({
         }
       }
     })
-  }, [filtered, sort, direction, filters.methods, filters.minModels])
+  }, [filtered, sort, direction, filters.methods])
 
   const counts = useMemo(() => {
     const base = {
@@ -195,14 +279,14 @@ export function Screener({
 
     for (const stock of filtered) {
       base[
-        isRated(stock, filters.methods, filters.minModels)
+        isRated(stock, filters.methods)
           ? valuationBand(consensusMarginOfSafety(stock, filters.methods))
           : "unrated"
       ] += 1
     }
 
     return base
-  }, [filtered, filters.methods, filters.minModels])
+  }, [filtered, filters.methods])
 
   function handleSort(key: SortKey) {
     if (key === sort) {
@@ -237,10 +321,33 @@ export function Screener({
     })
   }
 
+  const activeFilters = activeFilterCount(filters)
+
   return (
-    <div className="flex flex-col gap-6 px-6 py-8 lg:px-10">
-      <div className="grid gap-6 xl:grid-cols-[20rem_minmax(0,1fr)]">
-        <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 px-6 py-5 lg:px-10">
+      <div
+        className={cn(
+          "grid gap-6",
+          railOpen === null
+            ? "min-[1700px]:grid-cols-[20rem_minmax(0,1fr)]"
+            : railOpen
+              ? "lg:grid-cols-[20rem_minmax(0,1fr)]"
+              : undefined
+        )}
+      >
+        <div
+          id="screener-filters"
+          ref={railRef}
+          style={railMaxHeight ? { maxHeight: railMaxHeight } : undefined}
+          className={cn(
+            "flex-col gap-6 overflow-y-auto lg:max-h-[calc(100vh-14rem)]",
+            railOpen === null
+              ? "hidden min-[1700px]:flex"
+              : railOpen
+                ? "flex"
+                : "hidden"
+          )}
+        >
           <ScreenerFilterRail
             filters={filters}
             sectors={sectors}
@@ -252,17 +359,52 @@ export function Screener({
           />
         </div>
 
-        <div className="flex min-w-0 flex-col gap-6">
-          <BandDistribution
-            counts={counts}
-            total={filtered.length}
-            isBaseline={isBaseline}
-            computedAt={computedAt}
-          />
+        <div className="flex min-w-0 flex-col gap-3">
+          <BandDistribution counts={counts} total={filtered.length} />
 
-          {/* The distribution card above already carries the band key, with
-              counts, so the row below is the actions alone. */}
-          <div className="flex flex-wrap items-center justify-end gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                size="sm"
+                variant="outline"
+                aria-controls="screener-filters"
+                aria-expanded={railOpen ?? undefined}
+                onClick={() =>
+                  setRailOpen((current) =>
+                    // The first press flips whatever the viewport chose; every
+                    // press after that flips the state this component owns.
+                    current === null
+                      ? !(window.innerWidth >= RAIL_BREAKPOINT)
+                      : !current
+                  )
+                }
+              >
+                <RiEqualizerLine />
+                Filters
+                {activeFilters > 0 && (
+                  <span className="ml-1 font-mono text-xs text-muted-foreground">
+                    {activeFilters}
+                  </span>
+                )}
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  downloadCsv(sorted, filters.methods)
+                }
+              >
+                <RiDownloadLine />
+                Export {sorted.length} rows
+              </Button>
+
+              <span className="font-mono text-xs text-muted-foreground">
+                {filtered.length} of {stocks.length} stocks
+                {selected.length > 0 && ` · ${selected.length} ticked`}
+              </span>
+            </div>
+
             <div className="flex flex-wrap items-center gap-3">
               {/* Hand the whole screened set over, not just ticked rows. This
                   is the point of screening: the frontier is built from what
@@ -291,9 +433,7 @@ export function Screener({
                 <Button
                   size="sm"
                   nativeButton={false}
-                  render={
-                    <Link href={portfolioHref(selected)} />
-                  }
+                  render={<Link href={portfolioHref(selected)} />}
                 >
                   Optimise {selected.length} selected
                   <RiArrowRightLine />
@@ -305,7 +445,6 @@ export function Screener({
           <ScreenerTable
             stocks={sorted}
             methods={filters.methods}
-            minModels={filters.minModels}
             sort={sort}
             direction={direction}
             onSort={handleSort}

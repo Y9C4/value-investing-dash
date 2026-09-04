@@ -72,3 +72,60 @@ export function formatSignedPercent(value: number) {
   const formatted = formatPercent(Math.abs(value))
   return value < 0 ? `−${formatted}` : formatted
 }
+
+/**
+ * Market capitalisation, given in billions, rendered the way it is spoken.
+ *
+ * `$4.52T` and `$743B`, never `4520.31` — a column of raw billions makes the
+ * reader do the magnitude arithmetic that the unit exists to do for them.
+ */
+export function formatMarketCap(billions: number) {
+  if (!billions || billions <= 0) return "—"
+  if (billions >= 1000) return `$${(billions / 1000).toFixed(2)}T`
+  if (billions >= 100) return `$${billions.toFixed(0)}B`
+  if (billions >= 1) return `$${billions.toFixed(1)}B`
+  return `$${(billions * 1000).toFixed(0)}M`
+}
+
+/**
+ * The timezone every as-of stamp is rendered in.
+ *
+ * Fixed rather than the reader's own, for two reasons. The context strip is
+ * rendered on the server inside a statically-rendered layout, so a local time
+ * would either be the server's — meaningless — or force the whole strip into a
+ * client component to be re-rendered after hydration. And an as-of stamp on
+ * market data is more useful in market time than in the reader's: "06:42 EDT"
+ * places the refresh before the open, which is the fact worth knowing.
+ */
+const DATA_TIMEZONE = "America/Toronto"
+
+/**
+ * A precise as-of stamp: `SEP 04, 2026 · 06:42 EDT`.
+ *
+ * To the minute, and named. A date alone cannot distinguish data pulled before
+ * this morning's open from data pulled after yesterday's close, which is the
+ * only distinction the stamp is there to make.
+ */
+export function formatDataTimestamp(iso: string): string {
+  const at = new Date(iso)
+  if (Number.isNaN(at.getTime())) return "—"
+
+  const date = at
+    .toLocaleDateString("en-US", {
+      timeZone: DATA_TIMEZONE,
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    })
+    .toUpperCase()
+
+  const time = at.toLocaleTimeString("en-US", {
+    timeZone: DATA_TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZoneName: "short",
+  })
+
+  return `${date} · ${time}`
+}

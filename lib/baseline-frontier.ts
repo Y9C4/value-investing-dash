@@ -35,6 +35,19 @@ export type CmlPoint = { volatility: number; return: number }
 export type FrontierResponse = {
   short_allowed: boolean
   n_portfolios: number
+  /**
+   * What was asked for, when that differs from what was solved.
+   *
+   * Every envelope point is an independently solved QP, so the service budgets
+   * points x assets and cuts the resolution rather than spending minutes on a
+   * request that says 200 over the whole index. Reported so the page can say
+   * so instead of quietly drawing a coarser curve.
+   */
+  n_portfolios_requested?: number
+  resolution_capped?: boolean
+  point_budget?: number
+  /** True when the response came from cache and cost no solver time. */
+  cached?: boolean
   /** How many stocks the solve actually ran over. Absent on older responses. */
   n_assets?: number
   risk_free_rate: number

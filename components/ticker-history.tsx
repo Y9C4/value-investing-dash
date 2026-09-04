@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -16,17 +15,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { Field } from "@/components/ui/field"
-import { cn } from "@/lib/utils"
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 
 type Candle = {
   date: string
@@ -45,15 +33,6 @@ type ReturnsResponse = {
   expected_market_return: number
 }
 
-/**
- * The quick-switch row beside the search box.
- *
- * A search field alone does not say what belongs in it, and the page it sits
- * on is otherwise blank until something is typed. Three tickers that load on
- * click say both, without a sentence of instruction.
- */
-const EXAMPLES = ["AAPL", "JNJ", "JPM"]
-
 // A single series, so no legend box — the card title names what is plotted.
 const chartConfig = {
   close: {
@@ -61,15 +40,6 @@ const chartConfig = {
     color: "var(--color-series-1)",
   },
 } satisfies ChartConfig
-
-/**
- * Parks the CAPM, variance/covariance and daily-returns cards.
- *
- * Set to `true` to bring them back. Kept behind a flag rather than commented
- * out so the code stays type-checked and linted — a commented-out block rots
- * silently as the types around it move, and this one is meant to return.
- */
-const SHOW_DIAGNOSTICS = false
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -92,6 +62,16 @@ function formatReturn(value: number) {
     maximumFractionDigits: 2,
   })
 }
+
+/**
+ * The price, risk and CAPM cards for one stock, and the request behind them.
+ *
+ * Not a page: `/stocks/[ticker]` composes these into its own grid alongside the
+ * valuation table, and `/stocks` is now only the search box that routes here.
+ * The CAPM, covariance-matrix and daily-returns cards that used to live below
+ * these were removed with the standalone page; `deriveCapm` still computes
+ * their inputs, which is where they would come back from.
+ */
 
 /**
  * Loads one ticker's price history and CAPM inputs.
@@ -271,211 +251,5 @@ export function KeyStatisticsCard({
         </dl>
       </CardContent>
     </Card>
-  )
-}
-
-export function TickerHistory({
-  initialTicker = "",
-}: {
-  /** When set, the history loads on mount — used by the stock detail page. */
-  initialTicker?: string
-}) {
-  const [ticker, setTicker] = useState(initialTicker)
-  // The symbol whose history is on screen (or in flight). Submitting the form
-  // and arriving with an `initialTicker` both funnel through this.
-  const [requested, setRequested] = useState(initialTicker.trim())
-  const { data, loading, error } = useTickerReturns(requested)
-  const { varStock, covStockMarket, varMarket, beta, capmRequired, capmAlpha } =
-    deriveCapm(data)
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setRequested(ticker.trim())
-  }
-
-  return (
-    <div className="flex w-full flex-col gap-6">
-      <form onSubmit={handleSubmit} className="max-w-md">
-        <Field orientation="horizontal">
-          <Input
-            type="search"
-            aria-label="Stock ticker"
-            placeholder="Stock ticker"
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value.toUpperCase())}
-          />
-          <Button type="submit" disabled={loading}>
-            {loading ? "Loading…" : "View"}
-          </Button>
-        </Field>
-      </form>
-
-      {/* Shows what a request looks like rather than describing one, and stays
-          put afterwards as a one-click way back to a known-good ticker. */}
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        Try
-        {EXAMPLES.map((symbol) => (
-          <Button
-            key={symbol}
-            variant={symbol === requested ? "secondary" : "outline"}
-            size="xs"
-            className="font-mono"
-            aria-pressed={symbol === requested}
-            onClick={() => {
-              setTicker(symbol)
-              setRequested(symbol)
-            }}
-          >
-            {symbol}
-          </Button>
-        ))}
-      </div>
-
-      {error && <p className="text-sm text-destructive">{error}</p>}
-
-      {data && (
-        <>
-          <PriceChartCard data={data} />
-
-          <div
-            className={cn("grid gap-6", SHOW_DIAGNOSTICS && "lg:grid-cols-2")}
-          >
-            <KeyStatisticsCard data={data} beta={beta} />
-
-            {SHOW_DIAGNOSTICS && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>CAPM</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-4">
-                  {/* Required vs realised is the whole CAPM read, so it leads. */}
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Measure</TableHead>
-                        <TableHead className="text-right">
-                          Annualised return
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell>Required by CAPM</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {capmRequired !== null
-                            ? formatReturn(capmRequired)
-                            : "—"}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="font-medium">
-                          Actually realised
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatReturn(data.expected_stock_return)}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="font-medium">Alpha</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {capmAlpha !== null ? formatReturn(capmAlpha) : "—"}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-  
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    {capmAlpha === null
-                      ? "Alpha needs a market variance to compute."
-                      : capmAlpha >= 0
-                        ? "Delivered more than its systematic risk demanded over this window."
-                        : "Delivered less than its systematic risk demanded over this window."}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {SHOW_DIAGNOSTICS && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Variance / covariance matrix</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead />
-                      <TableHead className="text-right">Stock</TableHead>
-                      <TableHead className="text-right">Market</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableHead>Stock</TableHead>
-                      <TableCell className="text-right font-mono">
-                        {varStock?.toExponential(3)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {covStockMarket?.toExponential(3)}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableHead>Market</TableHead>
-                      <TableCell className="text-right font-mono">
-                        {covStockMarket?.toExponential(3)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {varMarket?.toExponential(3)}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-
-          {SHOW_DIAGNOSTICS && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Daily prices &amp; returns</CardTitle>
-              </CardHeader>
-              <CardContent className="max-h-[32rem] overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Close</TableHead>
-                      <TableHead className="text-right">Stock Return</TableHead>
-                      <TableHead className="text-right">Market Return</TableHead>
-                      <TableHead className="text-right">Excess Return</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {[...data.candles].reverse().map((candle) => (
-                      <TableRow key={candle.date}>
-                        <TableCell>{formatDate(candle.date)}</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatPrice(candle.close)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatReturn(candle.stock_log_return)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatReturn(candle.market_log_return)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatReturn(candle.excess_log_return)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-        </>
-      )}
-    </div>
   )
 }

@@ -1,5 +1,11 @@
+# The virtualenv is ~600MB and its wheels are platform-specific — the image
+# builds its own from requirements.txt.
 .venv
 __pycache__
 **/__pycache__
 notebooks
+**/.ipynb_checkpoints
 .env
+.env.example
+README.md
+requirements-dev.txt

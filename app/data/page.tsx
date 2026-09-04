@@ -1,10 +1,14 @@
+import { notFound } from "next/navigation"
+import { connection } from "next/server"
+
 import { BackfillCard } from "@/components/backfill-card"
 import { PageHeader } from "@/components/page-header"
 import { RefreshAllCard } from "@/components/refresh-all-card"
+import { isDataPageEnabled } from "@/lib/market-data-service"
 import { VALUATION_METHODS } from "@/lib/valuation"
 
 export const metadata = {
-  title: "Data — Margin",
+  title: "Data",
 }
 
 /**
@@ -12,8 +16,21 @@ export const metadata = {
  * so a full cold start works down the page. Each stage is incremental — it
  * asks what it already has and fetches only the gap — so a daily run costs a
  * fraction of a cold one, and a run after a five-day gap catches up on its own.
+ *
+ * Local-only. There are no accounts, so on a public deployment these buttons
+ * would let any visitor start a ten-minute ingest; `ENABLE_DATA_PAGE` gates
+ * both this page and the routes behind it, and production runs the same jobs
+ * from Cloud Scheduler instead. The page is kept rather than deleted because
+ * it is still the fastest way to bring a stale database current by hand.
  */
-export default function DataPage() {
+export default async function DataPage() {
+  // Opts this page into dynamic rendering, which is what makes the flag a
+  // deployment setting rather than a build artifact. Without it Next
+  // prerenders the page and freezes whatever the variable was during the
+  // build, so turning maintenance on would need a redeploy to take effect.
+  await connection()
+  if (!isDataPageEnabled()) notFound()
+
   return (
     <>
       <PageHeader

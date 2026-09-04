@@ -9,7 +9,11 @@ ordering matters.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
+from collections import OrderedDict, deque
+from datetime import datetime, timezone
 from threading import Lock
 from typing import NamedTuple
 
@@ -72,6 +76,177 @@ SECTOR_CACHE_TTL_SECONDS = 900
 _sector_cache: dict[str, str] | None = None
 _sector_stamp: float = 0.0
 _sector_lock = Lock()
+
+# Points x assets a single request may spend.
+#
+# Cost grows with the number of points and superlinearly with the number of
+# assets, so neither dimension can be capped on its own: 200 points over 20
+# names is a quarter of a second, and 200 points over the full index is 37
+# seconds of two-vCPU time. Budgeting the product leaves the interesting case —
+# a screened set of a few dozen names — at full resolution, while the full
+# index cannot cost more than a few seconds however the request is written.
+#
+# 12,000 gives 24 points over 493 names (~5s), 120 over 100, and the full 200
+# under 60. Deliberately not a rate limit: it is a statement about what a
+# frontier costs, applied identically to every caller.
+POINT_BUDGET = 12_000
+
+# Rolling window and ceiling for the service's total solve time.
+#
+# The scarce resource on a scale-to-zero host is vCPU-seconds, so the global
+# limit is denominated in them rather than in a request count, which would
+# price a 20-name solve the same as a full-index one. 600s an hour is roughly
+# four times a plausible busy hour and about 5% of a day's free-tier
+# allowance, so it only ever fires on abuse.
+SOLVE_BUDGET_SECONDS = 600.0
+SOLVE_BUDGET_WINDOW_SECONDS = 3600.0
+_solve_log: deque[tuple[float, float]] = deque()
+_solve_budget_lock = Lock()
+
+# Solves are pure functions of the stored prices and the constraints, and the
+# prices change once a day. Small because each entry is a full envelope.
+SOLVE_CACHE_TTL_SECONDS = 900
+SOLVE_CACHE_MAX_ENTRIES = 8
+_solve_cache: OrderedDict[str, tuple[float, dict]] = OrderedDict()
+_solve_cache_lock = Lock()
+
+
+def resolve_point_count(requested: int, n_assets: int) -> tuple[int, bool]:
+    """The number of envelope points actually affordable, and whether it was cut.
+
+    Measured against the requested universe rather than the post-history-filter
+    one so the answer is known before the expensive price read, which is what
+    lets it key the cache too. The difference is a handful of names.
+    """
+    allowed = max(
+        MIN_ENVELOPE_POINTS,
+        min(MAX_ENVELOPE_POINTS, POINT_BUDGET // max(n_assets, 1)),
+    )
+    return min(requested, allowed), requested > allowed
+
+
+def _spend_solve_budget(seconds: float) -> None:
+    """Record the cost of a completed solve against the rolling window."""
+    now = time.monotonic()
+    with _solve_budget_lock:
+        _solve_log.append((now, seconds))
+
+
+def check_solve_budget() -> None:
+    """Refuse a solve once the service has spent its hour, and say for how long.
+
+    Charged after the fact, so the request that crosses the line is served and
+    the next one is refused. A pre-emptive estimate would have to be
+    conservative and would start refusing legitimate traffic early.
+    """
+    now = time.monotonic()
+    with _solve_budget_lock:
+        while _solve_log and now - _solve_log[0][0] > SOLVE_BUDGET_WINDOW_SECONDS:
+            _solve_log.popleft()
+        spent = sum(seconds for _, seconds in _solve_log)
+        oldest = _solve_log[0][0] if _solve_log else now
+
+    if spent < SOLVE_BUDGET_SECONDS:
+        return
+
+    retry_after = max(1, int(SOLVE_BUDGET_WINDOW_SECONDS - (now - oldest)))
+    raise HTTPException(
+        status_code=429,
+        detail=(
+            "The optimiser has used its hourly compute budget "
+            f"({spent:.0f}s of {SOLVE_BUDGET_SECONDS:.0f}s). Cached and "
+            "precomputed frontiers are still being served. Try again in "
+            f"{retry_after // 60 + 1} minutes."
+        ),
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
+def cache_key(
+    universe: list[str],
+    short_allowed: bool,
+    min_weight: float | None,
+    max_weight: float | None,
+    gamma: float,
+    n_points: int,
+) -> str:
+    """A stable fingerprint of everything a solve depends on.
+
+    Built from the request rather than the resolved constraints because those
+    are only known after the price read, and the whole value of the key is
+    being able to skip that read.
+    """
+    payload = json.dumps(
+        {
+            "tickers": sorted(t.upper() for t in universe),
+            "short": short_allowed,
+            "min": min_weight,
+            "max": max_weight,
+            "gamma": round(float(gamma), 6),
+            "points": n_points,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def clear_solve_cache() -> None:
+    """Called after a price backfill: yesterday's frontier is not today's."""
+    with _solve_cache_lock:
+        _solve_cache.clear()
+
+
+def _cached_solve(key: str) -> dict | None:
+    """An in-process hit, or a stored snapshot promoted into the process.
+
+    Two tiers because they answer different questions. The in-process entry
+    covers a reader clicking the same button twice; `frontier_snapshot` covers
+    the first visitor after a cold start, which on a scale-to-zero host is most
+    of them. The snapshot read is a primary-key lookup and its failure is
+    ignored — a missing cache is a slow answer, not a wrong one.
+    """
+    now = time.monotonic()
+    with _solve_cache_lock:
+        entry = _solve_cache.get(key)
+        if entry is not None:
+            stamp, payload = entry
+            if now - stamp <= SOLVE_CACHE_TTL_SECONDS:
+                _solve_cache.move_to_end(key)
+                return payload
+            del _solve_cache[key]
+
+    try:
+        # One attempt, deliberately not `db.read`. That wrapper retries a
+        # dropped connection over ~1.75s of backoff, which is the right trade
+        # for a read the answer depends on and the wrong one for a cache probe:
+        # a slow miss here would be added to the solve it was meant to avoid.
+        rows = (
+            db.client()
+            .table("frontier_snapshot")
+            .select("payload")
+            .eq("cache_key", key)
+            .limit(1)
+            .execute()
+            .data
+        )
+    except Exception:  # noqa: BLE001 - an absent cache is not a failure
+        return None
+
+    if not rows:
+        return None
+
+    payload = rows[0]["payload"]
+    _store_solve(key, payload)
+    return payload
+
+
+def _store_solve(key: str, payload: dict) -> None:
+    with _solve_cache_lock:
+        _solve_cache[key] = (time.monotonic(), payload)
+        _solve_cache.move_to_end(key)
+        while len(_solve_cache) > SOLVE_CACHE_MAX_ENTRIES:
+            _solve_cache.popitem(last=False)
 
 
 def weight_cap(n_assets: int) -> float:
@@ -477,6 +652,7 @@ def build(
     min_weight: float | None = None,
     max_weight: float | None = None,
     gamma: float = DEFAULT_L2_GAMMA,
+    scheduled: bool = False,
 ) -> dict:
     """Solve the efficient frontier over a universe of stocks.
 
@@ -489,6 +665,11 @@ def build(
     the box the weights live in, the third is how hard the solution is pushed
     off its corners. All three apply identically to every solve in the trace,
     which is what makes the points a single frontier.
+
+    `scheduled` marks a solve started by a backfill rather than a visitor: it
+    must not read the cache, since replacing that cache is the whole point of
+    running it, and it must not be refused by a budget meant to bound what
+    visitors can spend.
     """
     if not MIN_ENVELOPE_POINTS <= n_portfolios <= MAX_ENVELOPE_POINTS:
         raise HTTPException(
@@ -500,6 +681,33 @@ def build(
         )
 
     universe = _select_universe(tickers)
+    n_points, capped = resolve_point_count(n_portfolios, len(universe))
+
+    key = cache_key(universe, short_allowed, min_weight, max_weight, gamma, n_points)
+
+    # What was asked for is a property of the request, not of the solve, so it
+    # is layered on at the end rather than stored. Two callers asking for 40 and
+    # for 200 over the whole index are answered by the same 23-point curve, and
+    # each has to be told the number they themselves typed.
+    def answered(payload: dict, from_cache: bool) -> dict:
+        return {
+            **payload,
+            "n_portfolios_requested": n_portfolios,
+            "resolution_capped": capped,
+            "cached": from_cache,
+        }
+
+    cached = None if scheduled else _cached_solve(key)
+    if cached is not None:
+        # Served before the budget check on purpose: a cache hit costs no CPU,
+        # so refusing it would rate-limit the one path that is free. It is also
+        # the path behind the screener's headline call to action.
+        return answered(cached, True)
+
+    if not scheduled:
+        check_solve_budget()
+    started = time.monotonic()
+
     prices, excluded = _drop_short_history(market.prices_df(universe), universe)
 
     mu = expected_returns.mean_historical_return(prices).clip(
@@ -511,7 +719,7 @@ def build(
         int(prices.shape[1]), short_allowed, min_weight, max_weight, gamma
     )
 
-    points = trace_frontier(mu, S, risk_free_rate, constraints, n_portfolios)
+    points = trace_frontier(mu, S, risk_free_rate, constraints, n_points)
     tangency = refine_tangency(points, mu, S, risk_free_rate, constraints)
 
     max_sharpe = _summarise(tangency, mu.index)
@@ -535,9 +743,13 @@ def build(
         for index, point in enumerate(points)
     ]
 
-    return {
+    payload = {
         "short_allowed": short_allowed,
         "n_portfolios": len(points),
+        # The budget that decided the resolution. Reported rather than silently
+        # applied: a capped curve is a stated engineering constraint, and the
+        # page says so next to the chart.
+        "point_budget": POINT_BUDGET,
         "n_assets": int(prices.shape[1]),
         "risk_free_rate": risk_free_rate,
         # Reported because they are not always what was asked for: over a small
@@ -561,4 +773,48 @@ def build(
             max_sharpe, envelope, risk_free_rate
         ),
         "envelope": envelope,
+    }
+
+    if not scheduled:
+        _spend_solve_budget(time.monotonic() - started)
+    _store_solve(key, payload)
+    return answered(payload, False)
+
+
+def precompute_default() -> dict:
+    """Solve and store the frontier the screener's primary button asks for.
+
+    Run at the end of a valuations backfill, when the prices it depends on
+    have just changed. The full-index default is both the most expensive solve
+    the service offers and the one most likely to be the first thing a visitor
+    clicks, so it is the one worth paying for on a schedule instead of on a
+    page load.
+
+    Reports rather than raises: this is an optimisation attached to the end of
+    an ingest job, and a failure here must not mark the ingest failed.
+    """
+    started = time.monotonic()
+
+    n_points, _ = resolve_point_count(ENVELOPE_POINTS, len(config.SP500_TICKERS))
+    key = cache_key(config.SP500_TICKERS, False, None, None, DEFAULT_L2_GAMMA, n_points)
+
+    try:
+        payload = build(False, ENVELOPE_POINTS, scheduled=True)
+        db.client().table("frontier_snapshot").upsert(
+            {
+                "cache_key": key,
+                "payload": payload,
+                "computed_at": datetime.now(timezone.utc).isoformat(),
+            },
+            on_conflict="cache_key",
+            ignore_duplicates=False,
+        ).execute()
+    except Exception as exc:  # noqa: BLE001 - see docstring
+        return {"failed": True, "detail": f"{type(exc).__name__}: {exc}"}
+
+    return {
+        "cache_key": key,
+        "n_portfolios": payload["n_portfolios"],
+        "n_assets": payload["n_assets"],
+        "duration_seconds": round(time.monotonic() - started, 1),
     }

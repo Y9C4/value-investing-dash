@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import {
   FrontierChart,
@@ -105,14 +105,27 @@ export function PortfolioBuilder({
   const [isBaseline, setIsBaseline] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** Seconds the current solve has been running, for the progress readout. */
+  const [elapsed, setElapsed] = useState(0)
 
   const errors = validateSettings(settings)
+
+  useEffect(() => {
+    if (!loading) return
+    const started = Date.now()
+    const timer = setInterval(
+      () => setElapsed(Math.round((Date.now() - started) / 1000)),
+      1000
+    )
+    return () => clearInterval(timer)
+  }, [loading])
 
   async function handleBuild() {
     if (Object.keys(errors).length > 0) return
 
     setLoading(true)
     setError(null)
+    setElapsed(0)
 
     try {
       const { query, init } = buildFrontierRequest(settings, tickers)
@@ -258,7 +271,18 @@ export function PortfolioBuilder({
         />
       </div>
 
-      <FrontierChart data={data} isBaseline={isBaseline} loading={loading} />
+      <FrontierChart
+        data={data}
+        isBaseline={isBaseline}
+        loading={loading}
+        solving={{
+          portfolios: Number(settings.portfolios) || 0,
+          // The screened set when there is one; otherwise whatever the last
+          // solve reported, which is the full index.
+          assets: tickers.length || data.n_assets || 0,
+          seconds: elapsed,
+        }}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <SharpeCurve data={data} isBaseline={isBaseline} />
@@ -427,6 +451,11 @@ export function PortfolioBuilder({
               <ConstraintRow
                 label="Frontier points"
                 value={String(data.n_portfolios)}
+                note={
+                  data.resolution_capped
+                    ? `Capped from ${data.n_portfolios_requested} — every point is a separately solved ${data.n_assets ?? 0}-variable problem, and the service budgets points × assets.`
+                    : undefined
+                }
               />
             </div>
 

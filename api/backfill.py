@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Callable
 
 import pandas as pd
@@ -20,8 +20,11 @@ import config
 import db
 import engine
 import factors
+import frontier
 import fundamentals
+import jobs
 import market
+import universe
 
 # Re-fetch a few days past the newest stored row: the last session can be
 # partial, and a same-day run would otherwise store an unsettled close.
@@ -52,6 +55,17 @@ def result(
     }
 
 
+def _recorded(job: str, res: dict) -> dict:
+    """Log a finished stage to `job_runs` and hand the result straight back.
+
+    Wrapped around the return rather than bolted on at the call sites so a
+    stage cannot be added later and quietly go unrecorded — the row is written
+    by the same expression that produces the response.
+    """
+    jobs.record(job, res)
+    return res
+
+
 def factor_returns() -> dict:
     """Fama-French daily factors (FF5 + momentum).
 
@@ -65,25 +79,31 @@ def factor_returns() -> dict:
     try:
         rows = factors.factor_rows_since(latest)
     except Exception as exc:  # noqa: BLE001 - report and continue
-        return result(
-            started,
-            requested=1,
-            failed=["fama-french"],
-            rows_fetched=0,
-            rows_upserted=0,
-            errors=[f"factor download/parse: {exc}"],
+        return _recorded(
+            jobs.FACTORS,
+            result(
+                started,
+                requested=1,
+                failed=["fama-french"],
+                rows_fetched=0,
+                rows_upserted=0,
+                errors=[f"factor download/parse: {exc}"],
+            ),
         )
 
     upserted = db.upsert_rows(
         "factor_returns", rows, "date", errors, ignore_duplicates=False
     )
-    return result(
-        started,
-        requested=1,
-        failed=[],
-        rows_fetched=len(rows),
-        rows_upserted=upserted,
-        errors=errors,
+    return _recorded(
+        jobs.FACTORS,
+        result(
+            started,
+            requested=1,
+            failed=[],
+            rows_fetched=len(rows),
+            rows_upserted=upserted,
+            errors=errors,
+        ),
     )
 
 
@@ -206,14 +226,20 @@ def daily_close(full: bool = False) -> dict:
 
     upserted = db.upsert_rows("daily_close_prices", rows, "date,ticker", errors)
     market.clear_price_cache()
+    # A frontier is a function of the closes that just changed, so a cached one
+    # is now a claim about yesterday.
+    frontier.clear_solve_cache()
 
-    return result(
-        started,
-        requested=len(all_tickers),
-        failed=failed,
-        rows_fetched=len(rows),
-        rows_upserted=upserted,
-        errors=errors,
+    return _recorded(
+        jobs.PRICES,
+        result(
+            started,
+            requested=len(all_tickers),
+            failed=failed,
+            rows_fetched=len(rows),
+            rows_upserted=upserted,
+            errors=errors,
+        ),
     )
 
 
@@ -268,7 +294,7 @@ def company_fundamentals(profile_only: bool) -> dict:
             "dividend_history", dividend_rows, "ticker,ex_date", errors
         )
 
-    return result(
+    res = result(
         started,
         requested=len(config.SP500_TICKERS),
         failed=failed,
@@ -276,6 +302,16 @@ def company_fundamentals(profile_only: bool) -> dict:
         rows_upserted=upserted,
         errors=errors,
     )
+
+    # Profiles are refreshed either way, so they are always stamped. Statements
+    # are only stamped by the full pass — a profile-only run fetched none, and
+    # marking them fresh would be the exact claim the freshness readout exists
+    # to disprove.
+    jobs.record(jobs.PROFILE, res)
+    if not profile_only:
+        jobs.record(jobs.FUNDAMENTALS, res)
+
+    return res
 
 
 def _factor_frame() -> pd.DataFrame:
@@ -351,8 +387,12 @@ def valuations() -> dict:
     )
 
     valued = len({row["ticker"] for row in rows})
-    return {
-        **result(
+    # Recorded before the snapshot is written, not after: the snapshot bakes
+    # `job_runs` into its payload, so a row written afterwards would not appear
+    # in the freshness block until the *next* run.
+    res = _recorded(
+        jobs.VALUATIONS,
+        result(
             started,
             requested=valued + len(unvalued),
             failed=unvalued,
@@ -360,8 +400,47 @@ def valuations() -> dict:
             rows_upserted=upserted,
             errors=errors,
         ),
+    )
+
+    return {
+        **res,
         "tickers_valued": valued,
         "verdicts_per_ticker": round(len(rows) / valued, 2) if valued else 0,
+        "universe_snapshot": write_universe_snapshot(),
+        "frontier_snapshot": frontier.precompute_default(),
+    }
+
+
+def write_universe_snapshot() -> dict:
+    """Store the screener's render payload where the front end can read it directly.
+
+    Assembling it costs five full-table reads and most of a minute, and it
+    changes exactly once per valuations run — so the front end reading it from
+    Postgres instead of from this service is not a cache, it is the correct
+    place for it to live. It also means the screener and every stock page keep
+    working while the solver is scaled to zero.
+
+    Reports rather than raises, like the other tail-end stages: the valuations
+    themselves are already written and committed by this point.
+    """
+    started = time.monotonic()
+    try:
+        payload = universe.scored()
+        db.client().table("universe_snapshot").upsert(
+            {
+                "id": 1,
+                "payload": payload,
+                "computed_at": datetime.now(timezone.utc).isoformat(),
+            },
+            on_conflict="id",
+            ignore_duplicates=False,
+        ).execute()
+    except Exception as exc:  # noqa: BLE001 - see docstring
+        return {"failed": True, "detail": f"{type(exc).__name__}: {exc}"}
+
+    return {
+        "stocks": payload["count"],
+        "duration_seconds": round(time.monotonic() - started, 1),
     }
 
 

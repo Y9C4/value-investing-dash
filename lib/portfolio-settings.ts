@@ -9,8 +9,16 @@
 export const MIN_PORTFOLIOS = 2
 // Each point is a real solve, so the ceiling tracks solver cost. Must stay in
 // step with MAX_ENVELOPE_POINTS in api/frontier.py.
+//
+// The ceiling is not always reachable: the service budgets points x assets and
+// answers with the resolution it could afford, which the response reports. Over
+// a screened set of a few dozen names the full 200 are solved; over the whole
+// index the budget allows about 24.
 export const MAX_PORTFOLIOS = 200
-export const DEFAULT_PORTFOLIOS = 100
+// 40 rather than 100. The envelope is a smooth convex curve drawn 2px wide, so
+// past a few dozen points more resolution costs solver time and changes nothing
+// a reader can see — and the default is what most visitors will run.
+export const DEFAULT_PORTFOLIOS = 40
 export const MAX_GAMMA = 5
 
 export type PortfolioSettings = {

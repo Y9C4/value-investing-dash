@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The Python service. Nothing here is ours to lint, but the virtualenv
+    // ships JupyterLab's minified bundles, and ESLint happily reported 60,000
+    // problems in them — which is the same as reporting none, because nobody
+    // reads that output.
+    "api/**",
   ]),
 ]);
 

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Square, per the house no-radius rule. The mark is the efficient
+       frontier: concave, rising, flattening — the one shape in the project
+       that still reads at 16px. -->
+  <rect width="32" height="32" fill="#12100e"/>
+  <path d="M5 26 C 12 26, 20 20, 27 6"
+        fill="none" stroke="#3987e5" stroke-width="3.5"
+        stroke-linecap="square"/>
+  <circle cx="27" cy="6" r="3" fill="#1baf7a"/>
+</svg>
