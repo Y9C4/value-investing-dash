@@ -230,7 +230,7 @@ function BandDistribution({
 
 export function Screener({ stocks }: { stocks: Stock[] }) {
   const [filters, setFilters] = useState<ScreenerFilters>(DEFAULT_FILTERS)
-  const [sort, setSort] = useState<SortKey>("margin")
+  const [sort, setSort] = useState<SortKey>("marketCap")
   const [direction, setDirection] = useState<"asc" | "desc">("desc")
   const [selected, setSelected] = useState<string[]>([])
 
@@ -433,7 +433,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
 
               <span className="font-mono text-xs text-muted-foreground">
                 {filtered.length} of {stocks.length} stocks
-                {selected.length > 0 && ` · ${selected.length} ticked`}
+                {selected.length > 0 && ` · ${selected.length} selected`}
               </span>
             </div>
 
@@ -444,7 +444,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
                   once the selection already covers every match, where it would
                   be the button beside it under a different name. */}
               {filtered.length > 1 && !allVisibleSelected && (
-                <Button
+                <Button className={"bg-transparent text-primary hover:bg-primary/20 border-border"}
                   size="sm"
                   variant={selected.length > 0 ? "outline" : "default"}
                   nativeButton={false}

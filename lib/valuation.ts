@@ -336,11 +336,11 @@ export function disagreementBand(marginOfSafety: number): ValuationBand {
  * caveat cannot drift away from the thresholds it describes.
  */
 export const BAND_BASIS =
-  "Bands are quintiles of the S&P 500 distribution, so they rank a company against the index rather than against its own intrinsic value. The models read the market as expensive almost everywhere — the median consensus is about −34% — so an absolute scale would file three fifths of the index under “expensive”."
+  "Bands are quintiles of the S&P 500 distribution, so they rank a company against the index rather than against its own intrinsic value. The bands are based upon the concensus value determined by the models selected."
 
 /** Shown behind the info trigger on the margin-of-safety filter. */
 export const MARGIN_BASIS =
-  "Graham’s term for the discount between what a company is worth and what it costs: (fair value − price) ÷ price, averaged over the selected models and weighted by each one’s confidence. +20% means paying 80 cents for a dollar of value. The cushion is the point — buy far enough below fair value and the estimate can be wrong without losing money."
+  "The discount between what a company is worth and what it costs: (fair value - price) ÷ price, averaged over the selected models and weighted by each one's confidence. +20% means paying 80 cents for $1 of value."
 
 export const BAND_LABELS: Record<ValuationBand, string> = {
   "deep-value": "Deep value",
@@ -418,9 +418,9 @@ export type ScreenerFilters = {
 export const DEFAULT_FILTERS: ScreenerFilters = {
   search: "",
   sectors: [],
-  bands: ["deep-value", "undervalued"],
-  methods: [],
-  marginRange: [-1, Number.POSITIVE_INFINITY],
+  bands: ["deep-value", "undervalued", "fair"],
+  methods: ["fcfe", "fcff", "comps"],
+  marginRange: [-0.5, Number.POSITIVE_INFINITY],
   maxBeta: 1.5,
 }
 

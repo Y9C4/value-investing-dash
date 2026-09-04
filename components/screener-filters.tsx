@@ -354,18 +354,14 @@ export function ScreenerFilterRail({
             what each model can reach; this says what the consensus on screen
             is actually made of. */}
         <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
-          A stock is rated only when{" "}
-          <span className="font-medium text-foreground">all</span>{" "}
-          <span className="font-mono">{modelCount}</span> of these models valued
-          it, so its consensus rests on every one of them. Stocks any of them
-          could not value drop to{" "}
-          <span className="font-medium text-foreground">unrated</span> — tick
-          that band to see them.
+          A stock is rated only when all
+          <span className="font-mono">{modelCount}</span>
+          selected models value it.
         </p>
       </FilterGroup>
 
       <FilterGroup
-        label="Then keep only"
+        label="Valuation bands"
         info={<Info title="Valuation bands">{BAND_BASIS}</Info>}
       >
         <div className="flex flex-wrap gap-2">
