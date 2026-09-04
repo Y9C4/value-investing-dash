@@ -162,9 +162,31 @@ export type Stock = {
   /** Annualised volatility over the same window. */
   volatility: number
   verdicts: MethodVerdict[]
+  /**
+   * The confidence-weighted consensus over every verdict above, computed by
+   * the API so it arrives with the data rather than being re-derived for ~500
+   * stocks on every render. See `consensusMarginOfSafety` for when it is used.
+   *
+   * Absent on the offline sample and on any snapshot written before the field
+   * existed, so every reader must be able to compute it themselves.
+   */
+  consensus?: ModelConsensus
   /** Absent on the offline sample, which has no rates to report. */
   discountRates?: DiscountRates
 }
+
+/** The weighted average of every model's verdict on one stock. */
+export type ModelConsensus = {
+  /** Signed fraction, on the same scale as `MethodVerdict.marginOfSafety`. */
+  marginOfSafety: number
+  /** The per-share value that margin implies: price x (1 + margin). */
+  fairValue: number
+  /** How many verdicts it was taken over; see the note in `api/universe.py`. */
+  models: number
+}
+
+/** Every modelled method, for the "all of them" reading of an empty selection. */
+const METHOD_IDS: MethodId[] = VALUATION_METHODS.map((method) => method.id)
 
 /**
  * The verdicts that count under the current model selection. An empty
@@ -190,6 +212,20 @@ export function consensusMarginOfSafety(
   stock: Stock,
   methods: MethodId[] = []
 ): number {
+  // The API ships this number already averaged, but only for the whole set of
+  // verdicts. The guard is the point: `normalise` in `lib/universe.ts` drops
+  // verdicts for methods this build no longer models, and a stored consensus
+  // taken over a retired model would then disagree with the rows on screen —
+  // the exact drift `isKnownMethod` exists to prevent. When the counts match,
+  // nothing was dropped and the stored figure is the same arithmetic.
+  if (
+    methods.length === 0 &&
+    stock.consensus &&
+    stock.consensus.models === stock.verdicts.length
+  ) {
+    return stock.consensus.marginOfSafety
+  }
+
   const verdicts = activeVerdicts(stock, methods)
   if (verdicts.length === 0) return 0
 
@@ -200,6 +236,27 @@ export function consensusMarginOfSafety(
     verdicts.reduce((sum, v) => sum + v.marginOfSafety * v.confidence, 0) /
     weight
   )
+}
+
+/**
+ * The consensus as a per-share value rather than a ratio.
+ *
+ * Prefers the stored figure for the same reason and under the same guard;
+ * otherwise derived from the margin, which is exact — the API computes it that
+ * way too.
+ */
+export function consensusFairValue(
+  stock: Stock,
+  methods: MethodId[] = []
+): number {
+  if (
+    methods.length === 0 &&
+    stock.consensus &&
+    stock.consensus.models === stock.verdicts.length
+  ) {
+    return stock.consensus.fairValue
+  }
+  return stock.price * (1 + consensusMarginOfSafety(stock, methods))
 }
 
 export type ValuationBand =
@@ -214,21 +271,27 @@ export type ValuationBand =
   | "unrated"
 
 /**
- * Whether any of the selected models valued this stock. Under a narrowed
- * selection a stock can be unrated here while still carrying verdicts from
- * models the user switched off — the honest reading: those were asked not to
- * speak.
+ * Whether this stock is rated under the current model selection.
  *
- * There was a separate agreement floor here, a "valued by at least N models"
- * control. It made the same claim twice: which models are allowed to speak is
- * already the model selection, and a second number modifying it meant two
- * controls had to be reasoned about together to know what a row's band meant.
- * The rating is now exactly the models on screen. Wanting more agreement is
- * expressed by reading the n/m count in the margin column, which was always
- * the more honest place for it — it is per-row, and the floor was not.
+ * ALWAYS "ALL OF THEM", INCLUDING THE DEFAULT. The models on screen are the
+ * evidence a verdict is asked to rest on, so a stock one of them could not
+ * value has not met the bar — and the rule saying so does not change shape
+ * depending on whether the selection happens to be explicit. An empty
+ * selection is every model, and every model must have spoken.
+ *
+ * The cost is stated rather than hidden: 90 of 495 stocks are valued by all
+ * five, because DDM refuses non-payers and the cash-flow models refuse banks
+ * and REITs by design. The other 405 are not discarded — they fall to
+ * `unrated`, which has its own band chip, and the rail says so.
  */
 export function isRated(stock: Stock, methods: MethodId[] = []): boolean {
-  return activeVerdicts(stock, methods).length > 0
+  const required = methods.length === 0 ? METHOD_IDS : methods
+
+  // Membership rather than a length comparison: a duplicated verdict for one
+  // method would otherwise satisfy the count while a second model stayed
+  // silent.
+  const spoke = new Set(stock.verdicts.map((verdict) => verdict.method))
+  return required.every((method) => spoke.has(method))
 }
 
 /** How many models the current selection asks for. Empty means all of them. */
@@ -257,6 +320,14 @@ export function valuationBand(marginOfSafety: number): ValuationBand {
   if (marginOfSafety >= -0.26) return "undervalued"
   if (marginOfSafety > -0.41) return "fair"
   if (marginOfSafety > -0.57) return "overvalued"
+  return "expensive"
+}
+
+export function disagreementBand(marginOfSafety: number): ValuationBand {
+  if (marginOfSafety >= 0.30) return "deep-value"
+  if (marginOfSafety >= 0.10) return "undervalued"
+  if (marginOfSafety >= -0.05) return "fair"
+  if (marginOfSafety >= -0.30) return "overvalued"
   return "expensive"
 }
 
@@ -318,12 +389,28 @@ export type ScreenerFilters = {
  * whole index. A screener's opening state is a worked example of the screen it
  * is for, so this one is a value screen.
  *
- * Both numbers are read off the actual distribution rather than picked for
- * roundness. -25% is just inside the `undervalued` band's -26% cut point, so
- * the default keeps the cheaper two quintiles of the index and drops the three
- * the models price as fair or worse. 1.50 beta trims the high-volatility tail
- * without touching the ordinary market-tracking middle — the S&P's own beta is
- * 1 by construction.
+ * THE VALUE SCREEN IS EXPRESSED AS BANDS, NOT AS A MARGIN FLOOR, and that is a
+ * correction rather than a preference. A -25% floor and a band selection are
+ * two controls saying the same thing in different units, so they contradicted
+ * each other: ticking "Expensive" under a -25% floor returned nothing, because
+ * expensive means a consensus below -57%. An empty table under a filter the
+ * user just switched on does not read as a filter, it reads as missing data.
+ * Bands are also the vocabulary the distribution strip and every row's colour
+ * already use, and the two ticked chips say what the screen is doing where a
+ * slider position sitting at -25% did not — which matters most on a laptop,
+ * where the rail is collapsed and the slider is not even on screen.
+ *
+ * The margin range therefore opens unbounded. It is a second, finer cut to
+ * reach for after the bands, not the thing doing the work.
+ *
+ * The ceiling is Infinity rather than 1 for a reason worth stating: only the
+ * floor has a control, so the ceiling is invisible, and a hard 1 quietly threw
+ * away the nine stocks the models price at more than double — the cheapest
+ * names in the index, dropped by the one screen most interested in them.
+ * An invisible bound has to be one that cannot bite.
+ *
+ * 1.50 beta trims the high-volatility tail without touching the ordinary
+ * market-tracking middle - the S&P's own beta is 1 by construction.
  *
  * Everything downstream reads the filtered set, so this is also what the
  * optimiser is handed on the screener's primary call to action.
@@ -331,10 +418,18 @@ export type ScreenerFilters = {
 export const DEFAULT_FILTERS: ScreenerFilters = {
   search: "",
   sectors: [],
-  bands: [],
+  bands: ["deep-value", "undervalued"],
   methods: [],
-  marginRange: [-0.25, 1],
+  marginRange: [-1, Number.POSITIVE_INFINITY],
   maxBeta: 1.5,
+}
+
+/** Whether a facet still holds the value the screen opened on. */
+export function isDefaultBandSelection(bands: ValuationBand[]): boolean {
+  return (
+    bands.length === DEFAULT_FILTERS.bands.length &&
+    bands.every((band) => DEFAULT_FILTERS.bands.includes(band))
+  )
 }
 
 export function applyFilters(

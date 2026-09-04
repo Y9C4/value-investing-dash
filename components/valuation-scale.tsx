@@ -10,6 +10,13 @@ import {
  * distribution instead. See `valuationBand` for the full reasoning.
  */
 
+/**
+ * A margin of safety, where the sign is the reading rather than an annotation
+ * on it: an explicit `+` for cheap, `−` for expensive, one decimal.
+ *
+ * See the note on the same-named function in `lib/format.ts` — that one is for
+ * returns and weights, and the two must not be swapped.
+ */
 export function formatSignedPercent(value: number) {
   const formatted = Math.abs(value).toLocaleString("en-US", {
     style: "percent",

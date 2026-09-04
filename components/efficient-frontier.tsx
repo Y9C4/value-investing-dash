@@ -13,11 +13,12 @@ import {
 } from "recharts"
 
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  Panel,
+  PanelBody,
+  PanelHeader,
+  PanelMeta,
+  PanelTitle,
+} from "@/components/ui/panel"
 import {
   ChartConfig,
   ChartContainer,
@@ -139,15 +140,15 @@ export function FrontierChart({
   ]
 
   return (
-    <Card>
-      <CardHeader className="flex flex-wrap items-baseline justify-between gap-4">
-        <CardTitle>Efficient frontier</CardTitle>
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>Efficient frontier</PanelTitle>
         {/* The provenance of what's on screen is never ambiguous. */}
         {/* A solve is five to twenty seconds of real work. Saying what is
             being solved, over how many names, and how long it has been going
             is the difference between a page that is working and a page that
             looks stuck. */}
-        <span className="font-mono text-xs tracking-wider text-muted-foreground uppercase tabular-figures">
+        <PanelMeta>
           {loading && solving
             ? `Solving ${solving.portfolios} portfolios over ${solving.assets} names · ${solving.seconds}s`
             : loading
@@ -155,9 +156,9 @@ export function FrontierChart({
               : isBaseline
                 ? "Illustrative baseline"
                 : `Live · ${data.n_portfolios} portfolios${data.cached ? " · cached" : ""}`}
-        </span>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+        </PanelMeta>
+      </PanelHeader>
+      <PanelBody className="flex flex-col gap-4">
         <ChartContainer
           config={chartConfig}
           className={`aspect-auto h-[26rem] w-full transition-opacity ${
@@ -347,8 +348,8 @@ export function FrontierChart({
             rather than piled on a handful of names.
           </p>
         )}
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   )
 }
 
@@ -385,14 +386,14 @@ export function SharpeCurve({
   )
 
   return (
-    <Card>
-      <CardHeader className="flex flex-wrap items-baseline justify-between gap-2">
-        <CardTitle>Sharpe along the frontier</CardTitle>
-        <span className="text-xs tracking-wider text-muted-foreground uppercase">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>Sharpe along the frontier</PanelTitle>
+        <PanelMeta>
           Peak {peak.sharpe.toFixed(2)}
-        </span>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+        </PanelMeta>
+      </PanelHeader>
+      <PanelBody className="flex flex-col gap-4">
         <ChartContainer
           // A single plotted series, so no legend box — the title names it.
           // The peak marker is direct-labelled instead.
@@ -507,7 +508,7 @@ export function SharpeCurve({
           through.
           {isBaseline && " Measured on the illustrative baseline."}
         </p>
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   )
 }

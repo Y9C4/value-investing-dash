@@ -1,10 +1,9 @@
-import { Info } from "@/components/info"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  Panel,
+  PanelBody,
+  PanelHeader,
+  PanelTitle,
+} from "@/components/ui/panel"
 import type { DiscountRates } from "@/lib/valuation"
 
 /**
@@ -43,16 +42,22 @@ function Figure({
 }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="text-xs tracking-wider text-muted-foreground uppercase">
+      <dt className="text-[0.6875rem] font-semibold tracking-widest text-muted-foreground uppercase">
         {label}
       </dt>
-      <dd className="text-xl font-semibold">{value}</dd>
+      <dd className="font-mono text-base font-semibold tabular-figures">
+        {value}
+      </dd>
       {formula && (
-        <span className="font-mono text-[0.7rem] text-muted-foreground">
+        <span className="font-mono text-[0.6875rem] leading-tight text-muted-foreground">
           {formula}
         </span>
       )}
-      {note && <span className="text-xs text-muted-foreground">{note}</span>}
+      {note && (
+        <span className="text-[0.6875rem] leading-tight text-muted-foreground">
+          {note}
+        </span>
+      )}
     </div>
   )
 }
@@ -62,51 +67,41 @@ export function DiscountRatePanel({ rates }: { rates: DiscountRates }) {
   const sourceLabel = source ? SOURCE_LABEL[source] : null
 
   return (
-    <Card>
-      <CardHeader>
-        <span className="flex items-center gap-1.5">
-          <CardTitle>Discount rates</CardTitle>
-          <Info title="Why these matter" side="bottom">
-            A higher discount rate produces a lower fair value, so every figure
-            in the table beside this one is downstream of these. The debt
-            weight is capped at 60%: market-value weights otherwise make the
-            discount rate a function of the price being valued, so a falling
-            share price would lower WACC and make the model call the same
-            equity more valuable.
-          </Info>
-        </span>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-6">
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-5 text-sm">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>Discount rates</PanelTitle>
+      </PanelHeader>
+      <PanelBody className="flex flex-col gap-3">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
           <Figure
             label="Cost of equity"
             value={formatPercent(rates.costOfEquity)}
             note={
               sourceLabel
-                ? `via ${sourceLabel} — discounts FCFE, DDM and RIM`
-                : undefined
+                ? `derrived from ${sourceLabel} regression. discounts FCFE, DDM and RIM`
+                : "discounts FCFE, DDM and RIM"
             }
           />
           <Figure
             label="WACC"
             value={formatPercent(rates.wacc)}
-            formula="(E/V)·ke + (D/V)·kd·(1−t)"
-            note="discounts FCFF"
+            formula="ke(E/V) + (kd(D/V))(1-t)"
+            note="blends cost of equity and cost of debt. discounts FCFF"
           />
           <Figure
             label="CAPM cost of equity"
             value={formatPercent(rates.capmCostOfEquity)}
-            formula="rf + β(E[rm] − rf)"
+            formula="rf + β(E[rm] - rf)"
             note={
               source && source !== "capm"
-                ? "shown for reference; not the rate used"
-                : "used — no factor regression available"
+                ? "required return on asset value, unused"
+                : "required return on asset value (WACC)"
             }
           />
           <Figure
             label="Cost of debt"
             value={formatPercent(rates.costOfDebt)}
-            formula="interest expense ÷ total debt"
+            note="As reported in latest income statement"
           />
           <Figure
             label="Equity weight (E/V)"
@@ -114,7 +109,7 @@ export function DiscountRatePanel({ rates }: { rates: DiscountRates }) {
             note={
               rates.equityWeight !== null && rates.equityWeight <= 0.4
                 ? "at the 60% debt-weight cap"
-                : undefined
+                : "% of stock value derrived from equity"
             }
           />
           <Figure
@@ -123,7 +118,12 @@ export function DiscountRatePanel({ rates }: { rates: DiscountRates }) {
             note="13-week T-bill (^IRX), 252-day average"
           />
         </dl>
-      </CardContent>
-    </Card>
+
+        <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
+          Cost of Equity is derrived from the {" "}
+          {sourceLabel ?? "factor"} regression. WACC uses cost of debt off the company's latest financial statements.
+        </p>
+      </PanelBody>
+    </Panel>
   )
 }

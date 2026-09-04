@@ -2,7 +2,6 @@ import { notFound } from "next/navigation"
 import { connection } from "next/server"
 
 import { BackfillCard } from "@/components/backfill-card"
-import { PageHeader } from "@/components/page-header"
 import { RefreshAllCard } from "@/components/refresh-all-card"
 import { isDataPageEnabled } from "@/lib/market-data-service"
 import { VALUATION_METHODS } from "@/lib/valuation"
@@ -33,11 +32,11 @@ export default async function DataPage() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Maintenance"
-        title="Data"
-        description="Everything downstream — the screener, the valuations, the frontier — reads from these tables. Each stage only fetches what it is missing, so a daily refresh is cheap and a cold start is the expensive one."
-      />
+      <p className="border-b border-border bg-card px-6 py-4 text-sm leading-relaxed text-muted-foreground lg:px-10">
+        Everything downstream — the screener, the valuations, the frontier —
+        reads from these tables. Each stage only fetches what it is missing, so
+        a daily refresh is cheap and a cold start is the expensive one.
+      </p>
       <div className="grid gap-6 px-6 py-8 lg:grid-cols-2 lg:px-10">
         <RefreshAllCard />
         <BackfillCard

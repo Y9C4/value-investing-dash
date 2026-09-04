@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation"
 
-import { PageHeader } from "@/components/page-header"
 import { StockDetail } from "@/components/stock-detail"
 import { StockSearch } from "@/components/stock-search"
 import { loadUniverse } from "@/lib/universe"
@@ -19,20 +18,23 @@ export default async function StockPage({
   return (
     <>
       {/* The same strip as the parent route, in the same place, so moving
-          between stocks never means going back to a different page first. */}
-      <div className="border-b border-border bg-card px-6 py-4 lg:px-10">
+          between stocks never means going back to a different page first.
+          Which company this is rides along on the right rather than in a
+          header of its own: the ticker is already in the context strip above,
+          and the name and sector are the only two facts a header was adding. */}
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-b border-border bg-card/80 px-6 py-4 lg:px-10">
         <StockSearch
           stocks={stocks.map(({ ticker, name }) => ({ ticker, name }))}
           current={stock.ticker}
         />
-      </div>
 
-      {/* Title only. Which company this is, is information; a sentence
-          describing the cards below it is not — they have their own titles. */}
-      <PageHeader
-        eyebrow={stock.sector}
-        title={`${stock.ticker} · ${stock.name}`}
-      />
+        <div className="flex flex-col items-end gap-0.5 text-right">
+          <span className="font-heading text-sm font-semibold tracking-wider uppercase">
+            {stock.name}
+          </span>
+          <span className="text-xs text-muted-foreground">{stock.sector}</span>
+        </div>
+      </div>
 
       {/* The screener says which data it is showing; this page renders the same
           fallback and has to say so too. Fair values from the sample are

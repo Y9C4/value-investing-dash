@@ -508,14 +508,14 @@ which is the more honest place for it: it is per-row, and the floor was not.
 ### 1C.6 A default that is a screen
 
 `marginRange` was `[-1, 1]` and `maxBeta` was `3` — not a default so much as the
-absence of one, since every rated stock passes. Now **-25%** and **1.50**, both
-read off the distribution rather than picked for roundness: -25% sits just
-inside the `undervalued` band's -26% cut, so the default keeps the cheaper two
-quintiles; 1.50 trims the volatile tail without touching the market-tracking
-middle.
+absence of one, since every rated stock passes. The screen now opens on the two
+cheap bands and a 1.50 beta cap: **191 of 495**. Everything downstream reads the
+filtered set, so this is also what the primary call to action hands the
+optimiser.
 
-**166 of 493**, down from 459. Everything downstream reads the filtered set, so
-this is also what the primary call to action now hands the optimiser.
+The first attempt at this expressed the value screen as a **-25% margin floor**,
+and that was wrong in a way worth recording, because it was reported as missing
+data rather than as a filter — see 1C.9.
 
 ### 1C.7 `/stocks` is a router
 
@@ -551,10 +551,340 @@ the one job that fetched nothing.
 `api/jobs.py` writes the rows and reads `latest_job_runs` back into the universe
 snapshot, so the front end gets freshness on a payload it already reads rather
 than paying a round trip for one line of chrome. The strip now reads
-`COLLECTED SEP 04, 2026 · 02:43 EDT`, to the minute and in market time, with a
-per-stage breakdown behind it. `isStale` moved onto the gathered timestamp, so
-stale inputs under a fresh recompute now trip the warning that previously could
-not see them.
+`COLLECTED SEP 04, 2026 · 02:55 EDT`, to the minute and in market time.
+`isStale` moved onto the gathered timestamp, so stale inputs under a fresh
+recompute now trip the warning that previously could not see them.
+
+There was a per-stage popover behind that stamp, listing when prices, statements,
+profiles and factors each last landed. It was removed: it answered a question
+only the person running the ingest has, on a strip read by someone deciding
+whether to trust the table below it, and one timestamp answers that. The stages
+are still recorded — nothing was lost but the disclosure.
+
+---
+
+### 1C.9 The distribution strip was describing the filter, not the market
+
+Reported as "I can't see any stocks that aren't deep value or undervalued, so
+however you're going about getting a default cache of the data is not the right
+approach."
+
+**The cache was not the problem.** `universe_snapshot` holds all 495 stocks with
+every verdict, the client applies the filters, and the strip's own counts proved
+it — 89 deep value, 117 undervalued, 84 fair, 107 overvalued, 98 expensive. The
+data was complete and the filter was doing exactly what it was set to do. But
+being right about the mechanism is not the same as the page being readable, and
+three things conspired to make a working filter look like a truncated dataset:
+
+1. **The distribution strip counted the filtered rows.** The one always-visible
+   readout whose job is "shape of the market" was drawing the shape of the
+   filter: three bands missing from the bar and three legend entries at 0.
+2. **The margin floor and the band chips contradicted each other.** Ticking
+   "Expensive" under a -25% floor returned nothing, because expensive means a
+   consensus below -57%. An empty table under a filter just switched on does not
+   read as a filter.
+3. **The rail is collapsed below 1700px**, so on a laptop the -25% slider that
+   was doing all the work was not on screen at all.
+
+Three fixes, in that order:
+
+- **The bar is now sized by the whole universe** and never changes shape when a
+  checkbox moves, with the legend carrying `matched / in the index` — the same
+  n/m form the margin column already uses for model agreement. An over-tight
+  filter is still visible at a glance, but as a small numerator against a real
+  denominator rather than as an absence.
+- **The value screen moved onto the bands** (`["deep-value", "undervalued"]`) and
+  the margin range opens at full span. The two controls stop restating each other
+  in different units, the default is legible as two ticked chips, and ticking
+  "Expensive" now *adds* 72 stocks instead of returning zero.
+- **The margin ceiling is `Infinity`, not 1.** Only the floor has a control, so
+  the ceiling was invisible — and a hard 1 was quietly discarding the nine stocks
+  the models price at more than double, the cheapest names in the index, dropped
+  by the one screen most interested in them. CHTR at +199.8% is back.
+
+`activeFilterCount` now measures against `DEFAULT_FILTERS` rather than against
+emptiness, so the opening state still reports zero active filters.
+
+**Verified, 20 checks:** the default screen is 191 of 495; the legend shows all
+five bands populated over the full index; ticking Expensive takes the set to
+263; an expensive-only screen returns 72 real rows; Reset restores 191 and
+clears the badge; the top margin on screen is +199.8%; the CTA still encodes the
+screened set; no console errors.
+
+### 1C.10 The optimiser CTA says what it produces
+
+`Optimise all 191 matches` → **`Optimise all 191 into a portfolio`**, and
+`Optimise 12 selected` → `Optimise 12 selected into a portfolio`. The old label
+named the input and the verb but never the artefact, so the button read as a
+filtering action on the page you were already on rather than as the step that
+builds something.
+
+**Noted, not changed:** `frontier.precompute_default()` warms the **full-index**
+solve, which is what a bare `/portfolio` visit asks for — so the precompute is
+not stale, but it is not what this button asks for either. The screened set
+misses the cache and pays a real solve. Making the precompute mirror the screen
+would mean teaching Python the band cut points and the beta cap, which is the
+kind of duplication that goes wrong quietly; worth doing deliberately if the
+screened CTA turns out to be the common path in practice.
+
+### 1C.11 No page headers; the page name moved into the strip
+
+Every route opened with an eyebrow, a title and a paragraph — `STEP ONE /
+SCREENER` above a sentence describing the table under it. Three problems, and
+the third is the one that decided it:
+
+1. The eyebrows narrated a journey the sidebar already lays out, on pages a
+   reader arrives at directly as often as in order.
+2. The descriptions restated what the surface below them already showed —
+   `/portfolio` explained the set size that `PortfolioBuilder` states in its own
+   header, twice on the same screen.
+3. **It cost the top eighth of the window on the one page whose useful height
+   is rows.** A header is rows.
+
+`components/page-header.tsx` is deleted. The name is now the leading field of
+the context strip, before `S&P 500`, rendered by `components/page-label.tsx` —
+a client component deriving the label from `usePathname()`, since the strip is
+rendered once in the root layout and the layout does not know which route
+filled it. `/stocks/AAPL` labels itself `AAPL`: the ticker is the shortest true
+name for that page and the one the reader came looking for.
+
+It is also the page's `h1` — one per document, first in the reading order, and
+now the only heading the route itself contributes.
+
+Nothing that was information was lost. The stock page's company name and sector
+moved to the right-hand end of the search strip it already had; `/data` kept
+its operator paragraph as a plain line. What went was the chrome around them.
+
+**Measured:** the screener fits **18 rows at 1440x900**, up from 14 before this
+and 9 before Phase 1C. Verified at 1440 and 390 across all five routes: one h1
+each, carrying the page name; no step eyebrows anywhere; zero horizontal
+overflow; no console errors.
+
+### 1C.12 The distribution legend lost its counts
+
+The strip's legend read `Deep value 83/89`. The bar already carries the
+proportions and the toolbar already reads `191 of 495 stocks`, so the figures
+were a third statement of the same thing — and they turned a picture into a row
+of numbers directly above a table of numbers. The legend now names the colours
+and nothing else; the bar is still sized by the whole universe, which is what
+1C.9 was actually for.
+
+### 1C.13 The screener's chrome, applied to the other two tabs
+
+The screener had drifted into a different visual language from `/stocks` and
+`/portfolio`, and the drift was the right direction: hairline boxes, a two-line
+header strip with a tracked uppercase label, mono tabular figures, dense
+padding. The other two were still built on `Card` — 32px of padding, an 18px
+title, a shadow and a ring — which reads as a *document*, a thing to be looked
+at one at a time. That is why they felt like a brochure while the screener felt
+like an instrument.
+
+**New primitive:** `components/ui/panel.tsx` — `Panel`, `PanelHeader`,
+`PanelTitle`, `PanelMeta`, `PanelBody`, plus `Stat` and `StatStrip`. Extracted
+rather than copied, so the idiom has one definition. `PanelTitle` is an `h2`:
+with the page's only `h1` now in the context strip (1C.11), these are the
+document outline, and a long page like `/portfolio` becomes navigable by
+heading.
+
+**Measured, on the same 1440x900 render:** chrome between a container's top edge
+and its first content pixel, **92px → 55px**. `/data` still uses `Card`, so the
+two idioms can be measured against each other in one pass — which is also why
+`Card` was kept rather than deleted. It remains right for the surfaces that
+really are documents: the intro dialog and the backfill cards.
+
+Converted: `ticker-history`, `valuation-breakdown`, `discount-rate-panel`,
+`efficient-frontier`, `portfolio-composition`, `portfolio-builder`.
+`portfolio-controls` was already in the idiom and only needed its density
+tightened, which is the sign the primitive was the right shape.
+
+Two layout consequences worth stating:
+
+- **Six `StatTile` boxes became one `StatStrip`.** Six bordered tiles is six
+  borders saying nothing; one hairline-divided strip is how an instrument panel
+  is laid out, and Sharpe now leads it at `size="lead"` because a headline is
+  only a headline while the things around it are not.
+- **The discount-rate panel moved to the left column of `/stocks/[ticker]`.**
+  It is an input to the right-hand column, not a reading of it, and the left
+  column used to run out after two cards and leave a quarter of the page empty
+  on a wide screen — the dead area Phase 3.1 had flagged. Measured quantities
+  now sit on the left, estimated ones on the right.
+
+### 1C.14 Model disagreement
+
+The project's most interesting finding had no UI: the models disagree on
+*direction* — not on magnitude, on whether a company is cheap or expensive —
+for a majority of the index. The valuation table states every number involved
+and still cannot show it, because a column of dollar figures is read one cell
+at a time and disagreement is a property of the set.
+
+**`components/model-disagreement.tsx`:** one row per model that applied, all on
+a shared price axis, with the market price as a line running down through every
+row. A bar reaching right of that line is a model calling the company cheap.
+Whether the dots fall on one side or straddle it is the whole reading, and it
+takes no arithmetic. A lollipop rather than a scatter because the distance from
+the price is the quantity of interest, and a bar starting at the line draws
+exactly that. Dots take their colour from the same diverging scale the screener
+paints, so a row means the same thing on both pages.
+
+The headline sentence reports **direction, not spread** — two models 40% apart
+that both say "cheap" are a weaker disagreement than two 5% apart that straddle
+the price.
+
+**Each fair value is also drawn on the price chart** as a dashed reference line
+at its own level, since a fair value is a claim about where that line should
+be. The axis may stretch by up to 1.5x the price range to admit one;
+past that the line is omitted and the header says how many are off scale,
+because a fair value at three times the price would otherwise squash a year of
+price action into a few pixels. The disagreement panel plots all of them on an
+axis built for the job.
+
+No new API or database work — every number was already in the payload.
+
+**Verified, 55 checks** across `ABNB` (one model), `ABT` (all five), `NRG` (a
+33x fair-value spread), `ACN` (split 2 up / 3 down) and `DVA` (unanimous), at
+1440 and 390, in both themes: five panels each, zero legacy `Card` chrome, zero
+horizontal overflow, header strips averaging 33px, correct direction summaries,
+reference lines present on the chart, no console errors.
+
+### 1C.15 A model selection means *all* of them, always
+
+`isRated` asked whether **any** selected model had valued a stock. So picking
+DDM and FCFE returned every stock either one could reach, and a company only
+DDM valued kept a one-model consensus wearing a two-model label. Narrowing the
+selection could also leave a row's margin completely unchanged, which makes the
+control look broken.
+
+It now requires every model on screen, **including at the default**, where an
+empty selection means all five. One rule, no branch: the models on screen are
+the evidence a verdict is asked to rest on, and that does not change shape
+depending on whether the selection happens to be explicit. Membership rather
+than a length comparison, so a duplicated verdict for one method cannot satisfy
+the count while a second model stays silent.
+
+| selection | any (before) | all (now) |
+|---|---|---|
+| all five (the default) | 426 | **84** |
+| DDM + FCFE | 350 | 126 |
+| DDM alone | 242 | 242 |
+
+*(beta <= 1.50 default applied; 495-stock universe)*
+
+**The default screen is now 32 stocks, down from 191.** That is the honest cost
+of the rule and it is worth writing down: only 90 of 495 stocks are valued by
+all five models, because DDM refuses non-payers and the cash-flow models refuse
+banks and REITs by design. The remaining 405 are not discarded — they fall to
+**unrated**, which has its own band chip and is now a heavily populated band
+rather than the empty one it used to be. The rail states the rule and says
+where they went.
+
+If 32 turns out to be too tight a default in use, the lever is
+`DEFAULT_FILTERS.bands` — opening on three bands instead of two, or dropping
+the beta cap — not the rating rule.
+
+**Verified, 13 checks:** the default screen is 32 of 495; every band selected
+gives 84; ticking Unrated brings it to 426; every rated row reads `5/5` and
+none reads a partial count; unrated rows sink to the bottom and are labelled;
+DDM + FCFE gives 126; the rail prose reads the same shape at 5 and at 2 models
+and never says "any"; the CTA reads "Optimise all 32 into a portfolio"; no
+console errors.
+
+
+### 1C.16 The analysis tab, second pass
+
+**The price chart.** Height 256px -> 384px. The current price is now a solid
+reference line labelled `Now $108.79`, because every fair value on the chart is
+a claim about that one number and finding it by eye at the right-hand end of a
+year-long series is exactly the work a chart should save.
+
+`FAIR_VALUE_HEADROOM` is deleted: **every** fair value is drawn now, whatever
+it does to the axis. The old rule dropped any model landing more than 1.5x the
+price range away, on the argument that one outlier squashes a year of price
+action. That trade was backwards — a model that thinks a company is worth four
+times its price is making the most interesting claim on the page, and hiding it
+to protect the shape of a line is not a defensible edit. The taller panel
+absorbs most of the cost. NRG is the worst case: five lines from $21.65 to
+$731.12 against a ~$112 price, and the price series does compress to a band
+near the bottom. The disagreement panel below plots the same five on an axis
+built for the job.
+
+**The consensus, in dollars.** The margin of safety is a ratio, and a ratio
+against an unstated price is half a statement. `Market price` and
+`Consensus value` now sit side by side under the headline percentage in the
+same weight, the second tinted by direction — `$108.79` against `$81.18` for
+ABT, which is the whole verdict in two figures.
+
+**Text removed.** "5 of 5 applied"; the direction sentence on the disagreement
+panel ("the models disagree on direction — 3 above, 2 below"); and the info
+triggers on Valuation models, Model disagreement and Discount rates. The
+picture is the sentence — the bars already fall on one side of the price line
+or straddle it, and a caption restating that is a caption. The band-label
+caveat survives, because "deep value" means *cheapest fifth of the index* and
+nothing else on the page says so.
+
+**Consensus on the disagreement chart.** A second, dashed rule beside the price
+rule, at the confidence-weighted fair value, with a two-item legend naming
+both. It is the number the screener ranks on and the one place the spread
+resolves to a single answer, so it belongs on the picture of the spread.
+
+**Discount-rate provenance, per figure.** The header carried one source label —
+`Fama-French 5-factor` — for a panel of six rates, only one of which comes from
+that regression. That is now wrong in the open rather than wrong in a header:
+the label is gone, each figure states where it comes from (`Fama-French
+5-factor regression · discounts FCFE, DDM and RIM`; `blends the two rates below
+it · discounts FCFF`; `read off the statements — no factor model involved`),
+and one line under the grid states the chain end to end plus the 60% debt-weight
+cap that used to be hidden behind the info trigger.
+
+**Verified, 80 checks** across `ABT`, `NRG` (33x spread), `ACN`, `ABNB` (one
+model) and `DVA`, at 1600 and 390: reference-line count equals verdicts + 1 on
+every ticker, the `Now $…` label present, market price and consensus value
+paired, both rules named in the legend, no "N of N applied" and no direction
+sentence anywhere, no info triggers on the three named panels, chart 384px, no
+horizontal overflow, no console errors.
+
+### 1C.17 The consensus ships with the data
+
+`GET /valuations` now carries a `consensus` object per stock —
+`marginOfSafety`, `fairValue`, `models` — computed once by `_consensus` in
+`api/universe.py` instead of re-derived in the browser for ~500 stocks on every
+render. It flows into `universe_snapshot` automatically, since the snapshot is
+whatever `scored()` returns. Payload cost: 60.1 KB -> 66.4 KB gzipped, ~10%.
+
+Both forms are carried on purpose. The margin compares across companies; the
+fair value is what a reader pays in, and is the only one that can be plotted on
+a price axis beside the individual models — which is what it is for.
+
+`models` looks redundant beside `verdicts` and is not. `normalise()` in
+`lib/universe.ts` drops verdicts for methods this build no longer models, so a
+stored consensus taken over a retired model would disagree with the rows on
+screen — the exact drift `isKnownMethod` exists to prevent.
+`consensusMarginOfSafety` and the new `consensusFairValue` therefore use the
+stored figure **only** when the selection is "all" and
+`consensus.models === verdicts.length`, and recompute otherwise. The field is
+optional throughout: the offline sample has none, and neither does a snapshot
+written before it existed.
+
+**The consensus is now a bar on the disagreement panel**, below a rule, drawn
+by the same `Row` function as the five models — one more reading on the same
+axis, at a heavier weight. Giving it its own treatment would have made it look
+like a different kind of quantity.
+
+**A real bug this surfaced.** There are two exported functions called
+`formatSignedPercent`: `lib/format.ts` prints two decimals and no `+`, and
+`components/valuation-scale.tsx` prints one decimal and an explicit `+`. The
+disagreement panel had imported the first. So the same consensus read `−25.38%`
+on one panel and `−25.4%` on the panel directly above it, and a positive margin
+lost its `+` entirely — `65.84%` where the table beside it said `+65.8%`, which
+turns a direction back into a magnitude. Fixed by importing the margin
+formatter, and both functions now carry a note naming the other, because the
+name collision is what caused it.
+
+**Verified, 28 checks** across `ABT`, `NRG`, `ACN`, `ABNB` (one model) and
+`DVA`: every stock in the payload carries a consensus, all 495 model counts
+match their verdict counts, the server figure agrees with the client formula to
+5e-7 (6dp rounding), the bar and the panel above it print identical value and
+margin on every ticker, one bar per applied model plus the consensus, the
+screener's default screen is unchanged at 32 of 495, no console errors.
 
 ---
 

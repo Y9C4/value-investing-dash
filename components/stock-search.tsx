@@ -120,23 +120,22 @@ export function StockSearch({
         <p role="alert" className="text-xs text-destructive">
           {error}
         </p>
-      ) : (
+      ) : !current ? (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           Try
           {EXAMPLES.map((symbol) => (
             <Button
               key={symbol}
-              variant={symbol === current ? "secondary" : "outline"}
+              variant="outline"
               size="xs"
               className="font-mono"
-              aria-current={symbol === current ? "page" : undefined}
               onClick={() => router.push(`/stocks/${symbol}`)}
             >
               {symbol}
             </Button>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

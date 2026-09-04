@@ -1,10 +1,10 @@
-import { Info } from "@/components/info"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  Panel,
+  PanelBody,
+  PanelHeader,
+  PanelTitle,
+  Stat,
+} from "@/components/ui/panel"
 import {
   Table,
   TableBody,
@@ -13,12 +13,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { MarginBar, formatSignedPercent } from "@/components/valuation-scale"
+import { formatSignedPercent } from "@/components/valuation-scale"
 import {
   VALUATION_METHODS,
+  consensusFairValue,
   consensusMarginOfSafety,
-  valuationBand,
-  BAND_LABELS,
   type Stock,
 } from "@/lib/valuation"
 
@@ -37,54 +36,64 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
   const consensus = consensusMarginOfSafety(stock)
   const scored = new Map(stock.verdicts.map((v) => [v.method, v]))
 
+  // What the consensus margin says the share is worth. The margin is the
+  // headline because it is comparable across companies, but it is a ratio, and
+  // a ratio against an unstated price is half a statement — this is the other
+  // half, in the unit the reader is actually going to pay in.
+  //
+  // Through the shared helper rather than multiplied out here, so this and the
+  // consensus bar on the disagreement panel below cannot come from two
+  // different arithmetics and quietly disagree by a cent.
+  const fairValue = consensusFairValue(stock)
+
   return (
-    <Card>
-      <CardHeader className="flex items-baseline justify-between gap-4">
-        <span className="flex items-center gap-1.5">
-          <CardTitle>Valuation models</CardTitle>
-          <Info title="Reading this table" side="bottom">
-            A positive margin means the model&rsquo;s fair value sits above the
-            market price. Weight is how much say a model gets in the consensus
-            &mdash; a fixed judgement about the method, reduced where this
-            company&rsquo;s inputs are weaker than usual (an imputed tax rate,
-            an incomplete set of quarters, cash flow propped up by borrowing).
-          </Info>
-        </span>
-        <span className="text-xs tracking-wider text-muted-foreground uppercase">
-          {stock.verdicts.length} of {VALUATION_METHODS.length} applied
-        </span>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-6">
-        {/* Consensus first — the headline the row-by-row table then explains. */}
-        <div className="flex flex-col gap-2 border border-border px-5 py-4">
-          <span className="flex items-center gap-1.5 text-xs tracking-wider text-muted-foreground uppercase">
-            Consensus margin of safety
-            <Info title="The band label" side="bottom">
-              The band ranks this company against the rest of the S&amp;P 500
-              rather than against its own intrinsic value, so &ldquo;deep
-              value&rdquo; means cheap relative to the index today.
-            </Info>
-          </span>
-          <div className="flex flex-wrap items-baseline gap-3">
-            <span className="text-3xl font-semibold">
-              {formatSignedPercent(consensus)}
-            </span>
-            <span className="text-sm text-muted-foreground">
-              {BAND_LABELS[valuationBand(consensus)]} · weighted across{" "}
-              {stock.verdicts.length}{" "}
-              {stock.verdicts.length === 1 ? "model" : "models"}
-            </span>
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>Valuation models</PanelTitle>
+      </PanelHeader>
+
+      {/* Consensus first — the headline the row-by-row table then explains.
+          Its own strip rather than a box inside the body: this is what the
+          panel exists to report, and a border around it inside a border around
+          the panel is two frames for one figure. */}
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-b border-border px-4 py-3">
+        <div className="flex flex-col gap-1">
+
+          <div className="flex flex-wrap items-baseline gap-2">
+            <Stat
+              label="Consensus Margin of Safety"
+              value={formatSignedPercent(consensus)}
+              size="lead"
+              className={
+                consensus > 0 ? "text-undervalued" : "text-overvalued"
+              }
+            />
           </div>
-          <MarginBar margin={consensus} className="mt-1 w-full max-w-sm" />
         </div>
 
+        {/* The two prices the margin is the ratio between, side by side and in
+            the same weight, so the comparison is read rather than computed. */}
+        <div className="flex items-end gap-6">
+          <Stat label="Market price" value={formatPrice(stock.price)} size="lead" />
+          <Stat
+            label="Consensus value"
+            value={formatPrice(fairValue)}
+            size="lead"
+            className={
+              consensus > 0 ? "text-undervalued" : "text-overvalued"
+            }
+          />
+        </div>
+      </div>
+
+      <PanelBody className="px-0 py-0">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Model</TableHead>
               <TableHead className="text-right">Fair value</TableHead>
               <TableHead className="text-right">Margin</TableHead>
-              <TableHead className="text-right">Weight</TableHead>
+              <TableHead className="text-right">Confidence</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -95,9 +104,11 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
                 return (
                   <TableRow key={method.id}>
                     <TableCell className="text-muted-foreground">
-                      <span className="flex flex-col gap-0.5">
+                      <span className="flex items-baseline gap-2">
                         <span>{method.label}</span>
-                        <span className="text-xs">{method.full}</span>
+                        <span className="hidden text-xs sm:inline">
+                          {method.full}
+                        </span>
                       </span>
                     </TableCell>
                     {/* Every model here is implemented. A missing row means
@@ -116,19 +127,30 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
               return (
                 <TableRow key={method.id}>
                   <TableCell>
-                    <span className="flex flex-col gap-0.5">
+                    <span className="flex items-baseline gap-2">
                       <span className="font-medium">{method.label}</span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="hidden text-xs text-muted-foreground sm:inline">
                         {method.full}
                       </span>
                     </span>
                   </TableCell>
-                  <TableCell className="text-right font-mono">
+
+                  <TableCell
+                    className={
+                      verdict.marginOfSafety > 0 ? "text-right font-mono text-undervalued" : "text-right font-mono text-overvalued"
+                    }
+                  >
                     {formatPrice(verdict.fairValue)}
                   </TableCell>
-                  <TableCell className="text-right font-mono">
+
+                  <TableCell
+                    className={
+                      verdict.marginOfSafety > 0 ? "text-right font-mono text-undervalued" : "text-right font-mono text-overvalued"
+                    }
+                  >
                     {formatSignedPercent(verdict.marginOfSafety)}
                   </TableCell>
+
                   <TableCell className="text-right">
                     <span className="flex items-center justify-end gap-2">
                       <span className="font-mono text-xs text-muted-foreground">
@@ -152,14 +174,7 @@ export function ValuationBreakdown({ stock }: { stock: Stock }) {
             })}
           </TableBody>
         </Table>
-
-        <p className="text-xs text-muted-foreground">
-          Current price{" "}
-          <span className="font-mono text-foreground">
-            {formatPrice(stock.price)}
-          </span>
-        </p>
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   )
 }

@@ -71,6 +71,44 @@ def _discount_rates(stats: dict, risk_free: float) -> dict:
     }
 
 
+def _consensus(verdicts: list[dict], price: float) -> dict:
+    """The confidence-weighted consensus across every model that spoke.
+
+    Computed here rather than in the browser because it is a property of the
+    verdicts, not of anything the reader is doing: the same weighted average
+    was being re-derived for ~500 stocks on every render, and the number the
+    screener ranks on ought to arrive with the data it ranks.
+
+    Both forms are carried. The margin is what compares across companies; the
+    fair value is what a reader pays in, and is the only one that can be
+    plotted on a price axis beside the individual models.
+
+    `models` is the count the average was taken over. It looks redundant beside
+    `verdicts` and is not: the front end drops verdicts for methods this build
+    no longer models, so the count is how it knows whether this consensus still
+    describes the set of verdicts it is holding.
+
+    Omitted entirely — not zeroed — when nothing can be averaged. A consensus of
+    0 means "the models think the price is right", which is a claim, and an
+    absent one must not be mistaken for it.
+    """
+    weight = sum(verdict["confidence"] for verdict in verdicts)
+    if not verdicts or weight == 0:
+        return {}
+
+    margin = (
+        sum(verdict["marginOfSafety"] * verdict["confidence"] for verdict in verdicts)
+        / weight
+    )
+    return {
+        "consensus": {
+            "marginOfSafety": round(margin, 6),
+            "fairValue": round(price * (1 + margin), 4),
+            "models": len(verdicts),
+        }
+    }
+
+
 def _index_level() -> dict | None:
     """The benchmark's last close and its one-session change.
 
@@ -149,6 +187,16 @@ def scored() -> dict:
         eps = ttm.get(ticker, {}).get("ttm_diluted_eps") or profile.get("trailing_eps")
         pe_ratio = float(price) / float(eps) if eps and float(eps) > 0 else 0.0
 
+        scored_verdicts = [
+            {
+                "method": verdict["method"],
+                "fairValue": float(verdict["fair_value"]),
+                "marginOfSafety": float(verdict["margin_of_safety"]),
+                "confidence": float(verdict["confidence"]),
+            }
+            for verdict in verdicts
+        ]
+
         stocks.append(
             {
                 "ticker": ticker,
@@ -164,15 +212,8 @@ def scored() -> dict:
                 "peRatio": round(pe_ratio, 2),
                 "dividendYield": float(profile.get("dividend_yield") or 0) / 100,
                 **_discount_rates(stats, risk_free),
-                "verdicts": [
-                    {
-                        "method": verdict["method"],
-                        "fairValue": float(verdict["fair_value"]),
-                        "marginOfSafety": float(verdict["margin_of_safety"]),
-                        "confidence": float(verdict["confidence"]),
-                    }
-                    for verdict in verdicts
-                ],
+                "verdicts": scored_verdicts,
+                **_consensus(scored_verdicts, price),
             }
         )
 

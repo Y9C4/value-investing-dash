@@ -31,7 +31,7 @@ function ControlGroup({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-3 border-border p-5 max-lg:border-b lg:border-r lg:last:border-r-0 max-lg:last:border-b-0">
+    <div className="flex flex-col gap-2.5 border-border px-4 py-3 max-lg:border-b lg:border-r lg:last:border-r-0 max-lg:last:border-b-0">
       <span className="flex items-center gap-1.5 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
         {title}
         {info}
@@ -107,7 +107,7 @@ export function PortfolioControls({
 
   return (
     <section className="border border-border bg-card">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-5 py-4">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-4 py-2.5">
         <div className="flex flex-col gap-0.5">
           <h2 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
             Optimiser settings

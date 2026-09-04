@@ -1,20 +1,30 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
-
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts"
+
 import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import {
+  Panel,
+  PanelBody,
+  PanelHeader,
+  PanelMeta,
+  PanelTitle,
+  Stat,
+} from "@/components/ui/panel"
+import { BAND_FILL, VALUATION_METHODS, disagreementBand, type Stock } from "@/lib/valuation"
 
 type Candle = {
   date: string
@@ -138,7 +148,7 @@ export function deriveCapm(data: ReturnsResponse | null) {
   const capmRequired =
     data && beta !== null
       ? data.risk_free_rate +
-        beta * (data.expected_market_return - data.risk_free_rate)
+      beta * (data.expected_market_return - data.risk_free_rate)
       : null
   const capmAlpha =
     data && capmRequired !== null
@@ -148,21 +158,59 @@ export function deriveCapm(data: ReturnsResponse | null) {
   return { varStock, covStockMarket, varMarket, beta, capmRequired, capmAlpha }
 }
 
-/** The one-year close series. Own component so pages can place it freely. */
-export function PriceChartCard({ data }: { data: ReturnsResponse }) {
+/**
+ * The one-year close series, with every model's fair value laid over it.
+ *
+ * The reference lines are the point of the chart rather than a decoration on
+ * it: a fair value is a claim about where this line should be, so drawing the
+ * claim on the same axis as the price is the only place the two can be
+ * compared without the reader holding a number in their head.
+ *
+ * ALL of them are drawn, whatever that does to the axis. An earlier version
+ * dropped any fair value more than 1.5x the price range away, on the argument
+ * that one outlier squashes a year of price action — but a model that thinks
+ * the company is worth four times its price is making the single most
+ * interesting claim on the page, and hiding it to protect the shape of the
+ * line is the wrong trade. A tall panel absorbs most of the cost.
+ */
+export function PriceChartCard({
+  data,
+  stock,
+}: {
+  data: ReturnsResponse
+  /** Absent on any surface that has no verdicts to lay over the price. */
+  stock?: Stock
+}) {
   const chartData = data.candles.map((candle) => ({
     date: candle.date,
     close: candle.close,
   }))
 
+  const closes = chartData.map((point) => point.close)
+  const verdicts = (stock?.verdicts ?? []).filter(
+    (v) => v.confidence > 0.5
+  )
+  // The last close is what the models were valued against, so it is the price
+  // the reference lines have to be read relative to.
+  const current = stock?.price ?? closes[closes.length - 1]
+
+  const low = Math.min(...closes, current, ...verdicts.map((v) => v.fairValue))
+  const high = Math.max(...closes, current, ...verdicts.map((v) => v.fairValue))
+  const pad = (high - low) * 0.04
+
+  const labelOf = new Map(VALUATION_METHODS.map((m) => [m.id, m.label]))
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{data.ticker} — last 1 year</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="h-72 w-full">
-          <LineChart data={chartData} margin={{ left: 8, right: 8 }}>
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>{data.ticker} · price, 1 year</PanelTitle>
+        <PanelMeta className="text-muted-foreground">
+          vs modeled fair value
+        </PanelMeta>
+      </PanelHeader>
+      <PanelBody>
+        <ChartContainer config={chartConfig} className="h-96 w-full">
+          <LineChart data={chartData} margin={{ left: 8, right: 44, top: 8 }}>
             <CartesianGrid vertical={false} stroke="var(--color-grid)" />
             <XAxis
               dataKey="date"
@@ -175,9 +223,9 @@ export function PriceChartCard({ data }: { data: ReturnsResponse }) {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              domain={["auto", "auto"]}
+              domain={[low - pad, high + pad]}
               tickFormatter={(value) => formatPrice(value)}
-              width={80}
+              width={72}
             />
             <ChartTooltip
               content={
@@ -187,6 +235,25 @@ export function PriceChartCard({ data }: { data: ReturnsResponse }) {
                 />
               }
             />
+
+            {/* Dashed, and behind the price in the paint order: these are
+                estimates about the solid line, not readings of their own. */}
+            {verdicts.map((verdict) => (
+              <ReferenceLine
+                key={verdict.method}
+                y={verdict.fairValue}
+                stroke={BAND_FILL[disagreementBand(verdict.marginOfSafety)]}
+                strokeDasharray="4 3"
+                strokeWidth={1.5}
+                label={{
+                  value: labelOf.get(verdict.method) ?? verdict.method,
+                  position: "right",
+                  fill: "var(--color-muted-foreground)",
+                  fontSize: 10,
+                }}
+              />
+            ))}
+
             <Line
               dataKey="close"
               type="monotone"
@@ -196,8 +263,8 @@ export function PriceChartCard({ data }: { data: ReturnsResponse }) {
             />
           </LineChart>
         </ChartContainer>
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   )
 }
 
@@ -210,46 +277,28 @@ export function KeyStatisticsCard({
   beta: number | null
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{data.ticker} — key statistics</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-5 text-sm">
-          <div className="flex flex-col gap-0.5">
-            <dt className="text-xs tracking-wider text-muted-foreground uppercase">
-              Beta
-            </dt>
-            <dd className="text-xl font-semibold">
-              {beta?.toFixed(3) ?? "—"}
-            </dd>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <dt className="text-xs tracking-wider text-muted-foreground uppercase">
-              Risk-free rate
-            </dt>
-            <dd className="text-xl font-semibold">
-              {formatReturn(data.risk_free_rate)}
-            </dd>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <dt className="text-xs tracking-wider text-muted-foreground uppercase">
-              Realised return
-            </dt>
-            <dd className="text-xl font-semibold">
-              {formatReturn(data.expected_stock_return)}
-            </dd>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <dt className="text-xs tracking-wider text-muted-foreground uppercase">
-              Market return
-            </dt>
-            <dd className="text-xl font-semibold">
-              {formatReturn(data.expected_market_return)}
-            </dd>
-          </div>
-        </dl>
-      </CardContent>
-    </Card>
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>Key statistics</PanelTitle>
+        <PanelMeta>252-day window</PanelMeta>
+      </PanelHeader>
+      <PanelBody>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+          <Stat label="Beta" value={beta?.toFixed(3) ?? "—"} />
+          <Stat
+            label="Risk-free"
+            value={formatReturn(data.risk_free_rate)}
+          />
+          <Stat
+            label="Realised return"
+            value={formatReturn(data.expected_stock_return)}
+          />
+          <Stat
+            label="Market return"
+            value={formatReturn(data.expected_market_return)}
+          />
+        </div>
+      </PanelBody>
+    </Panel>
   )
 }

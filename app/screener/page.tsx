@@ -1,4 +1,3 @@
-import { PageHeader } from "@/components/page-header"
 import { Screener } from "@/components/screener"
 import { loadUniverse } from "@/lib/universe"
 
@@ -6,17 +5,14 @@ export const metadata = {
   title: "Screener",
 }
 
+/**
+ * No page header. The name lives in the context strip, which is on every route
+ * already; the eyebrow-title-paragraph block that used to sit here cost the
+ * top eighth of the window to restate the sidebar, on the one page whose
+ * useful height is entirely rows of table.
+ */
 export default async function ScreenerPage() {
   const { stocks } = await loadUniverse()
 
-  return (
-    <>
-      <PageHeader
-        eyebrow="Step one"
-        title="Screener"
-        description="Every stock in the index valued by five models that decline to answer rather than guess. Opens on a value screen — narrow it further, then hand what survives to the optimiser."
-      />
-      <Screener stocks={stocks} />
-    </>
-  )
+  return <Screener stocks={stocks} />
 }

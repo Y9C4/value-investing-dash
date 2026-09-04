@@ -1,13 +1,8 @@
-import { RiArrowDownSFill, RiArrowUpSFill, RiTimeLine } from "@remixicon/react"
+import { RiArrowDownSFill, RiArrowUpSFill } from "@remixicon/react"
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import { PageLabel } from "@/components/page-label"
 import { formatDataTimestamp } from "@/lib/format"
-import { DATA_SOURCES, type IndexLevel, type JobRun } from "@/lib/universe"
+import { type IndexLevel } from "@/lib/universe"
 import { cn } from "@/lib/utils"
 
 /**
@@ -21,6 +16,16 @@ import { cn } from "@/lib/utils"
  * Each field is independently optional. The sample universe has no index and
  * no rate, and the strip degrades to whatever it can actually assert rather
  * than rendering a row of em dashes.
+ *
+ * It also carries the page's name, which is where the per-page header block
+ * went: the strip is on every route already, and a name in a strip that is
+ * always there beats a name in a header that costs an eighth of the window.
+ *
+ * There was a per-stage breakdown behind the timestamp — when prices,
+ * statements, profiles and factors each last landed. It answered a question
+ * only the person running the ingest has, and this strip is read by someone
+ * deciding whether to trust the table below it. One timestamp answers that.
+ * The stages are still recorded in `job_runs`; nothing was lost but the popover.
  */
 
 function Field({
@@ -50,88 +55,11 @@ function Separator() {
   )
 }
 
-const STATUS_STYLE: Record<JobRun["status"], string> = {
-  succeeded: "text-status-good",
-  // Not an error. The backfills are partial-tolerant by design — a handful of
-  // tickers lost out of 493 still refreshes the table — but it is worth being
-  // able to see that it is happening every night.
-  partial: "text-status-warning",
-  failed: "text-status-critical",
-}
-
-/**
- * Per-stage collection times, behind the stamp they summarise.
- *
- * The strip can only carry one timestamp. This is where the rest lives: which
- * tables were filled when, and whether the run lost anything on the way. A
- * stage that has never run since `job_runs` existed says so rather than being
- * hidden, because "not recorded" and "collected this morning" are very
- * different claims about the numbers below.
- */
-function FreshnessDetail({ freshness }: { freshness: Record<string, JobRun> }) {
-  return (
-    <Popover>
-      <PopoverTrigger
-        openOnHover
-        delay={200}
-        aria-label="When each source was last collected"
-        className="ml-1 size-4 align-middle text-muted-foreground"
-      >
-        <RiTimeLine className="size-3.5" aria-hidden="true" />
-      </PopoverTrigger>
-      <PopoverContent align="start" className="max-w-md gap-3">
-        <PopoverTitle>Data collection</PopoverTitle>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Each stage of the scheduled ingest, and when it last finished. Times
-          are Eastern, which is the market&rsquo;s.
-        </p>
-
-        <dl className="flex flex-col gap-1.5">
-          {DATA_SOURCES.map(({ job, label }) => {
-            const run = freshness[job]
-
-            return (
-              <div
-                key={job}
-                className="flex items-baseline justify-between gap-4 border-b border-border pb-1.5 last:border-b-0"
-              >
-                <dt className="text-xs whitespace-nowrap">{label}</dt>
-                <dd className="flex items-baseline gap-2 text-right">
-                  {run ? (
-                    <>
-                      <span className="font-mono text-xs tabular-figures">
-                        {formatDataTimestamp(run.finishedAt)}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-[0.6875rem] tracking-wider uppercase",
-                          STATUS_STYLE[run.status]
-                        )}
-                      >
-                        {run.status}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      not yet recorded
-                    </span>
-                  )}
-                </dd>
-              </div>
-            )
-          })}
-        </dl>
-      </PopoverContent>
-    </Popover>
-  )
-}
-
 export function MarketContext({
   index,
   riskFreeRate,
   computedAt,
   gatheredAt,
-  freshness,
   isStale,
   universeSize,
   isBaseline,
@@ -141,7 +69,6 @@ export function MarketContext({
   computedAt: string | null
   /** When data was last fetched; see `Universe.gatheredAt`. */
   gatheredAt: string | null
-  freshness: Record<string, JobRun>
   /** Decided by `loadUniverse`; see the note on `Universe.isStale`. */
   isStale: boolean
   universeSize: number
@@ -155,6 +82,13 @@ export function MarketContext({
 
   return (
     <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 border-b border-border bg-card px-6 py-2.5 lg:px-10">
+      {/* First, and set apart from the fields: this names the page rather than
+          reporting a number about the market, so it does not take the
+          label-over-value form the rest of the strip uses. */}
+      <PageLabel />
+
+      <Separator />
+
       {index && (
         <Field label="S&P 500">
           {index.close.toLocaleString("en-US", {
@@ -201,11 +135,8 @@ export function MarketContext({
             illustrative — service unreachable
           </span>
         ) : stamp ? (
-          <span className="inline-flex items-baseline">
-            <span className={cn(isStale && "text-status-warning")}>
-              {formatDataTimestamp(stamp)}
-            </span>
-            <FreshnessDetail freshness={freshness} />
+          <span className={cn(isStale && "text-status-warning")}>
+            {formatDataTimestamp(stamp)}
           </span>
         ) : (
           "live"

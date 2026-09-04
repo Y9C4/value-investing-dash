@@ -63,7 +63,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     riskFreeRate,
     computedAt,
     gatheredAt,
-    freshness,
     isStale,
     stocks,
     isBaseline,
@@ -100,7 +99,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               riskFreeRate={riskFreeRate}
               computedAt={computedAt}
               gatheredAt={gatheredAt}
-              freshness={freshness}
               isStale={isStale}
               universeSize={stocks.length}
               isBaseline={isBaseline}

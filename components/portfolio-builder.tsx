@@ -14,11 +14,14 @@ import {
 import { PortfolioControls } from "@/components/portfolio-controls"
 import { Info } from "@/components/info"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  Panel,
+  PanelBody,
+  PanelHeader,
+  PanelMeta,
+  PanelTitle,
+  Stat,
+  StatStrip,
+} from "@/components/ui/panel"
 import {
   Table,
   TableBody,
@@ -47,27 +50,6 @@ import {
  */
 
 const STAR_POINTS = "5,0 6.2,3.6 10,3.6 6.9,5.9 8.1,9.5 5,7.3 1.9,9.5 3.1,5.9 0,3.6 3.8,3.6"
-
-function StatTile({
-  label,
-  value,
-  hint,
-}: {
-  label: string
-  value: string
-  hint?: string
-}) {
-  return (
-    <div className="flex flex-col gap-1 border border-border bg-card px-5 py-4">
-      <span className="text-xs tracking-wider text-muted-foreground uppercase">
-        {label}
-      </span>
-      {/* Proportional figures: this is a standalone value, not a column. */}
-      <span className="text-2xl font-semibold">{value}</span>
-      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
-    </div>
-  )
-}
 
 function ConstraintRow({
   label,
@@ -190,14 +172,14 @@ export function PortfolioBuilder({
   ]
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full flex-col gap-4">
       {/* A link the screener built against a different index. It cannot be
           decoded back to the set it promised, so the scope silently widens to
           the whole index unless that is said out loud. */}
       {staleSet && (
         <p
           role="status"
-          className="border border-border bg-card px-5 py-3 text-sm"
+          className="border border-border bg-card px-4 py-2.5 text-sm"
         >
           That screener link points at an older version of the index and
           can&rsquo;t be read back. Optimising over the full index — run the
@@ -215,7 +197,7 @@ export function PortfolioBuilder({
       />
 
       {error && (
-        <div className="flex flex-col gap-1 border border-destructive/40 bg-destructive/5 px-5 py-4">
+        <div className="flex flex-col gap-1 border border-destructive/40 bg-destructive/5 px-4 py-3">
           <span className="text-xs font-semibold tracking-widest text-destructive uppercase">
             Not optimised
           </span>
@@ -230,8 +212,12 @@ export function PortfolioBuilder({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatTile
+      {/* One strip, hairline-divided, rather than six bordered tiles: six
+          boxes is six borders saying nothing, and this is the row a reader
+          scans left to right. */}
+      <StatStrip>
+        <Stat
+          size="lead"
           label="Sharpe"
           value={tangency.sharpe.toFixed(2)}
           hint={
@@ -240,22 +226,22 @@ export function PortfolioBuilder({
               : "Negative — nothing beat cash"
           }
         />
-        <StatTile
+        <Stat
           label="Expected return"
           value={formatPercent(tangency.return)}
           hint="Annualised, from the 2y window"
         />
-        <StatTile
+        <Stat
           label="Volatility"
           value={formatPercent(tangency.volatility)}
           hint="Annualised standard deviation"
         />
-        <StatTile
+        <Stat
           label="Effective holdings"
           value={effective.toFixed(1)}
           hint={`Of ${heldCount} names held`}
         />
-        <StatTile
+        <Stat
           label="Largest position"
           value={formatPercent(largest)}
           hint={
@@ -264,12 +250,12 @@ export function PortfolioBuilder({
               : undefined
           }
         />
-        <StatTile
+        <Stat
           label="Risk-free rate"
           value={formatPercent(data.risk_free_rate)}
           hint="US 13-week treasury, annualised"
         />
-      </div>
+      </StatStrip>
 
       <FrontierChart
         data={data}
@@ -284,22 +270,23 @@ export function PortfolioBuilder({
         }}
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <SharpeCurve data={data} isBaseline={isBaseline} />
 
-        <Card>
-          <CardHeader>
-            <span className="flex items-center gap-1.5">
-              <CardTitle>Anchor portfolios</CardTitle>
+        <Panel>
+          <PanelHeader>
+            <PanelTitle>
+              Anchor portfolios
               <Info title="The two anchors" side="bottom">
                 Both are read off the same solved frontier. Min volatility is
                 its left-hand end; max Sharpe is the point the capital market
                 line is tangent to. Everything else on this page describes the
                 max-Sharpe portfolio.
               </Info>
-            </span>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+            </PanelTitle>
+            <PanelMeta>Read off the same frontier</PanelMeta>
+          </PanelHeader>
+          <PanelBody className="px-0 py-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -368,33 +355,34 @@ export function PortfolioBuilder({
                 </TableRow>
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </PanelBody>
+        </Panel>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {Object.keys(sectors).length > 0 ? (
           <SectorExposure portfolio={tangency} sectors={sectors} />
         ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Sector exposure</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Panel>
+            <PanelHeader>
+              <PanelTitle>Sector exposure</PanelTitle>
+            </PanelHeader>
+            <PanelBody>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {isBaseline
                   ? "Run a live optimisation to see how the weights fall across sectors."
                   : "No sector labels were available for these holdings, so the breakdown is omitted rather than shown half-filled."}
               </p>
-            </CardContent>
-          </Card>
+            </PanelBody>
+          </Panel>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Constraints applied</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+        <Panel>
+          <PanelHeader>
+            <PanelTitle>Constraints applied</PanelTitle>
+            <PanelMeta>What the solver was given</PanelMeta>
+          </PanelHeader>
+          <PanelBody className="flex flex-col gap-3">
             <div className="flex flex-col">
               <ConstraintRow
                 label="Universe"
@@ -477,8 +465,8 @@ export function PortfolioBuilder({
                 optimisation to apply the settings above.
               </p>
             )}
-          </CardContent>
-        </Card>
+          </PanelBody>
+        </Panel>
       </div>
 
       <HoldingsBreakdown

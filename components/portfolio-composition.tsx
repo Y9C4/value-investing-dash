@@ -11,11 +11,12 @@ import {
 
 import { Info } from "@/components/info"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  Panel,
+  PanelBody,
+  PanelHeader,
+  PanelMeta,
+  PanelTitle,
+} from "@/components/ui/panel"
 import {
   ChartConfig,
   ChartContainer,
@@ -113,14 +114,14 @@ export function HoldingsBreakdown({
   )
 
   return (
-    <Card>
-      <CardHeader className="flex flex-wrap items-baseline justify-between gap-2">
-        <CardTitle>{title}</CardTitle>
-        <span className="text-xs tracking-wider text-muted-foreground uppercase">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>{title}</PanelTitle>
+        <PanelMeta>
           {rows.length} {rows.length === 1 ? "holding" : "holdings"}
-        </span>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
+        </PanelMeta>
+      </PanelHeader>
+      <PanelBody className="flex flex-col gap-5">
         <ChartContainer
           config={holdingsConfig}
           className="aspect-auto w-full"
@@ -274,8 +275,8 @@ export function HoldingsBreakdown({
             </TableBody>
           </Table>
         </div>
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   )
 }
 
@@ -304,22 +305,22 @@ export function SectorExposure({
   const axis = nicePercentAxis(data.map((row) => row.weight))
 
   return (
-    <Card>
-      <CardHeader className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="flex items-center gap-1.5">
-          <CardTitle>Sector exposure</CardTitle>
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>
+          Sector exposure
           <Info title="Sector exposure" side="bottom">
             Mean-variance optimisation has no notion of a sector &mdash; it will
             happily concentrate one if the covariance matrix says those names
             diversify each other. This chart is the check on that, not a
             constraint the solver was given.
           </Info>
-        </span>
-        <span className="text-xs tracking-wider text-muted-foreground uppercase">
+        </PanelTitle>
+        <PanelMeta>
           {data.length} sectors
-        </span>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+        </PanelMeta>
+      </PanelHeader>
+      <PanelBody className="flex flex-col gap-4">
         <ChartContainer
           config={sectorConfig}
           className="aspect-auto w-full"
@@ -402,7 +403,7 @@ export function SectorExposure({
             </>
           )}
         </p>
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   )
 }

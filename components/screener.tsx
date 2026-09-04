@@ -18,6 +18,7 @@ import {
   VALUATION_METHODS,
   applyFilters,
   consensusMarginOfSafety,
+  isDefaultBandSelection,
   isRated,
   valuationBand,
   type MethodId,
@@ -48,12 +49,18 @@ const BANDS: ValuationBand[] = [
  */
 const RAIL_BREAKPOINT = 1700
 
-/** How many facets are away from their defaults, for the toolbar button. */
+/**
+ * How many facets are away from their defaults, for the toolbar button.
+ *
+ * Counted against `DEFAULT_FILTERS` rather than against emptiness, because the
+ * screen now opens on two ticked bands: a raw count would report the opening
+ * state as two active filters and never fall to zero.
+ */
 function activeFilterCount(filters: ScreenerFilters): number {
   let count = 0
   if (filters.search.trim()) count += 1
   count += filters.sectors.length
-  count += filters.bands.length
+  if (!isDefaultBandSelection(filters.bands)) count += 1
   count += filters.methods.length
   if (
     filters.marginRange[0] !== DEFAULT_FILTERS.marginRange[0] ||
@@ -119,23 +126,61 @@ function downloadCsv(stocks: Stock[], methods: MethodId[]) {
   URL.revokeObjectURL(url)
 }
 
+/** How many stocks fall in each band, under the current model selection. */
+function countBands(
+  stocks: Stock[],
+  methods: MethodId[]
+): Record<ValuationBand, number> {
+  const base = {
+    "deep-value": 0,
+    undervalued: 0,
+    fair: 0,
+    overvalued: 0,
+    expensive: 0,
+    unrated: 0,
+  } as Record<ValuationBand, number>
+
+  for (const stock of stocks) {
+    base[
+      isRated(stock, methods)
+        ? valuationBand(consensusMarginOfSafety(stock, methods))
+        : "unrated"
+    ] += 1
+  }
+
+  return base
+}
+
 /**
- * Distribution of the current result set across the five bands — the
- * screener's "shape of the market" readout, as a stacked bar rather than five
- * numbers, so an over-tight filter is visible at a glance.
+ * The shape of the index across the five bands.
+ *
+ * THE BAR IS THE WHOLE UNIVERSE, NOT THE RESULT SET, and that is the fix for a
+ * real misreading. It used to be sized by the filtered rows, so a default that
+ * keeps the cheap two bands drew a bar with three bands missing — which says
+ * "this data does not exist" far more loudly than it says "you filtered it
+ * out". The market's shape does not change when a checkbox moves, so the bar
+ * does not either.
+ *
+ * No counts. The legend names the colours and the bar carries the proportions,
+ * which is the whole of what a distribution readout owes a reader; the exact
+ * figures live in the toolbar's own "N of M stocks" and in the rail's match
+ * count, and repeating them here made a strip of numbers out of a picture.
  *
  * One strip rather than the card this used to be. It sits directly above a
  * table whose useful height is whatever the window has left, so every pixel it
- * takes is a row that cannot be read without scrolling — and a legend, a bar
- * and a heading do not need three stacked lines to be legible.
+ * takes is a row that cannot be read without scrolling.
  */
 function BandDistribution({
-  counts,
-  total,
+  universeCounts,
 }: {
-  counts: Record<ValuationBand, number>
-  total: number
+  /** Every stock in the universe, by band. Sizes the bar. */
+  universeCounts: Record<ValuationBand, number>
 }) {
+  const universeTotal = BANDS.reduce(
+    (sum, band) => sum + universeCounts[band],
+    0
+  )
+
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border border-border bg-card px-4 py-2">
       <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
@@ -145,10 +190,11 @@ function BandDistribution({
       <div
         className="flex h-2.5 min-w-48 flex-1 gap-px"
         role="img"
-        aria-hidden="true"
+        aria-label={`Valuation bands across all ${universeTotal} stocks in the index`}
       >
         {BANDS.map((band) => {
-          const share = total === 0 ? 0 : counts[band] / total
+          const share =
+            universeTotal === 0 ? 0 : universeCounts[band] / universeTotal
           if (share === 0) return null
 
           return (
@@ -164,21 +210,20 @@ function BandDistribution({
         })}
       </div>
 
-      <dl className="flex flex-wrap items-center gap-x-4 gap-y-1">
+      <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {BANDS.map((band) => (
-          <div key={band} className="flex items-center gap-1.5">
+          <li key={band} className="flex items-center gap-1.5">
             <span
               className="size-2 shrink-0"
               style={{ background: BAND_FILL[band] }}
               aria-hidden="true"
             />
-            <dt className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {BAND_LABELS[band]}
-            </dt>
-            <dd className="font-mono text-xs">{counts[band]}</dd>
-          </div>
+            </span>
+          </li>
         ))}
-      </dl>
+      </ul>
     </div>
   )
 }
@@ -267,26 +312,13 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
     })
   }, [filtered, sort, direction, filters.methods])
 
-  const counts = useMemo(() => {
-    const base = {
-      "deep-value": 0,
-      undervalued: 0,
-      fair: 0,
-      overvalued: 0,
-      expensive: 0,
-      unrated: 0,
-    } as Record<ValuationBand, number>
-
-    for (const stock of filtered) {
-      base[
-        isRated(stock, filters.methods)
-          ? valuationBand(consensusMarginOfSafety(stock, filters.methods))
-          : "unrated"
-      ] += 1
-    }
-
-    return base
-  }, [filtered, filters.methods])
+  // Over the whole universe, not the filtered rows: this sizes the bar, and
+  // the bar describes the index. Still keyed on the model selection, since
+  // narrowing the models re-answers every stock's band.
+  const universeCounts = useMemo(
+    () => countBands(stocks, filters.methods),
+    [stocks, filters.methods]
+  )
 
   function handleSort(key: SortKey) {
     if (key === sort) {
@@ -360,7 +392,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
         </div>
 
         <div className="flex min-w-0 flex-col gap-3">
-          <BandDistribution counts={counts} total={filtered.length} />
+          <BandDistribution universeCounts={universeCounts} />
 
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
             <div className="flex flex-wrap items-center gap-3">
@@ -424,7 +456,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
                     />
                   }
                 >
-                  Optimise all {filtered.length} matches
+                  Optimise all {filtered.length} into a portfolio
                   <RiArrowRightLine />
                 </Button>
               )}
@@ -435,7 +467,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
                   nativeButton={false}
                   render={<Link href={portfolioHref(selected)} />}
                 >
-                  Optimise {selected.length} selected
+                  Optimise {selected.length} selected into a portfolio
                   <RiArrowRightLine />
                 </Button>
               )}

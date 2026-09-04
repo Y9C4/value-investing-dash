@@ -68,6 +68,18 @@ export function nicePercentAxis(
  * Without the explicit "+" a reader has to scan for minus signs to notice that
  * some rows are on the other side of zero.
  */
+/**
+ * A signed percentage for returns and weights: two decimals, and a minus sign
+ * only where there is something to subtract.
+ *
+ * NOT for margins of safety. `valuation-scale.tsx` exports a function of the
+ * same name that prints one decimal and an explicit `+`, because on a margin
+ * the sign IS the reading — cheap or expensive — and a bare `65.8%` beside a
+ * `−25.4%` reads as a magnitude rather than a direction. The two names
+ * colliding is a trap: importing the wrong one puts two spellings of the same
+ * quantity on adjacent panels, which is exactly how this note came to be
+ * written.
+ */
 export function formatSignedPercent(value: number) {
   const formatted = formatPercent(Math.abs(value))
   return value < 0 ? `−${formatted}` : formatted
