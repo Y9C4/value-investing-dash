@@ -1,0 +1,398 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - complementary [ref=f4e3]:
+      - link "Margin" [ref=f4e4] [cursor=pointer]:
+        - /url: /screener
+      - navigation [ref=f4e8]:
+        - link "Screener Filter the universe" [ref=f4e9] [cursor=pointer]:
+          - /url: /screener
+          - generic [ref=f4e12]:
+            - generic [ref=f4e13]: Screener
+            - generic [ref=f4e14]: Filter the universe
+        - link "Analysis Value one stock" [ref=f4e15] [cursor=pointer]:
+          - /url: /stocks
+          - generic [ref=f4e18]:
+            - generic [ref=f4e19]: Analysis
+            - generic [ref=f4e20]: Value one stock
+        - link "Portfolio Optimise the survivors" [ref=f4e21] [cursor=pointer]:
+          - /url: /portfolio
+          - generic [ref=f4e24]:
+            - generic [ref=f4e25]: Portfolio
+            - generic [ref=f4e26]: Optimise the survivors
+      - generic [ref=f4e27]:
+        - button "How this works" [ref=f4e28]
+        - generic [ref=f4e29]:
+          - button "Toggle dark mode" [ref=f4e30]
+          - link "Data" [ref=f4e31] [cursor=pointer]:
+            - /url: /data
+    - main [ref=f4e32]:
+      - generic [ref=f4e34]:
+        - heading "Portfolio" [level=1] [ref=f4e35]
+        - generic [aria-hidden] [ref=f4e36]: /
+        - generic [ref=f4e37]:
+          - generic [ref=f4e38]: S&P 500
+          - generic [ref=f4e39]:
+            - text: 7,718.60
+            - generic [ref=f4e40]: 0.38%
+        - generic [aria-hidden] [ref=f4e43]: /
+        - generic [ref=f4e44]:
+          - generic [ref=f4e45]: 13W T-bill
+          - generic [ref=f4e46]: 3.69%
+        - generic [aria-hidden] [ref=f4e47]: /
+        - generic [ref=f4e48]:
+          - generic [ref=f4e49]: Universe
+          - generic [ref=f4e50]: 495 stocks
+        - generic [aria-hidden] [ref=f4e51]: /
+        - generic [ref=f4e52]:
+          - generic [ref=f4e53]: Collected
+          - generic [ref=f4e54]: SEP 05, 2026 · 03:38 EDT
+        - generic [ref=f4e55]:
+          - generic [ref=f4e56]: Source
+          - generic [ref=f4e57]: yfinance
+      - generic [ref=f4e59]:
+        - generic [ref=f4e60]:
+          - generic [ref=f4e61]:
+            - generic [ref=f4e62]:
+              - generic [ref=f4e63]: Optimiser
+              - button "Reset" [ref=f4e64]
+            - paragraph [ref=f4e66]:
+              - generic [ref=f4e67]: All
+              - generic [ref=f4e68]: stocks in the index
+            - generic [ref=f4e69]:
+              - generic [ref=f4e70]: Position size
+              - generic [ref=f4e71]:
+                - generic [ref=f4e72]:
+                  - generic [ref=f4e73]:
+                    - text: Minimum
+                    - generic [ref=f4e74]: auto
+                  - generic [ref=f4e75]:
+                    - spinbutton "Minimum auto" [ref=f4e76]
+                    - generic [ref=f4e77]: "%"
+                - generic [ref=f4e78]:
+                  - generic [ref=f4e79]:
+                    - text: Maximum
+                    - generic [ref=f4e80]: auto
+                  - generic [ref=f4e81]:
+                    - spinbutton "Maximum auto" [ref=f4e82]
+                    - generic [ref=f4e83]: "%"
+              - switch "Allow short selling" [ref=f4e84]
+            - generic [ref=f4e88]:
+              - generic [ref=f4e89]: Diversification
+              - generic [ref=f4e90]:
+                - generic [ref=f4e91]:
+                  - generic [ref=f4e92]: L2 penalty
+                  - generic [ref=f4e93]: "0.00"
+                - slider "L2 penalty 0.00" [ref=f4e94]: "0"
+                - generic [ref=f4e95]:
+                  - generic [ref=f4e96]: "0"
+                  - generic [ref=f4e97]: "5"
+            - generic [ref=f4e98]:
+              - generic [ref=f4e99]: Resolution
+              - generic [ref=f4e100]:
+                - generic [ref=f4e101]:
+                  - generic [ref=f4e102]: Frontier points
+                  - generic [ref=f4e103]: "4"
+                - slider "Frontier points 4" [ref=f4e104]: "4"
+                - generic [ref=f4e105]:
+                  - generic [ref=f4e106]: "2"
+                  - generic [ref=f4e107]: "200"
+          - generic [ref=f4e108]:
+            - generic [ref=f4e109]:
+              - heading "Solved with" [level=2] [ref=f4e110]
+              - generic [ref=f4e111]: Baseline
+            - generic [ref=f4e113]:
+              - generic [ref=f4e115]:
+                - generic [ref=f4e116]: Universe
+                - generic [ref=f4e117]: —
+              - generic [ref=f4e119]:
+                - generic [ref=f4e120]: Shorting
+                - generic [ref=f4e121]: None
+              - generic [ref=f4e123]:
+                - generic [ref=f4e124]: L2 penalty (γ)
+                - generic [ref=f4e125]: "0.00"
+              - generic [ref=f4e127]:
+                - generic [ref=f4e128]: Frontier points
+                - generic [ref=f4e129]: "60"
+        - generic [ref=f4e130]:
+          - generic [ref=f4e131]:
+            - generic [ref=f4e132]:
+              - button "Settings" [ref=f4e133]
+              - generic [ref=f4e134]: Full index · illustrative baseline
+            - generic [ref=f4e135]:
+              - button "Export" [ref=f4e136]
+              - button "Run optimisation" [ref=f4e137]
+          - generic [ref=f4e138]:
+            - heading "Max Sharpe portfolio" [level=2] [ref=f4e139]
+            - generic [ref=f4e140]: 30 positions
+          - generic [ref=f4e141]:
+            - generic [ref=f4e142]:
+              - generic [ref=f4e143]: Sharpe
+              - generic [ref=f4e144]: "0.92"
+            - generic [ref=f4e145]:
+              - generic [ref=f4e146]: Expected return
+              - generic [ref=f4e147]: 15.68%
+              - generic [ref=f4e148]: Annualised
+            - generic [ref=f4e149]:
+              - generic [ref=f4e150]: Volatility
+              - generic [ref=f4e151]: 12.44%
+              - generic [ref=f4e152]: Annualised
+            - generic [ref=f4e153]:
+              - generic [ref=f4e154]: Effective holdings
+              - generic [ref=f4e155]: "23.7"
+              - generic [ref=f4e156]: Of 30 held
+            - generic [ref=f4e157]:
+              - generic [ref=f4e158]: Largest position
+              - generic [ref=f4e159]: 7.82%
+            - generic [ref=f4e160]:
+              - generic [ref=f4e161]: Risk-free rate
+              - generic [ref=f4e162]: 4.21%
+              - generic [ref=f4e163]: 13-week T-bill
+          - generic [ref=f4e164]:
+            - generic [ref=f4e165]:
+              - heading "Efficient frontier" [level=2] [ref=f4e166]
+              - generic [ref=f4e167]: Illustrative baseline
+            - generic [ref=f4e172]:
+              - generic [ref=f4e173]: Efficient frontier
+              - generic [ref=f4e175]: Capital market line
+              - generic [ref=f4e177]: Max Sharpe
+              - generic [ref=f4e180]: Min volatility
+          - generic [ref=f4e183]:
+            - generic [ref=f4e184]:
+              - heading "Anchor portfolios" [level=2] [ref=f4e185]
+              - generic [ref=f4e186]: The two ends of the curve
+            - table [ref=f4e189]:
+              - rowgroup [ref=f4e190]:
+                - row [ref=f4e191]:
+                  - columnheader "Portfolio" [ref=f4e192]
+                  - columnheader "Return" [ref=f4e193]
+                  - columnheader "Volatility" [ref=f4e194]
+                  - columnheader "Sharpe" [ref=f4e195]
+                  - columnheader "Eff. names" [ref=f4e196]
+              - rowgroup [ref=f4e197]:
+                - row [ref=f4e198]:
+                  - cell "Max Sharpe" [ref=f4e199]
+                  - cell "15.68%" [ref=f4e203]
+                  - cell "12.44%" [ref=f4e204]
+                  - cell "0.92" [ref=f4e205]
+                  - cell "23.7" [ref=f4e206]
+                - row [ref=f4e207]:
+                  - cell "Min volatility" [ref=f4e208]
+                  - cell "9.94%" [ref=f4e212]
+                  - cell "8.79%" [ref=f4e213]
+                  - cell "0.65" [ref=f4e214]
+                  - cell "23.7" [ref=f4e215]
+                - row [ref=f4e216]:
+                  - cell "Risk-free rate" [ref=f4e217]
+                  - cell "4.21%" [ref=f4e218]
+                  - cell [ref=f4e219]
+                  - cell [ref=f4e220]
+                  - cell [ref=f4e221]
+          - generic [ref=f4e222]:
+            - generic [ref=f4e223]:
+              - generic [ref=f4e224]:
+                - generic [ref=f4e225]:
+                  - heading "Sharpe along the frontier" [level=2] [ref=f4e226]
+                  - generic [ref=f4e227]: Peak 0.92 at 12.33%
+                - generic [ref=f4e228]: Max Sharpe · illustrative baseline
+              - generic [ref=f4e235]:
+                - heading "Sector exposure" [level=2] [ref=f4e237]
+                - paragraph [ref=f4e239]: Run the optimisation to see the sector split.
+            - generic [ref=f4e241]:
+              - generic [ref=f4e242]:
+                - heading "Weight against risk" [level=2] [ref=f4e243]
+                - generic [ref=f4e244]: Max Sharpe · top 10 of 30
+              - generic [ref=f4e249]:
+                - generic [ref=f4e250]: Risk shares arrive with a live solve.
+                - generic [ref=f4e251]: Remaining 20 in the ledger · 45.89%
+          - generic [ref=f4e252]:
+            - generic [ref=f4e253]:
+              - heading "Holdings ledger" [level=2] [ref=f4e254]
+              - generic [ref=f4e255]: Max Sharpe · 30 positions
+            - table [ref=f4e258]:
+              - rowgroup [ref=f4e259]:
+                - row [ref=f4e260]:
+                  - columnheader "Ticker" [ref=f4e261]
+                  - columnheader "Sector" [ref=f4e262]
+                  - columnheader "Weight" [ref=f4e263]
+              - rowgroup [ref=f4e264]:
+                - row [ref=f4e265]:
+                  - cell [ref=f4e266]:
+                    - link "BRK.B" [ref=f4e267] [cursor=pointer]:
+                      - /url: /stocks/BRK.B
+                  - cell "—" [ref=f4e268]
+                  - cell "7.82%" [ref=f4e269]
+                - row [ref=f4e274]:
+                  - cell [ref=f4e275]:
+                    - link "MSFT" [ref=f4e276] [cursor=pointer]:
+                      - /url: /stocks/MSFT
+                  - cell "—" [ref=f4e277]
+                  - cell "6.58%" [ref=f4e278]
+                - row [ref=f4e283]:
+                  - cell [ref=f4e284]:
+                    - link "JNJ" [ref=f4e285] [cursor=pointer]:
+                      - /url: /stocks/JNJ
+                  - cell "—" [ref=f4e286]
+                  - cell "6.33%" [ref=f4e287]
+                - row [ref=f4e292]:
+                  - cell [ref=f4e293]:
+                    - link "PG" [ref=f4e294] [cursor=pointer]:
+                      - /url: /stocks/PG
+                  - cell "—" [ref=f4e295]
+                  - cell "5.79%" [ref=f4e296]
+                - row [ref=f4e301]:
+                  - cell [ref=f4e302]:
+                    - link "AAPL" [ref=f4e303] [cursor=pointer]:
+                      - /url: /stocks/AAPL
+                  - cell "—" [ref=f4e304]
+                  - cell "5.34%" [ref=f4e305]
+                - row [ref=f4e310]:
+                  - cell [ref=f4e311]:
+                    - link "XOM" [ref=f4e312] [cursor=pointer]:
+                      - /url: /stocks/XOM
+                  - cell "—" [ref=f4e313]
+                  - cell "5.00%" [ref=f4e314]
+                - row [ref=f4e319]:
+                  - cell [ref=f4e320]:
+                    - link "JPM" [ref=f4e321] [cursor=pointer]:
+                      - /url: /stocks/JPM
+                  - cell "—" [ref=f4e322]
+                  - cell "4.69%" [ref=f4e323]
+                - row [ref=f4e328]:
+                  - cell [ref=f4e329]:
+                    - link "UNH" [ref=f4e330] [cursor=pointer]:
+                      - /url: /stocks/UNH
+                  - cell "—" [ref=f4e331]
+                  - cell "4.42%" [ref=f4e332]
+                - row [ref=f4e337]:
+                  - cell [ref=f4e338]:
+                    - link "NVDA" [ref=f4e339] [cursor=pointer]:
+                      - /url: /stocks/NVDA
+                  - cell "—" [ref=f4e340]
+                  - cell "4.29%" [ref=f4e341]
+                - row [ref=f4e346]:
+                  - cell [ref=f4e347]:
+                    - link "V" [ref=f4e348] [cursor=pointer]:
+                      - /url: /stocks/V
+                  - cell "—" [ref=f4e349]
+                  - cell "3.86%" [ref=f4e350]
+                - row [ref=f4e355]:
+                  - cell [ref=f4e356]:
+                    - link "HD" [ref=f4e357] [cursor=pointer]:
+                      - /url: /stocks/HD
+                  - cell "—" [ref=f4e358]
+                  - cell "3.51%" [ref=f4e359]
+                - row [ref=f4e364]:
+                  - cell [ref=f4e365]:
+                    - link "MRK" [ref=f4e366] [cursor=pointer]:
+                      - /url: /stocks/MRK
+                  - cell "—" [ref=f4e367]
+                  - cell "3.42%" [ref=f4e368]
+                - row [ref=f4e373]:
+                  - cell [ref=f4e374]:
+                    - link "KO" [ref=f4e375] [cursor=pointer]:
+                      - /url: /stocks/KO
+                  - cell "—" [ref=f4e376]
+                  - cell "3.28%" [ref=f4e377]
+                - row [ref=f4e382]:
+                  - cell [ref=f4e383]:
+                    - link "PEP" [ref=f4e384] [cursor=pointer]:
+                      - /url: /stocks/PEP
+                  - cell "—" [ref=f4e385]
+                  - cell "3.12%" [ref=f4e386]
+                - row [ref=f4e391]:
+                  - cell [ref=f4e392]:
+                    - link "ABBV" [ref=f4e393] [cursor=pointer]:
+                      - /url: /stocks/ABBV
+                  - cell "—" [ref=f4e394]
+                  - cell "2.97%" [ref=f4e395]
+                - row [ref=f4e400]:
+                  - cell [ref=f4e401]:
+                    - link "CVX" [ref=f4e402] [cursor=pointer]:
+                      - /url: /stocks/CVX
+                  - cell "—" [ref=f4e403]
+                  - cell "2.82%" [ref=f4e404]
+                - row [ref=f4e409]:
+                  - cell [ref=f4e410]:
+                    - link "LLY" [ref=f4e411] [cursor=pointer]:
+                      - /url: /stocks/LLY
+                  - cell "—" [ref=f4e412]
+                  - cell "2.67%" [ref=f4e413]
+                - row [ref=f4e418]:
+                  - cell [ref=f4e419]:
+                    - link "COST" [ref=f4e420] [cursor=pointer]:
+                      - /url: /stocks/COST
+                  - cell "—" [ref=f4e421]
+                  - cell "2.55%" [ref=f4e422]
+                - row [ref=f4e427]:
+                  - cell [ref=f4e428]:
+                    - link "WMT" [ref=f4e429] [cursor=pointer]:
+                      - /url: /stocks/WMT
+                  - cell "—" [ref=f4e430]
+                  - cell "2.45%" [ref=f4e431]
+                - row [ref=f4e436]:
+                  - cell [ref=f4e437]:
+                    - link "MCD" [ref=f4e438] [cursor=pointer]:
+                      - /url: /stocks/MCD
+                  - cell "—" [ref=f4e439]
+                  - cell "2.28%" [ref=f4e440]
+                - row [ref=f4e445]:
+                  - cell [ref=f4e446]:
+                    - link "CSCO" [ref=f4e447] [cursor=pointer]:
+                      - /url: /stocks/CSCO
+                  - cell "—" [ref=f4e448]
+                  - cell "2.12%" [ref=f4e449]
+                - row [ref=f4e454]:
+                  - cell [ref=f4e455]:
+                    - link "ACN" [ref=f4e456] [cursor=pointer]:
+                      - /url: /stocks/ACN
+                  - cell "—" [ref=f4e457]
+                  - cell "1.97%" [ref=f4e458]
+                - row [ref=f4e463]:
+                  - cell [ref=f4e464]:
+                    - link "TMO" [ref=f4e465] [cursor=pointer]:
+                      - /url: /stocks/TMO
+                  - cell "—" [ref=f4e466]
+                  - cell "1.92%" [ref=f4e467]
+                - row [ref=f4e472]:
+                  - cell [ref=f4e473]:
+                    - link "ADBE" [ref=f4e474] [cursor=pointer]:
+                      - /url: /stocks/ADBE
+                  - cell "—" [ref=f4e475]
+                  - cell "1.83%" [ref=f4e476]
+                - row [ref=f4e481]:
+                  - cell [ref=f4e482]:
+                    - link "LIN" [ref=f4e483] [cursor=pointer]:
+                      - /url: /stocks/LIN
+                  - cell "—" [ref=f4e484]
+                  - cell "1.72%" [ref=f4e485]
+                - row [ref=f4e490]:
+                  - cell [ref=f4e491]:
+                    - link "DHR" [ref=f4e492] [cursor=pointer]:
+                      - /url: /stocks/DHR
+                  - cell "—" [ref=f4e493]
+                  - cell "1.65%" [ref=f4e494]
+                - row [ref=f4e499]:
+                  - cell [ref=f4e500]:
+                    - link "VZ" [ref=f4e501] [cursor=pointer]:
+                      - /url: /stocks/VZ
+                  - cell "—" [ref=f4e502]
+                  - cell "1.54%" [ref=f4e503]
+                - row [ref=f4e508]:
+                  - cell [ref=f4e509]:
+                    - link "CMCSA" [ref=f4e510] [cursor=pointer]:
+                      - /url: /stocks/CMCSA
+                  - cell "—" [ref=f4e511]
+                  - cell "1.45%" [ref=f4e512]
+                - row [ref=f4e517]:
+                  - cell [ref=f4e518]:
+                    - link "PM" [ref=f4e519] [cursor=pointer]:
+                      - /url: /stocks/PM
+                  - cell "—" [ref=f4e520]
+                  - cell "1.35%" [ref=f4e521]
+                - row [ref=f4e526]:
+                  - cell [ref=f4e527]:
+                    - link "NEE" [ref=f4e528] [cursor=pointer]:
+                      - /url: /stocks/NEE
+                  - cell "—" [ref=f4e529]
+                  - cell "1.27%" [ref=f4e530]
+  - button "Open Next.js Dev Tools" [ref=f4e540] [cursor=pointer]

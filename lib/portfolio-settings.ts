@@ -18,15 +18,15 @@ export const MAX_PORTFOLIOS = 200
 // Must equal ENVELOPE_POINTS in api/frontier.py. The cache key is built from
 // the resolved point count, so a default here that differs from the one the
 // nightly precompute stored means every default visit misses the snapshot and
-// pays a real solve. Measured on Cloud Run before this was aligned: 64.7s for
-// a live 8-point solve, against a snapshot read for the same curve.
+// pays a real solve.
 //
-// Four is the floor, because a request for N returns N-1 points over the full
-// index: the maximum-return target is infeasible under the weight cap. At 3
-// the envelope is two points, a straight chord rather than a curve, and the
-// tangency comes back at Sharpe 2.8014 against 2.9478 from 4 upwards. See the
-// measured table beside ENVELOPE_POINTS in api/frontier.py.
-export const DEFAULT_PORTFOLIOS = 4
+// Ten, not four: the tangency Sharpe itself converges by 3-4 points (see the
+// measured table beside ENVELOPE_POINTS in api/frontier.py), but a curve drawn
+// through only 3-4 solved points reads as a few straight segments rather than
+// a frontier, and every solved point now carries its own marker on the chart.
+// Ten is still comfortably inside the point budget for any screened set and
+// looks like a curve rather than a polyline.
+export const DEFAULT_PORTFOLIOS = 10
 export const MAX_GAMMA = 5
 
 export type PortfolioSettings = {

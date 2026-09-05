@@ -10,6 +10,7 @@ import {
 
 import {
   FrontierChart,
+  LegendDot,
   SharpeCurve,
   hasTangency,
 } from "@/components/efficient-frontier"
@@ -41,7 +42,7 @@ import {
   BASELINE_FRONTIER,
   type FrontierResponse,
 } from "@/lib/baseline-frontier"
-import { formatPercent, formatSignedPercent } from "@/lib/format"
+import { formatPercent } from "@/lib/format"
 import {
   readSolve,
   scopeKey,
@@ -85,9 +86,6 @@ import { cn } from "@/lib/utils"
  */
 const RAIL_BREAKPOINT = 1280
 
-const STAR_POINTS =
-  "5,0 6.2,3.6 10,3.6 6.9,5.9 8.1,9.5 5,7.3 1.9,9.5 3.1,5.9 0,3.6 3.8,3.6"
-
 function ConstraintRow({
   label,
   value,
@@ -95,10 +93,11 @@ function ConstraintRow({
 }: {
   label: string
   value: string
+  /** Reserved for a value the reader did not ask for and would misread. */
   note?: string
 }) {
   return (
-    <div className="flex flex-col gap-0.5 border-b border-border py-2 last:border-b-0">
+    <div className="flex flex-col gap-0.5 border-b border-border py-1.5 last:border-b-0">
       <div className="flex items-baseline justify-between gap-4">
         <span className="text-sm text-muted-foreground">{label}</span>
         <span className="font-mono text-sm tabular-nums">{value}</span>
@@ -115,92 +114,56 @@ function ConstraintRow({
 /**
  * What the solver was actually given, beside the dials that asked for it.
  *
- * This lives in the rail rather than with the results because it is not a
- * result: it is the settings above it as the service resolved them, and the
- * two disagree often enough to be worth reading against each other. A 3% cap
- * comes back widened when the screened set is too small to spread it; a
- * 200-point request comes back at 24 because the service budgets points x
- * assets. Put anywhere else on the page, that reads as trivia. Put directly
- * under the control that was overridden, it reads as an answer.
+ * Every row here used to carry a sentence explaining itself, and the position
+ * bounds were stated here rather than on the controls that set them — so the
+ * reader who left "auto" in the box had to look somewhere else to find out
+ * what auto had resolved to. The bounds now print as the placeholders of their
+ * own fields, and what is left is a plain ledger of the solve.
+ *
+ * A note survives only where the service answered a different question from
+ * the one asked: a capped resolution, a name dropped for short history.
  */
 function ConstraintsPanel({
   data,
   tickers,
-  settings,
   isBaseline,
-  shortSide,
 }: {
   data: FrontierResponse
   tickers: string[]
-  settings: PortfolioSettings
   isBaseline: boolean
-  /** Holdings the solve took short, for the minimum-position note. */
-  shortSide: number[]
 }) {
   return (
     <Panel>
       <PanelHeader>
-        <PanelTitle>Constraints applied</PanelTitle>
-        <PanelMeta>What the solver was given</PanelMeta>
+        <PanelTitle>Solved with</PanelTitle>
+        {isBaseline && <PanelMeta>Baseline</PanelMeta>}
       </PanelHeader>
       <PanelBody className="flex flex-col gap-3 py-1">
         <div className="flex flex-col">
           <ConstraintRow
             label="Universe"
             value={
-              typeof data.n_assets === "number" ? String(data.n_assets) : "—"
-            }
-            note={
-              tickers.length > 0
-                ? `${tickers.length} handed over by the screener`
-                : "The full index"
-            }
-          />
-          <ConstraintRow
-            label="Maximum position"
-            value={
-              typeof data.max_stock_weight === "number"
-                ? formatPercent(data.max_stock_weight)
-                : "—"
-            }
-            note={
-              typeof data.max_stock_weight === "number" &&
-              data.max_stock_weight > 0.0301 &&
-              typeof data.n_assets === "number" &&
-              settings.maxWeight.trim() === ""
-                ? `Widened from the usual 3%: that cap cannot be spread across ${data.n_assets} stocks and still sum to 100%`
-                : undefined
+              typeof data.n_assets === "number"
+                ? String(data.n_assets)
+                : tickers.length > 0
+                  ? String(tickers.length)
+                  : "—"
             }
           />
           <ConstraintRow
-            label="Minimum position"
-            value={
-              typeof data.min_stock_weight === "number"
-                ? formatSignedPercent(data.min_stock_weight)
-                : "—"
-            }
-            note={
-              typeof data.min_stock_weight === "number" &&
-              data.min_stock_weight < 0
-                ? `Shorting permitted; ${shortSide.length} ${shortSide.length === 1 ? "name is" : "names are"} held short`
-                : undefined
-            }
+            label="Shorting"
+            value={data.short_allowed ? "Allowed" : "None"}
           />
           <ConstraintRow
             label="L2 penalty (γ)"
             value={(data.l2_gamma ?? 0).toFixed(2)}
-            note={
-              (data.l2_gamma ?? 0) > 0
-                ? "Weight spread across more names"
-                : "Off: expect weights at exactly 0 or exactly the cap"
-            }
           />
           <ConstraintRow
             label="Frontier points"
             value={String(data.n_portfolios)}
             note={
               data.resolution_capped
-                ? `Cut from ${data.n_portfolios_requested}: every point is its own solve over ${data.n_assets ?? 0} stocks, and the service budgets points against universe size.`
+                ? `Cut from ${data.n_portfolios_requested}: every point is its own solve over ${data.n_assets ?? 0} stocks.`
                 : undefined
             }
           />
@@ -209,21 +172,12 @@ function ConstraintsPanel({
         {data.excluded_short_history &&
           data.excluded_short_history.length > 0 && (
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Excluded for insufficient price history:{" "}
+              Excluded for short price history:{" "}
               <span className="font-mono">
                 {data.excluded_short_history.join(", ")}
               </span>
-              . Listed part-way through the window, so the covariance estimator
-              would see a fraction of their true volatility.
             </p>
           )}
-
-        {isBaseline && (
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            These are the baseline&apos;s constraints, not yours; run the
-            optimisation to apply the settings above.
-          </p>
-        )}
       </PanelBody>
     </Panel>
   )
@@ -406,7 +360,22 @@ export function PortfolioBuilder({
     ...Object.values(tangency.weights).map((weight) => Math.abs(weight)),
   )
   const sectors = data.sectors ?? {}
-  const shortSide = Object.values(tangency.weights).filter((w) => w < 0)
+
+  /**
+   * The bounds the solve on screen actually ran under, as the placeholders for
+   * the fields that were left blank.
+   *
+   * Withheld while the curve is the shipped baseline: those are the baseline's
+   * constraints, and printing them into a live control would be stating a
+   * number this reader's universe never produced. The baseline response simply
+   * omits both fields, so this falls through to the plain "auto".
+   */
+  const asPercentInput = (value: number | undefined) =>
+    typeof value === "number" ? (value * 100).toFixed(2) : undefined
+  const resolvedBounds = {
+    minWeight: asPercentInput(data.min_stock_weight),
+    maxWeight: asPercentInput(data.max_stock_weight),
+  }
 
   // Settings that have been changed since the solve on screen was produced.
   // Without this the page silently shows a frontier that no longer matches the
@@ -462,15 +431,10 @@ export function PortfolioBuilder({
           onReset={() => setSettings(DEFAULT_SETTINGS)}
           universeSize={tickers.length}
           dirty={dirty}
+          resolved={resolvedBounds}
         />
 
-        <ConstraintsPanel
-          data={data}
-          tickers={tickers}
-          settings={settings}
-          isBaseline={isBaseline}
-          shortSide={shortSide}
-        />
+        <ConstraintsPanel data={data} tickers={tickers} isBaseline={isBaseline} />
       </div>
 
       <div className="flex min-w-0 flex-col gap-4">
@@ -578,49 +542,59 @@ export function PortfolioBuilder({
           </div>
         )}
 
-        {/* Every readout from here down describes one point on the
-            frontier rather than the frontier, and nothing on the page used to
-            say which. The header names it once; the three composition panels
-            repeat it in their own meta, because a reader who scrolls past this
-            strip would otherwise have no way to tell.
+        {/* Everything below is a reading of the solve on screen. While a new
+            one is in flight this is still the previous solve (or the shipped
+            baseline) rather than a blank page, and dimming the whole block
+            uniformly is what marks it as about to be replaced — the toolbar
+            above it, which says so in words and stays interactive, is
+            deliberately outside this wrapper and stays at full opacity. */}
+        <div
+          className={cn(
+            "flex flex-col gap-4 transition-opacity",
+            loading && "opacity-50"
+          )}
+        >
+        {/* Every readout from here down describes one point on the frontier
+            rather than the frontier, and nothing on the page used to say
+            which. The header names it once; the composition panels repeat it
+            in their own meta, because a reader who scrolls past this strip
+            would otherwise have no way to tell.
 
             One strip, hairline-divided, rather than six bordered tiles: six
             boxes is six borders saying nothing, and this is the row a reader
-            scans left to right. */}
+            scans left to right. Six readings of equal standing, so six figures
+            at one size — Sharpe used to be set two steps larger, which made
+            the row read as one headline with five captions rather than as an
+            instrument panel. */}
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border border-b-0 border-border bg-card px-4 py-2">
           <h2 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
             Max Sharpe portfolio
           </h2>
-          <span className="font-mono text-xs text-muted-foreground">
-            the best return per unit of risk on the curve above
+          <span className="font-mono text-xs text-muted-foreground tabular-figures">
+            {heldCount} {heldCount === 1 ? "position" : "positions"}
           </span>
         </div>
 
         <StatStrip className="border-t-0">
           <Stat
-            size="lead"
             label="Sharpe"
             value={tangency.sharpe.toFixed(2)}
-            hint={
-              hasTangency(data)
-                ? "Return above cash per unit of risk"
-                : "Negative: nothing beat cash"
-            }
+            hint={hasTangency(data) ? undefined : "Negative: nothing beat cash"}
           />
           <Stat
             label="Expected return"
             value={formatPercent(tangency.return)}
-            hint="Annualised, from the 2y window"
+            hint="Annualised"
           />
           <Stat
             label="Volatility"
             value={formatPercent(tangency.volatility)}
-            hint="Annualised standard deviation"
+            hint="Annualised"
           />
           <Stat
             label="Effective holdings"
             value={effective.toFixed(1)}
-            hint={`Of ${heldCount} names held`}
+            hint={`Of ${heldCount} held`}
           />
           <Stat
             label="Largest position"
@@ -634,7 +608,7 @@ export function PortfolioBuilder({
           <Stat
             label="Risk-free rate"
             value={formatPercent(data.risk_free_rate)}
-            hint="US 13-week treasury, annualised"
+            hint="13-week T-bill"
           />
         </StatStrip>
 
@@ -678,22 +652,9 @@ export function PortfolioBuilder({
                   <TableRow key={key}>
                     <TableCell className="font-medium">
                       <span className="flex items-center gap-2">
-                        <svg
-                          viewBox="0 0 10 10"
-                          className="size-3 shrink-0"
-                        >
-                          {key === "maxSharpe" ? (
-                            <polygon
-                              points={STAR_POINTS}
-                              fill="var(--color-series-3)"
-                            />
-                          ) : (
-                            <polygon
-                              points="5,0 10,5 5,10 0,5"
-                              fill="var(--color-series-3)"
-                            />
-                          )}
-                        </svg>
+                        {/* The same two marks the chart plots, so the row and
+                            the point on the curve are visibly one thing. */}
+                        <LegendDot hollow={key !== "maxSharpe"} />
                         {title}
                       </span>
                     </TableCell>
@@ -749,10 +710,10 @@ export function PortfolioBuilder({
                   <PanelTitle>Sector exposure</PanelTitle>
                 </PanelHeader>
                 <PanelBody>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {isBaseline
-                      ? "Run a live optimisation to see how the weights fall across sectors."
-                      : "No sector labels were available for these holdings, so the breakdown is omitted rather than shown half-filled."}
+                      ? "Run the optimisation to see the sector split."
+                      : "No sector labels on file for these holdings."}
                   </p>
                 </PanelBody>
               </Panel>
@@ -773,6 +734,7 @@ export function PortfolioBuilder({
           sectors={sectors}
           scope="Max Sharpe"
         />
+        </div>
       </div>
     </div>
   )

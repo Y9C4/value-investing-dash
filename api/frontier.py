@@ -53,10 +53,9 @@ MU_CLIP = 0.50
 # lib/portfolio-settings.ts. Changing it in one place without the other
 # silently reintroduces the miss.
 #
-# Four, not three, and the reason is that a request for N returns N-1 points
-# over the full index: the maximum-return target is infeasible under the
-# universe-scaled weight cap, so the trace drops it. Measured on Cloud Run
-# against the whole index:
+# A request for N returns N-1 points over the full index: the maximum-return
+# target is infeasible under the universe-scaled weight cap, so the trace
+# drops it. Measured on Cloud Run against the whole index:
 #
 #   requested  points  tangency Sharpe
 #           3       2           2.8014
@@ -64,12 +63,15 @@ MU_CLIP = 0.50
 #           6       5           2.9478
 #          22      21           2.9478
 #
-# Three is where the answer converges and the curve stops being a straight
-# line. At two the envelope is a chord between the minimum-volatility anchor
-# and the far end, which is precisely the construction the README's own
-# write-up explains is wrong, and it costs 470bp of Sharpe on the figure this
-# page leads with.
-ENVELOPE_POINTS = 4
+# The *tangency* converges by three or four points, and at two the envelope is
+# a chord between the minimum-volatility anchor and the far end — precisely
+# the construction the README's own write-up explains is wrong, costing 470bp
+# of Sharpe on the figure this page leads with. But the shipped default is
+# read as a curve, not just a correct tangency, and every solved point now
+# carries its own marker on the chart: three or four of them reads as a
+# handful of straight segments. Ten is the smallest count that looks like a
+# frontier while staying far under the point budget for any screened set.
+ENVELOPE_POINTS = 10
 MIN_ENVELOPE_POINTS = 2
 # Every point is a real solve (~0.3s over the full index), so this reflects
 # solver cost. Must stay in step with MAX_PORTFOLIOS in lib/portfolio-settings.ts.

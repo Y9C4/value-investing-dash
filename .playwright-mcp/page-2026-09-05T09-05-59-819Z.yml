@@ -1,0 +1,2744 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - link "Margin" [ref=e4] [cursor=pointer]:
+        - /url: /screener
+      - navigation [ref=e8]:
+        - link "Screener Filter the universe" [ref=e9] [cursor=pointer]:
+          - /url: /screener
+          - generic [ref=e12]:
+            - generic [ref=e13]: Screener
+            - generic [ref=e14]: Filter the universe
+        - link "Analysis Value one stock" [ref=e15] [cursor=pointer]:
+          - /url: /stocks
+          - generic [ref=e18]:
+            - generic [ref=e19]: Analysis
+            - generic [ref=e20]: Value one stock
+        - link "Portfolio Optimise the survivors" [ref=e21] [cursor=pointer]:
+          - /url: /portfolio
+          - generic [ref=e24]:
+            - generic [ref=e25]: Portfolio
+            - generic [ref=e26]: Optimise the survivors
+      - generic [ref=e27]:
+        - button "How this works" [ref=e28]
+        - generic [ref=e29]:
+          - button "Toggle dark mode" [ref=e30]
+          - link "Data" [ref=e31] [cursor=pointer]:
+            - /url: /data
+    - main [ref=e32]:
+      - generic [ref=e34]:
+        - heading "Screener" [level=1] [ref=e35]
+        - generic [aria-hidden] [ref=e36]: /
+        - generic [ref=e37]:
+          - generic [ref=e38]: S&P 500
+          - generic [ref=e39]:
+            - text: 7,718.60
+            - generic [ref=e40]: 0.38%
+        - generic [aria-hidden] [ref=e43]: /
+        - generic [ref=e44]:
+          - generic [ref=e45]: 13W T-bill
+          - generic [ref=e46]: 3.69%
+        - generic [aria-hidden] [ref=e47]: /
+        - generic [ref=e48]:
+          - generic [ref=e49]: Universe
+          - generic [ref=e50]: 495 stocks
+        - generic [aria-hidden] [ref=e51]: /
+        - generic [ref=e52]:
+          - generic [ref=e53]: Collected
+          - generic [ref=e54]: SEP 05, 2026 · 03:38 EDT
+        - generic [ref=e55]:
+          - generic [ref=e56]: Source
+          - generic [ref=e57]: yfinance
+      - generic [ref=e60]:
+        - generic [ref=e61]:
+          - generic [ref=e62]: Distribution
+          - img "Valuation bands across all 495 stocks in the index" [ref=e63]
+          - list [ref=e70]:
+            - listitem [ref=e71]:
+              - generic [ref=e73]: Deep value
+            - listitem [ref=e74]:
+              - generic [ref=e76]: Undervalued
+            - listitem [ref=e77]:
+              - generic [ref=e79]: Fair value
+            - listitem [ref=e80]:
+              - generic [ref=e82]: Overvalued
+            - listitem [ref=e83]:
+              - generic [ref=e85]: Expensive
+            - listitem [ref=e86]:
+              - generic [ref=e88]: Unrated
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - button "Filters 3" [ref=e91]:
+              - text: Filters
+              - generic [ref=e92]: "3"
+            - button "Export 139 rows" [ref=e93]
+            - generic [ref=e94]: 139 of 495 stocks
+          - button "Optimise all 139 into a portfolio" [ref=e96] [cursor=pointer]
+        - table [ref=e99]:
+          - rowgroup [ref=e100]:
+            - row [ref=e101]:
+              - columnheader [ref=e102]:
+                - checkbox "Select all 139 rows" [ref=e104]
+              - columnheader [ref=e106]:
+                - button "Stock" [ref=e107]
+              - columnheader [ref=e108]:
+                - button "Margin of safety" [ref=e109]
+                - button "What Margin of safety means" [ref=e110]
+              - columnheader [ref=e113]:
+                - button "Price" [ref=e114]
+              - columnheader [ref=e115]:
+                - button "Mkt cap" [ref=e116]
+              - columnheader [ref=e119]:
+                - button "Return 1Y" [ref=e120]
+                - button "What Annualised log return means" [ref=e121]
+              - columnheader [ref=e124]:
+                - button "Vol 1Y" [ref=e125]
+                - button "What Annualised volatility means" [ref=e126]
+              - columnheader [ref=e129]:
+                - button "Beta" [ref=e130]
+                - button "What Beta vs the S&P 500 means" [ref=e131]
+              - columnheader [ref=e134]:
+                - button "P/E" [ref=e135]
+          - rowgroup [ref=e136]:
+            - row [ref=e137] [cursor=pointer]:
+              - cell [ref=e138]:
+                - checkbox "Include JNJ in the portfolio" [ref=e140]
+              - cell [ref=e142]:
+                - link "JNJ Johnson & Johnson" [ref=e143]:
+                  - /url: /stocks/JNJ
+                  - generic [ref=e144]: JNJ
+                  - generic [ref=e145]: Johnson & Johnson
+              - cell "Undervalued, −2.1% margin of safety −2.1% Undervalued" [ref=e146]:
+                - generic [ref=e147]:
+                  - generic [ref=e148]: Undervalued, −2.1% margin of safety
+                  - generic [ref=e153]: −2.1%
+                  - generic [ref=e154]: Undervalued
+              - cell "$275.23" [ref=e155]
+              - cell "$663B" [ref=e156]
+              - cell "+43.2%" [ref=e157]
+              - cell "19.0%" [ref=e158]
+              - cell "-0.18" [ref=e159]
+              - cell "31.9" [ref=e160]
+            - row [ref=e161] [cursor=pointer]:
+              - cell [ref=e162]:
+                - checkbox "Include ABBV in the portfolio" [ref=e164]
+              - cell [ref=e166]:
+                - link "ABBV AbbVie Inc." [ref=e167]:
+                  - /url: /stocks/ABBV
+                  - generic [ref=e168]: ABBV
+                  - generic [ref=e169]: AbbVie Inc.
+              - cell "Undervalued, −4.9% margin of safety −4.9% Undervalued" [ref=e170]:
+                - generic [ref=e171]:
+                  - generic [ref=e172]: Undervalued, −4.9% margin of safety
+                  - generic [ref=e177]: −4.9%
+                  - generic [ref=e178]: Undervalued
+              - cell "$256.46" [ref=e179]
+              - cell "$453B" [ref=e180]
+              - cell "+18.6%" [ref=e181]
+              - cell "26.5%" [ref=e182]
+              - cell "-0.06" [ref=e183]
+              - cell "72.5" [ref=e184]
+            - row [ref=e185] [cursor=pointer]:
+              - cell [ref=e186]:
+                - checkbox "Include KO in the portfolio" [ref=e188]
+              - cell [ref=e190]:
+                - link "KO The Coca-Cola Company" [ref=e191]:
+                  - /url: /stocks/KO
+                  - generic [ref=e192]: KO
+                  - generic [ref=e193]: The Coca-Cola Company
+              - cell "Fair value, −35.8% margin of safety −35.8% Fair value" [ref=e194]:
+                - generic [ref=e195]:
+                  - generic [ref=e196]: Fair value, −35.8% margin of safety
+                  - generic [ref=e201]: −35.8%
+                  - generic [ref=e202]: Fair value
+              - cell "$88.07" [ref=e203]
+              - cell "$379B" [ref=e204]
+              - cell "+25.5%" [ref=e205]
+              - cell "18.7%" [ref=e206]
+              - cell "-0.24" [ref=e207]
+              - cell "26.4" [ref=e208]
+            - row [ref=e209] [cursor=pointer]:
+              - cell [ref=e210]:
+                - checkbox "Include UNH in the portfolio" [ref=e212]
+              - cell [ref=e214]:
+                - link "UNH UnitedHealth Group Incorporated" [ref=e215]:
+                  - /url: /stocks/UNH
+                  - generic [ref=e216]: UNH
+                  - generic [ref=e217]: UnitedHealth Group Incorporated
+              - cell "Fair value, −35.6% margin of safety −35.6% Fair value" [ref=e218]:
+                - generic [ref=e219]:
+                  - generic [ref=e220]: Fair value, −35.6% margin of safety
+                  - generic [ref=e225]: −35.6%
+                  - generic [ref=e226]: Fair value
+              - cell "$397.14" [ref=e227]
+              - cell "$356B" [ref=e228]
+              - cell "+24.6%" [ref=e229]
+              - cell "36.5%" [ref=e230]
+              - cell "0.45" [ref=e231]
+              - cell "30.0" [ref=e232]
+            - row [ref=e233] [cursor=pointer]:
+              - cell [ref=e234]:
+                - checkbox "Include PG in the portfolio" [ref=e236]
+              - cell [ref=e238]:
+                - link "PG The Procter & Gamble Company" [ref=e239]:
+                  - /url: /stocks/PG
+                  - generic [ref=e240]: PG
+                  - generic [ref=e241]: The Procter & Gamble Company
+              - cell "Fair value, −31.8% margin of safety −31.8% Fair value" [ref=e242]:
+                - generic [ref=e243]:
+                  - generic [ref=e244]: Fair value, −31.8% margin of safety
+                  - generic [ref=e249]: −31.8%
+                  - generic [ref=e250]: Fair value
+              - cell "$146.44" [ref=e251]
+              - cell "$340B" [ref=e252]
+              - cell "−8.3%" [ref=e253]
+              - cell "19.5%" [ref=e254]
+              - cell "-0.06" [ref=e255]
+              - cell "22.1" [ref=e256]
+            - row [ref=e257] [cursor=pointer]:
+              - cell [ref=e258]:
+                - checkbox "Include PM in the portfolio" [ref=e260]
+              - cell [ref=e262]:
+                - link "PM Philip Morris International Inc." [ref=e263]:
+                  - /url: /stocks/PM
+                  - generic [ref=e264]: PM
+                  - generic [ref=e265]: Philip Morris International Inc.
+              - cell "Fair value, −31.0% margin of safety −31.0% Fair value" [ref=e266]:
+                - generic [ref=e267]:
+                  - generic [ref=e268]: Fair value, −31.0% margin of safety
+                  - generic [ref=e273]: −31.0%
+                  - generic [ref=e274]: Fair value
+              - cell "$182.53" [ref=e275]
+              - cell "$284B" [ref=e276]
+              - cell "+12.5%" [ref=e277]
+              - cell "28.2%" [ref=e278]
+              - cell "-0.15" [ref=e279]
+              - cell "26.2" [ref=e280]
+            - row [ref=e281] [cursor=pointer]:
+              - cell [ref=e282]:
+                - checkbox "Include AMGN in the portfolio" [ref=e284]
+              - cell [ref=e286]:
+                - link "AMGN Amgen Inc." [ref=e287]:
+                  - /url: /stocks/AMGN
+                  - generic [ref=e288]: AMGN
+                  - generic [ref=e289]: Amgen Inc.
+              - cell "Fair value, −29.0% margin of safety −29.0% Fair value" [ref=e290]:
+                - generic [ref=e291]:
+                  - generic [ref=e292]: Fair value, −29.0% margin of safety
+                  - generic [ref=e297]: −29.0%
+                  - generic [ref=e298]: Fair value
+              - cell "$437.23" [ref=e299]
+              - cell "$236B" [ref=e300]
+              - cell "+44.5%" [ref=e301]
+              - cell "27.3%" [ref=e302]
+              - cell "0.51" [ref=e303]
+              - cell "27.2" [ref=e304]
+            - row [ref=e305] [cursor=pointer]:
+              - cell [ref=e306]:
+                - checkbox "Include TMO in the portfolio" [ref=e308]
+              - cell [ref=e310]:
+                - link "TMO Thermo Fisher Scientific Inc." [ref=e311]:
+                  - /url: /stocks/TMO
+                  - generic [ref=e312]: TMO
+                  - generic [ref=e313]: Thermo Fisher Scientific Inc.
+              - cell "Undervalued, −17.1% margin of safety −17.1% Undervalued" [ref=e314]:
+                - generic [ref=e315]:
+                  - generic [ref=e316]: Undervalued, −17.1% margin of safety
+                  - generic [ref=e321]: −17.1%
+                  - generic [ref=e322]: Undervalued
+              - cell "$613.78" [ref=e323]
+              - cell "$227B" [ref=e324]
+              - cell "+22.6%" [ref=e325]
+              - cell "30.3%" [ref=e326]
+              - cell "0.62" [ref=e327]
+              - cell "33.0" [ref=e328]
+            - row [ref=e329] [cursor=pointer]:
+              - cell [ref=e330]:
+                - checkbox "Include IBM in the portfolio" [ref=e332]
+              - cell [ref=e334]:
+                - link "IBM International Business Machines Corporation" [ref=e335]:
+                  - /url: /stocks/IBM
+                  - generic [ref=e336]: IBM
+                  - generic [ref=e337]: International Business Machines Corporation
+              - cell "Undervalued, −25.2% margin of safety −25.2% Undervalued" [ref=e338]:
+                - generic [ref=e339]:
+                  - generic [ref=e340]: Undervalued, −25.2% margin of safety
+                  - generic [ref=e345]: −25.2%
+                  - generic [ref=e346]: Undervalued
+              - cell "$234.89" [ref=e347]
+              - cell "$221B" [ref=e348]
+              - cell "−5.1%" [ref=e349]
+              - cell "50.5%" [ref=e350]
+              - cell "0.90" [ref=e351]
+              - cell "20.8" [ref=e352]
+            - row [ref=e353] [cursor=pointer]:
+              - cell [ref=e354]:
+                - checkbox "Include LIN in the portfolio" [ref=e356]
+              - cell [ref=e358]:
+                - link "LIN Linde plc" [ref=e359]:
+                  - /url: /stocks/LIN
+                  - generic [ref=e360]: LIN
+                  - generic [ref=e361]: Linde plc
+              - cell "Fair value, −35.3% margin of safety −35.3% Fair value" [ref=e362]:
+                - generic [ref=e363]:
+                  - generic [ref=e364]: Fair value, −35.3% margin of safety
+                  - generic [ref=e369]: −35.3%
+                  - generic [ref=e370]: Fair value
+              - cell "$477.57" [ref=e371]
+              - cell "$220B" [ref=e372]
+              - cell "+1.1%" [ref=e373]
+              - cell "19.2%" [ref=e374]
+              - cell "0.08" [ref=e375]
+              - cell "30.9" [ref=e376]
+            - row [ref=e377] [cursor=pointer]:
+              - cell [ref=e378]:
+                - checkbox "Include VZ in the portfolio" [ref=e380]
+              - cell [ref=e382]:
+                - link "VZ Verizon Communications Inc." [ref=e383]:
+                  - /url: /stocks/VZ
+                  - generic [ref=e384]: VZ
+                  - generic [ref=e385]: Verizon Communications Inc.
+              - cell "Deep value, +62.9% margin of safety +62.9% Deep value" [ref=e386]:
+                - generic [ref=e387]:
+                  - generic [ref=e388]: Deep value, +62.9% margin of safety
+                  - generic [ref=e393]: +62.9%
+                  - generic [ref=e394]: Deep value
+              - cell "$50.14" [ref=e395]
+              - cell "$208B" [ref=e396]
+              - cell "+12.7%" [ref=e397]
+              - cell "25.1%" [ref=e398]
+              - cell "-0.27" [ref=e399]
+              - cell "13.1" [ref=e400]
+            - row [ref=e401] [cursor=pointer]:
+              - cell [ref=e402]:
+                - checkbox "Include TMUS in the portfolio" [ref=e404]
+              - cell [ref=e406]:
+                - link "TMUS T-Mobile US, Inc." [ref=e407]:
+                  - /url: /stocks/TMUS
+                  - generic [ref=e408]: TMUS
+                  - generic [ref=e409]: T-Mobile US, Inc.
+              - cell "Deep value, +131.3% margin of safety +131.3% Deep value" [ref=e410]:
+                - generic [ref=e411]:
+                  - generic [ref=e412]: Deep value, +131.3% margin of safety
+                  - generic [ref=e417]: +131.3%
+                  - generic [ref=e418]: Deep value
+              - cell "$181.52" [ref=e419]
+              - cell "$195B" [ref=e420]
+              - cell "−32.9%" [ref=e421]
+              - cell "29.6%" [ref=e422]
+              - cell "-0.33" [ref=e423]
+              - cell "19.0" [ref=e424]
+            - row [ref=e425] [cursor=pointer]:
+              - cell [ref=e426]:
+                - checkbox "Include PEP in the portfolio" [ref=e428]
+              - cell [ref=e430]:
+                - link "PEP PepsiCo, Inc." [ref=e431]:
+                  - /url: /stocks/PEP
+                  - generic [ref=e432]: PEP
+                  - generic [ref=e433]: PepsiCo, Inc.
+              - cell "Deep value, +19.9% margin of safety +19.9% Deep value" [ref=e434]:
+                - generic [ref=e435]:
+                  - generic [ref=e436]: Deep value, +19.9% margin of safety
+                  - generic [ref=e441]: +19.9%
+                  - generic [ref=e442]: Deep value
+              - cell "$137.63" [ref=e443]
+              - cell "$188B" [ref=e444]
+              - cell "−6.5%" [ref=e445]
+              - cell "21.2%" [ref=e446]
+              - cell "-0.21" [ref=e447]
+              - cell "18.0" [ref=e448]
+            - row [ref=e449] [cursor=pointer]:
+              - cell [ref=e450]:
+                - checkbox "Include ABT in the portfolio" [ref=e452]
+              - cell [ref=e454]:
+                - link "ABT Abbott Laboratories" [ref=e455]:
+                  - /url: /stocks/ABT
+                  - generic [ref=e456]: ABT
+                  - generic [ref=e457]: Abbott Laboratories
+              - cell "Undervalued, −10.5% margin of safety −10.5% Undervalued" [ref=e458]:
+                - generic [ref=e459]:
+                  - generic [ref=e460]: Undervalued, −10.5% margin of safety
+                  - generic [ref=e465]: −10.5%
+                  - generic [ref=e466]: Undervalued
+              - cell "$108.33" [ref=e467]
+              - cell "$187B" [ref=e468]
+              - cell "−20.4%" [ref=e469]
+              - cell "26.8%" [ref=e470]
+              - cell "0.03" [ref=e471]
+              - cell "35.1" [ref=e472]
+            - row [ref=e473] [cursor=pointer]:
+              - cell [ref=e474]:
+                - checkbox "Include MCD in the portfolio" [ref=e476]
+              - cell [ref=e478]:
+                - link "MCD McDonald's Corporation" [ref=e479]:
+                  - /url: /stocks/MCD
+                  - generic [ref=e480]: MCD
+                  - generic [ref=e481]: McDonald's Corporation
+              - cell "Undervalued, −25.1% margin of safety −25.1% Undervalued" [ref=e482]:
+                - generic [ref=e483]:
+                  - generic [ref=e484]: Undervalued, −25.1% margin of safety
+                  - generic [ref=e489]: −25.1%
+                  - generic [ref=e490]: Undervalued
+              - cell "$255.69" [ref=e491]
+              - cell "$181B" [ref=e492]
+              - cell "−21.5%" [ref=e493]
+              - cell "18.6%" [ref=e494]
+              - cell "-0.00" [ref=e495]
+              - cell "20.8" [ref=e496]
+            - row [ref=e497] [cursor=pointer]:
+              - cell [ref=e498]:
+                - checkbox "Include T in the portfolio" [ref=e500]
+              - cell [ref=e502]:
+                - link "T AT&T Inc." [ref=e503]:
+                  - /url: /stocks/T
+                  - generic [ref=e504]: T
+                  - generic [ref=e505]: AT&T Inc.
+              - cell "Deep value, +150.8% margin of safety +150.8% Deep value" [ref=e506]:
+                - generic [ref=e507]:
+                  - generic [ref=e508]: Deep value, +150.8% margin of safety
+                  - generic [ref=e513]: +150.8%
+                  - generic [ref=e514]: Deep value
+              - cell "$25.68" [ref=e515]
+              - cell "$176B" [ref=e516]
+              - cell "−14.1%" [ref=e517]
+              - cell "25.1%" [ref=e518]
+              - cell "-0.33" [ref=e519]
+              - cell "8.5" [ref=e520]
+            - row [ref=e521] [cursor=pointer]:
+              - cell [ref=e522]:
+                - checkbox "Include UNP in the portfolio" [ref=e524]
+              - cell [ref=e526]:
+                - link "UNP Union Pacific Corporation" [ref=e527]:
+                  - /url: /stocks/UNP
+                  - generic [ref=e528]: UNP
+                  - generic [ref=e529]: Union Pacific Corporation
+              - cell "Fair value, −39.6% margin of safety −39.6% Fair value" [ref=e530]:
+                - generic [ref=e531]:
+                  - generic [ref=e532]: Fair value, −39.6% margin of safety
+                  - generic [ref=e537]: −39.6%
+                  - generic [ref=e538]: Fair value
+              - cell "$289.62" [ref=e539]
+              - cell "$172B" [ref=e540]
+              - cell "+26.1%" [ref=e541]
+              - cell "22.3%" [ref=e542]
+              - cell "0.27" [ref=e543]
+              - cell "23.4" [ref=e544]
+            - row [ref=e545] [cursor=pointer]:
+              - cell [ref=e546]:
+                - checkbox "Include PFE in the portfolio" [ref=e548]
+              - cell [ref=e550]:
+                - link "PFE Pfizer Inc." [ref=e551]:
+                  - /url: /stocks/PFE
+                  - generic [ref=e552]: PFE
+                  - generic [ref=e553]: Pfizer Inc.
+              - cell "Undervalued, −16.6% margin of safety −16.6% Undervalued" [ref=e554]:
+                - generic [ref=e555]:
+                  - generic [ref=e556]: Undervalued, −16.6% margin of safety
+                  - generic [ref=e561]: −16.6%
+                  - generic [ref=e562]: Undervalued
+              - cell "$28.45" [ref=e563]
+              - cell "$162B" [ref=e564]
+              - cell "+14.8%" [ref=e565]
+              - cell "23.8%" [ref=e566]
+              - cell "0.34" [ref=e567]
+              - cell "37.4" [ref=e568]
+            - row [ref=e569] [cursor=pointer]:
+              - cell [ref=e570]:
+                - checkbox "Include UBER in the portfolio" [ref=e572]
+              - cell [ref=e574]:
+                - link "UBER Uber Technologies, Inc." [ref=e575]:
+                  - /url: /stocks/UBER
+                  - generic [ref=e576]: UBER
+                  - generic [ref=e577]: Uber Technologies, Inc.
+              - cell "Deep value, +31.5% margin of safety +31.5% Deep value" [ref=e578]:
+                - generic [ref=e579]:
+                  - generic [ref=e580]: Deep value, +31.5% margin of safety
+                  - generic [ref=e585]: +31.5%
+                  - generic [ref=e586]: Deep value
+              - cell "$75.76" [ref=e587]
+              - cell "$155B" [ref=e588]
+              - cell "−19.4%" [ref=e589]
+              - cell "35.8%" [ref=e590]
+              - cell "0.96" [ref=e591]
+              - cell "16.6" [ref=e592]
+            - row [ref=e593] [cursor=pointer]:
+              - cell [ref=e594]:
+                - checkbox "Include DHR in the portfolio" [ref=e596]
+              - cell [ref=e598]:
+                - link "DHR Danaher Corporation" [ref=e599]:
+                  - /url: /stocks/DHR
+                  - generic [ref=e600]: DHR
+                  - generic [ref=e601]: Danaher Corporation
+              - cell "Fair value, −35.9% margin of safety −35.9% Fair value" [ref=e602]:
+                - generic [ref=e603]:
+                  - generic [ref=e604]: Fair value, −35.9% margin of safety
+                  - generic [ref=e609]: −35.9%
+                  - generic [ref=e610]: Fair value
+              - cell "$207.66" [ref=e611]
+              - cell "$146B" [ref=e612]
+              - cell "+4.2%" [ref=e613]
+              - cell "31.4%" [ref=e614]
+              - cell "0.43" [ref=e615]
+              - cell "36.9" [ref=e616]
+            - row [ref=e617] [cursor=pointer]:
+              - cell [ref=e618]:
+                - checkbox "Include BKNG in the portfolio" [ref=e620]
+              - cell [ref=e622]:
+                - link "BKNG Booking Holdings Inc." [ref=e623]:
+                  - /url: /stocks/BKNG
+                  - generic [ref=e624]: BKNG
+                  - generic [ref=e625]: Booking Holdings Inc.
+              - cell "Fair value, −35.9% margin of safety −35.9% Fair value" [ref=e626]:
+                - generic [ref=e627]:
+                  - generic [ref=e628]: Fair value, −35.9% margin of safety
+                  - generic [ref=e633]: −35.9%
+                  - generic [ref=e634]: Fair value
+              - cell "$193.29" [ref=e635]
+              - cell "$145B" [ref=e636]
+              - cell "−14.5%" [ref=e637]
+              - cell "36.6%" [ref=e638]
+              - cell "0.84" [ref=e639]
+              - cell "26.6" [ref=e640]
+            - row [ref=e641] [cursor=pointer]:
+              - cell [ref=e642]:
+                - checkbox "Include VRTX in the portfolio" [ref=e644]
+              - cell [ref=e646]:
+                - link "VRTX Vertex Pharmaceuticals Incorporated" [ref=e647]:
+                  - /url: /stocks/VRTX
+                  - generic [ref=e648]: VRTX
+                  - generic [ref=e649]: Vertex Pharmaceuticals Incorporated
+              - cell "Fair value, −28.4% margin of safety −28.4% Fair value" [ref=e650]:
+                - generic [ref=e651]:
+                  - generic [ref=e652]: Fair value, −28.4% margin of safety
+                  - generic [ref=e657]: −28.4%
+                  - generic [ref=e658]: Fair value
+              - cell "$546.12" [ref=e659]
+              - cell "$138B" [ref=e660]
+              - cell "+31.9%" [ref=e661]
+              - cell "28.3%" [ref=e662]
+              - cell "0.51" [ref=e663]
+              - cell "31.8" [ref=e664]
+            - row [ref=e665] [cursor=pointer]:
+              - cell [ref=e666]:
+                - checkbox "Include BMY in the portfolio" [ref=e668]
+              - cell [ref=e670]:
+                - link "BMY Bristol-Myers Squibb Company" [ref=e671]:
+                  - /url: /stocks/BMY
+                  - generic [ref=e672]: BMY
+                  - generic [ref=e673]: Bristol-Myers Squibb Company
+              - cell "Deep value, +28.4% margin of safety +28.4% Deep value" [ref=e674]:
+                - generic [ref=e675]:
+                  - generic [ref=e676]: Deep value, +28.4% margin of safety
+                  - generic [ref=e681]: +28.4%
+                  - generic [ref=e682]: Deep value
+              - cell "$66.82" [ref=e683]
+              - cell "$136B" [ref=e684]
+              - cell "+35.8%" [ref=e685]
+              - cell "27.3%" [ref=e686]
+              - cell "0.27" [ref=e687]
+              - cell "14.7" [ref=e688]
+            - row [ref=e689] [cursor=pointer]:
+              - cell [ref=e690]:
+                - checkbox "Include CVS in the portfolio" [ref=e692]
+              - cell [ref=e694]:
+                - link "CVS CVS Health Corporation" [ref=e695]:
+                  - /url: /stocks/CVS
+                  - generic [ref=e696]: CVS
+                  - generic [ref=e697]: CVS Health Corporation
+              - cell "Deep value, +17.7% margin of safety +17.7% Deep value" [ref=e698]:
+                - generic [ref=e699]:
+                  - generic [ref=e700]: Deep value, +17.7% margin of safety
+                  - generic [ref=e705]: +17.7%
+                  - generic [ref=e706]: Deep value
+              - cell "$96.74" [ref=e707]
+              - cell "$124B" [ref=e708]
+              - cell "+27.2%" [ref=e709]
+              - cell "31.6%" [ref=e710]
+              - cell "0.15" [ref=e711]
+              - cell "65.8" [ref=e712]
+            - row [ref=e713] [cursor=pointer]:
+              - cell [ref=e714]:
+                - checkbox "Include MDT in the portfolio" [ref=e716]
+              - cell [ref=e718]:
+                - link "MDT Medtronic plc" [ref=e719]:
+                  - /url: /stocks/MDT
+                  - generic [ref=e720]: MDT
+                  - generic [ref=e721]: Medtronic plc
+              - cell "Undervalued, −4.2% margin of safety −4.2% Undervalued" [ref=e722]:
+                - generic [ref=e723]:
+                  - generic [ref=e724]: Undervalued, −4.2% margin of safety
+                  - generic [ref=e729]: −4.2%
+                  - generic [ref=e730]: Undervalued
+              - cell "$94.17" [ref=e731]
+              - cell "$120B" [ref=e732]
+              - cell "+1.4%" [ref=e733]
+              - cell "23.3%" [ref=e734]
+              - cell "0.18" [ref=e735]
+              - cell "25.3" [ref=e736]
+            - row [ref=e737] [cursor=pointer]:
+              - cell [ref=e738]:
+                - checkbox "Include MO in the portfolio" [ref=e740]
+              - cell [ref=e742]:
+                - link "MO Altria Group, Inc." [ref=e743]:
+                  - /url: /stocks/MO
+                  - generic [ref=e744]: MO
+                  - generic [ref=e745]: Altria Group, Inc.
+              - cell "Deep value, +38.4% margin of safety +38.4% Deep value" [ref=e746]:
+                - generic [ref=e747]:
+                  - generic [ref=e748]: Deep value, +38.4% margin of safety
+                  - generic [ref=e753]: +38.4%
+                  - generic [ref=e754]: Deep value
+              - cell "$68.88" [ref=e755]
+              - cell "$115B" [ref=e756]
+              - cell "+3.4%" [ref=e757]
+              - cell "26.5%" [ref=e758]
+              - cell "-0.53" [ref=e759]
+              - cell "16.9" [ref=e760]
+            - row [ref=e761] [cursor=pointer]:
+              - cell [ref=e762]:
+                - checkbox "Include LOW in the portfolio" [ref=e764]
+              - cell [ref=e766]:
+                - link "LOW Lowe's Companies, Inc." [ref=e767]:
+                  - /url: /stocks/LOW
+                  - generic [ref=e768]: LOW
+                  - generic [ref=e769]: Lowe's Companies, Inc.
+              - cell "Undervalued, −25.8% margin of safety −25.8% Undervalued" [ref=e770]:
+                - generic [ref=e771]:
+                  - generic [ref=e772]: Undervalued, −25.8% margin of safety
+                  - generic [ref=e777]: −25.8%
+                  - generic [ref=e778]: Undervalued
+              - cell "$204.45" [ref=e779]
+              - cell "$115B" [ref=e780]
+              - cell "−25.8%" [ref=e781]
+              - cell "27.0%" [ref=e782]
+              - cell "0.63" [ref=e783]
+              - cell "17.3" [ref=e784]
+            - row [ref=e785] [cursor=pointer]:
+              - cell [ref=e786]:
+                - checkbox "Include ACN in the portfolio" [ref=e788]
+              - cell [ref=e790]:
+                - link "ACN Accenture plc" [ref=e791]:
+                  - /url: /stocks/ACN
+                  - generic [ref=e792]: ACN
+                  - generic [ref=e793]: Accenture plc
+              - cell "Deep value, +34.3% margin of safety +34.3% Deep value" [ref=e794]:
+                - generic [ref=e795]:
+                  - generic [ref=e796]: Deep value, +34.3% margin of safety
+                  - generic [ref=e801]: +34.3%
+                  - generic [ref=e802]: Deep value
+              - cell "$186.72" [ref=e803]
+              - cell "$114B" [ref=e804]
+              - cell "−30.4%" [ref=e805]
+              - cell "45.0%" [ref=e806]
+              - cell "0.26" [ref=e807]
+              - cell "14.9" [ref=e808]
+            - row [ref=e809] [cursor=pointer]:
+              - cell [ref=e810]:
+                - checkbox "Include ADP in the portfolio" [ref=e812]
+              - cell [ref=e814]:
+                - link "ADP Automatic Data Processing, Inc." [ref=e815]:
+                  - /url: /stocks/ADP
+                  - generic [ref=e816]: ADP
+                  - generic [ref=e817]: Automatic Data Processing, Inc.
+              - cell "Undervalued, +1.2% margin of safety +1.2% Undervalued" [ref=e818]:
+                - generic [ref=e819]:
+                  - generic [ref=e820]: Undervalued, +1.2% margin of safety
+                  - generic [ref=e825]: +1.2%
+                  - generic [ref=e826]: Undervalued
+              - cell "$277.62" [ref=e827]
+              - cell "$110B" [ref=e828]
+              - cell "−8.1%" [ref=e829]
+              - cell "27.1%" [ref=e830]
+              - cell "0.00" [ref=e831]
+              - cell "25.4" [ref=e832]
+            - row [ref=e833] [cursor=pointer]:
+              - cell [ref=e834]:
+                - checkbox "Include ADBE in the portfolio" [ref=e836]
+              - cell [ref=e838]:
+                - link "ADBE Adobe Inc." [ref=e839]:
+                  - /url: /stocks/ADBE
+                  - generic [ref=e840]: ADBE
+                  - generic [ref=e841]: Adobe Inc.
+              - cell "Deep value, +74.9% margin of safety +74.9% Deep value" [ref=e842]:
+                - generic [ref=e843]:
+                  - generic [ref=e844]: Deep value, +74.9% margin of safety
+                  - generic [ref=e849]: +74.9%
+                  - generic [ref=e850]: Deep value
+              - cell "$266.51" [ref=e851]
+              - cell "$106B" [ref=e852]
+              - cell "−25.6%" [ref=e853]
+              - cell "40.2%" [ref=e854]
+              - cell "0.36" [ref=e855]
+              - cell "15.3" [ref=e856]
+            - row [ref=e857] [cursor=pointer]:
+              - cell [ref=e858]:
+                - checkbox "Include MCK in the portfolio" [ref=e860]
+              - cell [ref=e862]:
+                - link "MCK McKesson Corporation" [ref=e863]:
+                  - /url: /stocks/MCK
+                  - generic [ref=e864]: MCK
+                  - generic [ref=e865]: McKesson Corporation
+              - cell "Deep value, +9.3% margin of safety +9.3% Deep value" [ref=e866]:
+                - generic [ref=e867]:
+                  - generic [ref=e868]: Deep value, +9.3% margin of safety
+                  - generic [ref=e873]: +9.3%
+                  - generic [ref=e874]: Deep value
+              - cell "$907.99" [ref=e875]
+              - cell "$106B" [ref=e876]
+              - cell "+27.2%" [ref=e877]
+              - cell "30.6%" [ref=e878]
+              - cell "-0.25" [ref=e879]
+              - cell "24.3" [ref=e880]
+            - row [ref=e881] [cursor=pointer]:
+              - cell [ref=e882]:
+                - checkbox "Include GD in the portfolio" [ref=e884]
+              - cell [ref=e886]:
+                - link "GD General Dynamics Corporation" [ref=e887]:
+                  - /url: /stocks/GD
+                  - generic [ref=e888]: GD
+                  - generic [ref=e889]: General Dynamics Corporation
+              - cell "Undervalued, −15.3% margin of safety −15.3% Undervalued" [ref=e890]:
+                - generic [ref=e891]:
+                  - generic [ref=e892]: Undervalued, −15.3% margin of safety
+                  - generic [ref=e897]: −15.3%
+                  - generic [ref=e898]: Undervalued
+              - cell "$359.39" [ref=e899]
+              - cell "$97.2B" [ref=e900]
+              - cell "+10.8%" [ref=e901]
+              - cell "22.2%" [ref=e902]
+              - cell "0.44" [ref=e903]
+              - cell "21.9" [ref=e904]
+            - row [ref=e905] [cursor=pointer]:
+              - cell [ref=e906]:
+                - checkbox "Include CMCSA in the portfolio" [ref=e908]
+              - cell [ref=e910]:
+                - link "CMCSA Comcast Corporation" [ref=e911]:
+                  - /url: /stocks/CMCSA
+                  - generic [ref=e912]: CMCSA
+                  - generic [ref=e913]: Comcast Corporation
+              - cell "Deep value, +51.9% margin of safety +51.9% Deep value" [ref=e914]:
+                - generic [ref=e915]:
+                  - generic [ref=e916]: Deep value, +51.9% margin of safety
+                  - generic [ref=e921]: +51.9%
+                  - generic [ref=e922]: Deep value
+              - cell "$26.49" [ref=e923]
+              - cell "$94.0B" [ref=e924]
+              - cell "−18.3%" [ref=e925]
+              - cell "31.5%" [ref=e926]
+              - cell "0.11" [ref=e927]
+              - cell "8.6" [ref=e928]
+            - row [ref=e929] [cursor=pointer]:
+              - cell [ref=e930]:
+                - checkbox "Include DUK in the portfolio" [ref=e932]
+              - cell [ref=e934]:
+                - link "DUK Duke Energy Corporation" [ref=e935]:
+                  - /url: /stocks/DUK
+                  - generic [ref=e936]: DUK
+                  - generic [ref=e937]: Duke Energy Corporation
+              - cell "Undervalued, −13.2% margin of safety −13.2% Undervalued" [ref=e938]:
+                - generic [ref=e939]:
+                  - generic [ref=e940]: Undervalued, −13.2% margin of safety
+                  - generic [ref=e945]: −13.2%
+                  - generic [ref=e946]: Undervalued
+              - cell "$120.22" [ref=e947]
+              - cell "$93.7B" [ref=e948]
+              - cell "−0.5%" [ref=e949]
+              - cell "16.1%" [ref=e950]
+              - cell "-0.29" [ref=e951]
+              - cell "18.1" [ref=e952]
+            - row [ref=e953] [cursor=pointer]:
+              - cell [ref=e954]:
+                - checkbox "Include ELV in the portfolio" [ref=e956]
+              - cell [ref=e958]:
+                - link "ELV Elevance Health, Inc." [ref=e959]:
+                  - /url: /stocks/ELV
+                  - generic [ref=e960]: ELV
+                  - generic [ref=e961]: Elevance Health, Inc.
+              - cell "Deep value, +15.4% margin of safety +15.4% Deep value" [ref=e962]:
+                - generic [ref=e963]:
+                  - generic [ref=e964]: Deep value, +15.4% margin of safety
+                  - generic [ref=e969]: +15.4%
+                  - generic [ref=e970]: Deep value
+              - cell "$407.50" [ref=e971]
+              - cell "$88.4B" [ref=e972]
+              - cell "+28.0%" [ref=e973]
+              - cell "35.6%" [ref=e974]
+              - cell "0.36" [ref=e975]
+              - cell "18.1" [ref=e976]
+            - row [ref=e977] [cursor=pointer]:
+              - cell [ref=e978]:
+                - checkbox "Include HCA in the portfolio" [ref=e980]
+              - cell [ref=e982]:
+                - link "HCA HCA Healthcare, Inc." [ref=e983]:
+                  - /url: /stocks/HCA
+                  - generic [ref=e984]: HCA
+                  - generic [ref=e985]: HCA Healthcare, Inc.
+              - cell "Deep value, +58.9% margin of safety +58.9% Deep value" [ref=e986]:
+                - generic [ref=e987]:
+                  - generic [ref=e988]: Deep value, +58.9% margin of safety
+                  - generic [ref=e993]: +58.9%
+                  - generic [ref=e994]: Deep value
+              - cell "$405.00" [ref=e995]
+              - cell "$87.7B" [ref=e996]
+              - cell "−1.6%" [ref=e997]
+              - cell "30.8%" [ref=e998]
+              - cell "0.17" [ref=e999]
+              - cell "13.6" [ref=e1000]
+            - row [ref=e1001] [cursor=pointer]:
+              - cell [ref=e1002]:
+                - checkbox "Include WM in the portfolio" [ref=e1004]
+              - cell [ref=e1006]:
+                - link "WM Waste Management, Inc." [ref=e1007]:
+                  - /url: /stocks/WM
+                  - generic [ref=e1008]: WM
+                  - generic [ref=e1009]: Waste Management, Inc.
+              - cell "Undervalued, −14.7% margin of safety −14.7% Undervalued" [ref=e1010]:
+                - generic [ref=e1011]:
+                  - generic [ref=e1012]: Undervalued, −14.7% margin of safety
+                  - generic [ref=e1017]: −14.7%
+                  - generic [ref=e1018]: Undervalued
+              - cell "$218.99" [ref=e1019]
+              - cell "$87.5B" [ref=e1020]
+              - cell "−2.7%" [ref=e1021]
+              - cell "20.2%" [ref=e1022]
+              - cell "-0.35" [ref=e1023]
+              - cell "40.9" [ref=e1024]
+            - row [ref=e1025] [cursor=pointer]:
+              - cell [ref=e1026]:
+                - checkbox "Include UPS in the portfolio" [ref=e1028]
+              - cell [ref=e1030]:
+                - link "UPS United Parcel Service, Inc." [ref=e1031]:
+                  - /url: /stocks/UPS
+                  - generic [ref=e1032]: UPS
+                  - generic [ref=e1033]: United Parcel Service, Inc.
+              - cell "Undervalued, −12.6% margin of safety −12.6% Undervalued" [ref=e1034]:
+                - generic [ref=e1035]:
+                  - generic [ref=e1036]: Undervalued, −12.6% margin of safety
+                  - generic [ref=e1041]: −12.6%
+                  - generic [ref=e1042]: Undervalued
+              - cell "$102.29" [ref=e1043]
+              - cell "$87.0B" [ref=e1044]
+              - cell "+19.1%" [ref=e1045]
+              - cell "29.8%" [ref=e1046]
+              - cell "0.82" [ref=e1047]
+              - cell "19.0" [ref=e1048]
+            - row [ref=e1049] [cursor=pointer]:
+              - cell [ref=e1050]:
+                - checkbox "Include REGN in the portfolio" [ref=e1052]
+              - cell [ref=e1054]:
+                - link "REGN Regeneron Pharmaceuticals, Inc." [ref=e1055]:
+                  - /url: /stocks/REGN
+                  - generic [ref=e1056]: REGN
+                  - generic [ref=e1057]: Regeneron Pharmaceuticals, Inc.
+              - cell "Undervalued, −6.0% margin of safety −6.0% Undervalued" [ref=e1058]:
+                - generic [ref=e1059]:
+                  - generic [ref=e1060]: Undervalued, −6.0% margin of safety
+                  - generic [ref=e1065]: −6.0%
+                  - generic [ref=e1066]: Undervalued
+              - cell "$827.72" [ref=e1067]
+              - cell "$85.2B" [ref=e1068]
+              - cell "+37.8%" [ref=e1069]
+              - cell "33.4%" [ref=e1070]
+              - cell "0.50" [ref=e1071]
+              - cell "20.5" [ref=e1072]
+            - row [ref=e1073] [cursor=pointer]:
+              - cell [ref=e1074]:
+                - checkbox "Include MSI in the portfolio" [ref=e1076]
+              - cell [ref=e1078]:
+                - link "MSI Motorola Solutions, Inc." [ref=e1079]:
+                  - /url: /stocks/MSI
+                  - generic [ref=e1080]: MSI
+                  - generic [ref=e1081]: Motorola Solutions, Inc.
+              - cell "Undervalued, −17.8% margin of safety −17.8% Undervalued" [ref=e1082]:
+                - generic [ref=e1083]:
+                  - generic [ref=e1084]: Undervalued, −17.8% margin of safety
+                  - generic [ref=e1089]: −17.8%
+                  - generic [ref=e1090]: Undervalued
+              - cell "$468.05" [ref=e1091]
+              - cell "$77.5B" [ref=e1092]
+              - cell "−2.2%" [ref=e1093]
+              - cell "26.3%" [ref=e1094]
+              - cell "0.16" [ref=e1095]
+              - cell "36.9" [ref=e1096]
+            - row [ref=e1097] [cursor=pointer]:
+              - cell [ref=e1098]:
+                - checkbox "Include FDX in the portfolio" [ref=e1100]
+              - cell [ref=e1102]:
+                - link "FDX FedEx Corporation" [ref=e1103]:
+                  - /url: /stocks/FDX
+                  - generic [ref=e1104]: FDX
+                  - generic [ref=e1105]: FedEx Corporation
+              - cell "Deep value, +31.0% margin of safety +31.0% Deep value" [ref=e1106]:
+                - generic [ref=e1107]:
+                  - generic [ref=e1108]: Deep value, +31.0% margin of safety
+                  - generic [ref=e1113]: +31.0%
+                  - generic [ref=e1114]: Deep value
+              - cell "$322.52" [ref=e1115]
+              - cell "$76.3B" [ref=e1116]
+              - cell "+57.5%" [ref=e1117]
+              - cell "28.2%" [ref=e1118]
+              - cell "0.88" [ref=e1119]
+              - cell "17.4" [ref=e1120]
+            - row [ref=e1121] [cursor=pointer]:
+              - cell [ref=e1122]:
+                - checkbox "Include CI in the portfolio" [ref=e1124]
+              - cell [ref=e1126]:
+                - link "CI The Cigna Group" [ref=e1127]:
+                  - /url: /stocks/CI
+                  - generic [ref=e1128]: CI
+                  - generic [ref=e1129]: The Cigna Group
+              - cell "Deep value, +80.1% margin of safety +80.1% Deep value" [ref=e1130]:
+                - generic [ref=e1131]:
+                  - generic [ref=e1132]: Deep value, +80.1% margin of safety
+                  - generic [ref=e1137]: +80.1%
+                  - generic [ref=e1138]: Deep value
+              - cell "$282.52" [ref=e1139]
+              - cell "$74.7B" [ref=e1140]
+              - cell "−7.3%" [ref=e1141]
+              - cell "33.4%" [ref=e1142]
+              - cell "0.21" [ref=e1143]
+              - cell "11.7" [ref=e1144]
+            - row [ref=e1145] [cursor=pointer]:
+              - cell [ref=e1146]:
+                - checkbox "Include NOC in the portfolio" [ref=e1148]
+              - cell [ref=e1150]:
+                - link "NOC Northrop Grumman Corporation" [ref=e1151]:
+                  - /url: /stocks/NOC
+                  - generic [ref=e1152]: NOC
+                  - generic [ref=e1153]: Northrop Grumman Corporation
+              - cell "Deep value, +49.6% margin of safety +49.6% Deep value" [ref=e1154]:
+                - generic [ref=e1155]:
+                  - generic [ref=e1156]: Deep value, +49.6% margin of safety
+                  - generic [ref=e1161]: +49.6%
+                  - generic [ref=e1162]: Deep value
+              - cell "$514.98" [ref=e1163]
+              - cell "$73.2B" [ref=e1164]
+              - cell "−11.8%" [ref=e1165]
+              - cell "27.3%" [ref=e1166]
+              - cell "0.11" [ref=e1167]
+              - cell "24.0" [ref=e1168]
+            - row [ref=e1169] [cursor=pointer]:
+              - cell [ref=e1170]:
+                - checkbox "Include ORLY in the portfolio" [ref=e1172]
+              - cell [ref=e1174]:
+                - link "ORLY O'Reilly Automotive, Inc." [ref=e1175]:
+                  - /url: /stocks/ORLY
+                  - generic [ref=e1176]: ORLY
+                  - generic [ref=e1177]: O'Reilly Automotive, Inc.
+              - cell "Undervalued, −23.3% margin of safety −23.3% Undervalued" [ref=e1178]:
+                - generic [ref=e1179]:
+                  - generic [ref=e1180]: Undervalued, −23.3% margin of safety
+                  - generic [ref=e1185]: −23.3%
+                  - generic [ref=e1186]: Undervalued
+              - cell "$87.89" [ref=e1187]
+              - cell "$71.1B" [ref=e1188]
+              - cell "−17.8%" [ref=e1189]
+              - cell "25.6%" [ref=e1190]
+              - cell "0.04" [ref=e1191]
+              - cell "28.0" [ref=e1192]
+            - row [ref=e1193] [cursor=pointer]:
+              - cell [ref=e1194]:
+                - checkbox "Include BSX in the portfolio" [ref=e1196]
+              - cell [ref=e1198]:
+                - link "BSX Boston Scientific Corporation" [ref=e1199]:
+                  - /url: /stocks/BSX
+                  - generic [ref=e1200]: BSX
+                  - generic [ref=e1201]: Boston Scientific Corporation
+              - cell "Deep value, +41.2% margin of safety +41.2% Deep value" [ref=e1202]:
+                - generic [ref=e1203]:
+                  - generic [ref=e1204]: Deep value, +41.2% margin of safety
+                  - generic [ref=e1209]: +41.2%
+                  - generic [ref=e1210]: Deep value
+              - cell "$47.80" [ref=e1211]
+              - cell "$69.3B" [ref=e1212]
+              - cell "−80.9%" [ref=e1213]
+              - cell "38.5%" [ref=e1214]
+              - cell "0.18" [ref=e1215]
+              - cell "19.4" [ref=e1216]
+            - row [ref=e1217] [cursor=pointer]:
+              - cell [ref=e1218]:
+                - checkbox "Include RSG in the portfolio" [ref=e1220]
+              - cell [ref=e1222]:
+                - link "RSG Republic Services, Inc." [ref=e1223]:
+                  - /url: /stocks/RSG
+                  - generic [ref=e1224]: RSG
+                  - generic [ref=e1225]: Republic Services, Inc.
+              - cell "Deep value, +25.0% margin of safety +25.0% Deep value" [ref=e1226]:
+                - generic [ref=e1227]:
+                  - generic [ref=e1228]: Deep value, +25.0% margin of safety
+                  - generic [ref=e1233]: +25.0%
+                  - generic [ref=e1234]: Deep value
+              - cell "$222.71" [ref=e1235]
+              - cell "$68.2B" [ref=e1236]
+              - cell "−4.9%" [ref=e1237]
+              - cell "19.2%" [ref=e1238]
+              - cell "-0.37" [ref=e1239]
+              - cell "31.6" [ref=e1240]
+            - row [ref=e1241] [cursor=pointer]:
+              - cell [ref=e1242]:
+                - checkbox "Include COR in the portfolio" [ref=e1244]
+              - cell [ref=e1246]:
+                - link "COR Cencora, Inc." [ref=e1247]:
+                  - /url: /stocks/COR
+                  - generic [ref=e1248]: COR
+                  - generic [ref=e1249]: Cencora, Inc.
+              - cell "Deep value, +99.0% margin of safety +99.0% Deep value" [ref=e1250]:
+                - generic [ref=e1251]:
+                  - generic [ref=e1252]: Deep value, +99.0% margin of safety
+                  - generic [ref=e1257]: +99.0%
+                  - generic [ref=e1258]: Deep value
+              - cell "$330.95" [ref=e1259]
+              - cell "$63.2B" [ref=e1260]
+              - cell "+12.3%" [ref=e1261]
+              - cell "32.5%" [ref=e1262]
+              - cell "-0.20" [ref=e1263]
+              - cell "24.6" [ref=e1264]
+            - row [ref=e1265] [cursor=pointer]:
+              - cell [ref=e1266]:
+                - checkbox "Include BKR in the portfolio" [ref=e1268]
+              - cell [ref=e1270]:
+                - link "BKR Baker Hughes Company" [ref=e1271]:
+                  - /url: /stocks/BKR
+                  - generic [ref=e1272]: BKR
+                  - generic [ref=e1273]: Baker Hughes Company
+              - cell "Undervalued, −20.8% margin of safety −20.8% Undervalued" [ref=e1274]:
+                - generic [ref=e1275]:
+                  - generic [ref=e1276]: Undervalued, −20.8% margin of safety
+                  - generic [ref=e1281]: −20.8%
+                  - generic [ref=e1282]: Undervalued
+              - cell "$63.50" [ref=e1283]
+              - cell "$63.0B" [ref=e1284]
+              - cell "+31.5%" [ref=e1285]
+              - cell "32.6%" [ref=e1286]
+              - cell "0.68" [ref=e1287]
+              - cell "20.5" [ref=e1288]
+            - row [ref=e1289] [cursor=pointer]:
+              - cell [ref=e1290]:
+                - checkbox "Include CRH in the portfolio" [ref=e1292]
+              - cell [ref=e1294]:
+                - link "CRH CRH plc" [ref=e1295]:
+                  - /url: /stocks/CRH
+                  - generic [ref=e1296]: CRH
+                  - generic [ref=e1297]: CRH plc
+              - cell "Undervalued, −10.1% margin of safety −10.1% Undervalued" [ref=e1298]:
+                - generic [ref=e1299]:
+                  - generic [ref=e1300]: Undervalued, −10.1% margin of safety
+                  - generic [ref=e1305]: −10.1%
+                  - generic [ref=e1306]: Undervalued
+              - cell "$94.26" [ref=e1307]
+              - cell "$62.7B" [ref=e1308]
+              - cell "−16.9%" [ref=e1309]
+              - cell "31.9%" [ref=e1310]
+              - cell "1.30" [ref=e1311]
+              - cell "16.6" [ref=e1312]
+            - row [ref=e1313] [cursor=pointer]:
+              - cell [ref=e1314]:
+                - checkbox "Include CAH in the portfolio" [ref=e1316]
+              - cell [ref=e1318]:
+                - link "CAH Cardinal Health, Inc." [ref=e1319]:
+                  - /url: /stocks/CAH
+                  - generic [ref=e1320]: CAH
+                  - generic [ref=e1321]: Cardinal Health, Inc.
+              - cell "Deep value, +42.9% margin of safety +42.9% Deep value" [ref=e1322]:
+                - generic [ref=e1323]:
+                  - generic [ref=e1324]: Deep value, +42.9% margin of safety
+                  - generic [ref=e1329]: +42.9%
+                  - generic [ref=e1330]: Deep value
+              - cell "$247.18" [ref=e1331]
+              - cell "$57.5B" [ref=e1332]
+              - cell "+50.4%" [ref=e1333]
+              - cell "29.1%" [ref=e1334]
+              - cell "-0.05" [ref=e1335]
+              - cell "37.8" [ref=e1336]
+            - row [ref=e1337] [cursor=pointer]:
+              - cell [ref=e1338]:
+                - checkbox "Include NKE in the portfolio" [ref=e1340]
+              - cell [ref=e1342]:
+                - link "NKE NIKE, Inc." [ref=e1343]:
+                  - /url: /stocks/NKE
+                  - generic [ref=e1344]: NKE
+                  - generic [ref=e1345]: NIKE, Inc.
+              - cell "Fair value, −39.0% margin of safety −39.0% Fair value" [ref=e1346]:
+                - generic [ref=e1347]:
+                  - generic [ref=e1348]: Fair value, −39.0% margin of safety
+                  - generic [ref=e1353]: −39.0%
+                  - generic [ref=e1354]: Fair value
+              - cell "$38.40" [ref=e1355]
+              - cell "$57.0B" [ref=e1356]
+              - cell "−67.4%" [ref=e1357]
+              - cell "36.8%" [ref=e1358]
+              - cell "0.71" [ref=e1359]
+              - cell "18.4" [ref=e1360]
+            - row [ref=e1361] [cursor=pointer]:
+              - cell [ref=e1362]:
+                - checkbox "Include HONA in the portfolio" [ref=e1364]
+              - cell [ref=e1366]:
+                - link "HONA Honeywell Aerospace Inc." [ref=e1367]:
+                  - /url: /stocks/HONA
+                  - generic [ref=e1368]: HONA
+                  - generic [ref=e1369]: Honeywell Aerospace Inc.
+              - cell "Deep value, +23.7% margin of safety +23.7% Deep value" [ref=e1370]:
+                - generic [ref=e1371]:
+                  - generic [ref=e1372]: Deep value, +23.7% margin of safety
+                  - generic [ref=e1377]: +23.7%
+                  - generic [ref=e1378]: Deep value
+              - cell "$161.01" [ref=e1379]
+              - cell "$51.0B" [ref=e1380]
+              - cell "−95.9%" [ref=e1381]
+              - cell "100.8%" [ref=e1382]
+              - cell "0.91" [ref=e1383]
+              - cell "21.5" [ref=e1384]
+            - row [ref=e1385] [cursor=pointer]:
+              - cell [ref=e1386]:
+                - checkbox "Include VST in the portfolio" [ref=e1388]
+              - cell [ref=e1390]:
+                - link "VST Vistra Corp." [ref=e1391]:
+                  - /url: /stocks/VST
+                  - generic [ref=e1392]: VST
+                  - generic [ref=e1393]: Vistra Corp.
+              - cell "Deep value, +13.6% margin of safety +13.6% Deep value" [ref=e1394]:
+                - generic [ref=e1395]:
+                  - generic [ref=e1396]: Deep value, +13.6% margin of safety
+                  - generic [ref=e1401]: +13.6%
+                  - generic [ref=e1402]: Deep value
+              - cell "$149.30" [ref=e1403]
+              - cell "$50.1B" [ref=e1404]
+              - cell "−24.0%" [ref=e1405]
+              - cell "49.9%" [ref=e1406]
+              - cell "1.50" [ref=e1407]
+              - cell "27.8" [ref=e1408]
+            - row [ref=e1409] [cursor=pointer]:
+              - cell [ref=e1410]:
+                - checkbox "Include IQV in the portfolio" [ref=e1412]
+              - cell [ref=e1414]:
+                - link "IQV IQVIA Holdings Inc." [ref=e1415]:
+                  - /url: /stocks/IQV
+                  - generic [ref=e1416]: IQV
+                  - generic [ref=e1417]: IQVIA Holdings Inc.
+              - cell "Fair value, −28.8% margin of safety −28.8% Fair value" [ref=e1418]:
+                - generic [ref=e1419]:
+                  - generic [ref=e1420]: Fair value, −28.8% margin of safety
+                  - generic [ref=e1425]: −28.8%
+                  - generic [ref=e1426]: Fair value
+              - cell "$267.77" [ref=e1427]
+              - cell "$44.1B" [ref=e1428]
+              - cell "+37.5%" [ref=e1429]
+              - cell "41.1%" [ref=e1430]
+              - cell "0.82" [ref=e1431]
+              - cell "33.2" [ref=e1432]
+            - row [ref=e1433] [cursor=pointer]:
+              - cell [ref=e1434]:
+                - checkbox "Include PAYX in the portfolio" [ref=e1436]
+              - cell [ref=e1438]:
+                - link "PAYX Paychex, Inc." [ref=e1439]:
+                  - /url: /stocks/PAYX
+                  - generic [ref=e1440]: PAYX
+                  - generic [ref=e1441]: Paychex, Inc.
+              - cell "Deep value, +17.3% margin of safety +17.3% Deep value" [ref=e1442]:
+                - generic [ref=e1443]:
+                  - generic [ref=e1444]: Deep value, +17.3% margin of safety
+                  - generic [ref=e1449]: +17.3%
+                  - generic [ref=e1450]: Deep value
+              - cell "$121.71" [ref=e1451]
+              - cell "$43.3B" [ref=e1452]
+              - cell "−12.1%" [ref=e1453]
+              - cell "28.0%" [ref=e1454]
+              - cell "0.01" [ref=e1455]
+              - cell "24.9" [ref=e1456]
+            - row [ref=e1457] [cursor=pointer]:
+              - cell [ref=e1458]:
+                - checkbox "Include YUM in the portfolio" [ref=e1460]
+              - cell [ref=e1462]:
+                - link "YUM Yum! Brands, Inc." [ref=e1463]:
+                  - /url: /stocks/YUM
+                  - generic [ref=e1464]: YUM
+                  - generic [ref=e1465]: Yum! Brands, Inc.
+              - cell "Undervalued, −14.4% margin of safety −14.4% Undervalued" [ref=e1466]:
+                - generic [ref=e1467]:
+                  - generic [ref=e1468]: Undervalued, −14.4% margin of safety
+                  - generic [ref=e1473]: −14.4%
+                  - generic [ref=e1474]: Undervalued
+              - cell "$150.71" [ref=e1475]
+              - cell "$41.1B" [ref=e1476]
+              - cell "+4.8%" [ref=e1477]
+              - cell "23.8%" [ref=e1478]
+              - cell "0.04" [ref=e1479]
+              - cell "19.0" [ref=e1480]
+            - row [ref=e1481] [cursor=pointer]:
+              - cell [ref=e1482]:
+                - checkbox "Include ADM in the portfolio" [ref=e1484]
+              - cell [ref=e1486]:
+                - link "ADM Archer-Daniels-Midland Company" [ref=e1487]:
+                  - /url: /stocks/ADM
+                  - generic [ref=e1488]: ADM
+                  - generic [ref=e1489]: Archer-Daniels-Midland Company
+              - cell "Deep value, +29.1% margin of safety +29.1% Deep value" [ref=e1490]:
+                - generic [ref=e1491]:
+                  - generic [ref=e1492]: Deep value, +29.1% margin of safety
+                  - generic [ref=e1497]: +29.1%
+                  - generic [ref=e1498]: Deep value
+              - cell "$84.61" [ref=e1499]
+              - cell "$40.8B" [ref=e1500]
+              - cell "+31.2%" [ref=e1501]
+              - cell "27.5%" [ref=e1502]
+              - cell "-0.08" [ref=e1503]
+              - cell "47.6" [ref=e1504]
+            - row [ref=e1505] [cursor=pointer]:
+              - cell [ref=e1506]:
+                - checkbox "Include ROP in the portfolio" [ref=e1508]
+              - cell [ref=e1510]:
+                - link "ROP Roper Technologies, Inc." [ref=e1511]:
+                  - /url: /stocks/ROP
+                  - generic [ref=e1512]: ROP
+                  - generic [ref=e1513]: Roper Technologies, Inc.
+              - cell "Deep value, +84.0% margin of safety +84.0% Deep value" [ref=e1514]:
+                - generic [ref=e1515]:
+                  - generic [ref=e1516]: Deep value, +84.0% margin of safety
+                  - generic [ref=e1521]: +84.0%
+                  - generic [ref=e1522]: Deep value
+              - cell "$407.28" [ref=e1523]
+              - cell "$40.3B" [ref=e1524]
+              - cell "−25.8%" [ref=e1525]
+              - cell "29.3%" [ref=e1526]
+              - cell "0.07" [ref=e1527]
+              - cell "16.9" [ref=e1528]
+            - row [ref=e1529] [cursor=pointer]:
+              - cell [ref=e1530]:
+                - checkbox "Include DHI in the portfolio" [ref=e1532]
+              - cell [ref=e1534]:
+                - link "DHI D.R. Horton, Inc." [ref=e1535]:
+                  - /url: /stocks/DHI
+                  - generic [ref=e1536]: DHI
+                  - generic [ref=e1537]: D.R. Horton, Inc.
+              - cell "Fair value, −29.5% margin of safety −29.5% Fair value" [ref=e1538]:
+                - generic [ref=e1539]:
+                  - generic [ref=e1540]: Fair value, −29.5% margin of safety
+                  - generic [ref=e1545]: −29.5%
+                  - generic [ref=e1546]: Fair value
+              - cell "$142.75" [ref=e1547]
+              - cell "$39.9B" [ref=e1548]
+              - cell "−21.3%" [ref=e1549]
+              - cell "35.5%" [ref=e1550]
+              - cell "0.88" [ref=e1551]
+              - cell "13.6" [ref=e1552]
+            - row [ref=e1553] [cursor=pointer]:
+              - cell [ref=e1554]:
+                - checkbox "Include SYY in the portfolio" [ref=e1556]
+              - cell [ref=e1558]:
+                - link "SYY Sysco Corporation" [ref=e1559]:
+                  - /url: /stocks/SYY
+                  - generic [ref=e1560]: SYY
+                  - generic [ref=e1561]: Sysco Corporation
+              - cell "Undervalued, −14.6% margin of safety −14.6% Undervalued" [ref=e1562]:
+                - generic [ref=e1563]:
+                  - generic [ref=e1564]: Undervalued, −14.6% margin of safety
+                  - generic [ref=e1569]: −14.6%
+                  - generic [ref=e1570]: Undervalued
+              - cell "$80.05" [ref=e1571]
+              - cell "$38.4B" [ref=e1572]
+              - cell "−3.0%" [ref=e1573]
+              - cell "27.4%" [ref=e1574]
+              - cell "0.17" [ref=e1575]
+              - cell "21.9" [ref=e1576]
+            - row [ref=e1577] [cursor=pointer]:
+              - cell [ref=e1578]:
+                - checkbox "Include MLM in the portfolio" [ref=e1580]
+              - cell [ref=e1582]:
+                - link "MLM Martin Marietta Materials, Inc." [ref=e1583]:
+                  - /url: /stocks/MLM
+                  - generic [ref=e1584]: MLM
+                  - generic [ref=e1585]: Martin Marietta Materials, Inc.
+              - cell "Undervalued, −24.7% margin of safety −24.7% Undervalued" [ref=e1586]:
+                - generic [ref=e1587]:
+                  - generic [ref=e1588]: Undervalued, −24.7% margin of safety
+                  - generic [ref=e1593]: −24.7%
+                  - generic [ref=e1594]: Undervalued
+              - cell "$514.77" [ref=e1595]
+              - cell "$36.6B" [ref=e1596]
+              - cell "−18.4%" [ref=e1597]
+              - cell "28.4%" [ref=e1598]
+              - cell "0.85" [ref=e1599]
+              - cell "12.7" [ref=e1600]
+            - row [ref=e1601] [cursor=pointer]:
+              - cell [ref=e1602]:
+                - checkbox "Include NTAP in the portfolio" [ref=e1604]
+              - cell [ref=e1606]:
+                - link "NTAP NetApp, Inc." [ref=e1607]:
+                  - /url: /stocks/NTAP
+                  - generic [ref=e1608]: NTAP
+                  - generic [ref=e1609]: NetApp, Inc.
+              - cell "Fair value, −30.2% margin of safety −30.2% Fair value" [ref=e1610]:
+                - generic [ref=e1611]:
+                  - generic [ref=e1612]: Fair value, −30.2% margin of safety
+                  - generic [ref=e1617]: −30.2%
+                  - generic [ref=e1618]: Fair value
+              - cell "$185.59" [ref=e1619]
+              - cell "$36.5B" [ref=e1620]
+              - cell "+44.6%" [ref=e1621]
+              - cell "41.9%" [ref=e1622]
+              - cell "1.29" [ref=e1623]
+              - cell "29.2" [ref=e1624]
+            - row [ref=e1625] [cursor=pointer]:
+              - cell [ref=e1626]:
+                - checkbox "Include KVUE in the portfolio" [ref=e1628]
+              - cell [ref=e1630]:
+                - link "KVUE Kenvue Inc." [ref=e1631]:
+                  - /url: /stocks/KVUE
+                  - generic [ref=e1632]: KVUE
+                  - generic [ref=e1633]: Kenvue Inc.
+              - cell "Fair value, −37.4% margin of safety −37.4% Fair value" [ref=e1634]:
+                - generic [ref=e1635]:
+                  - generic [ref=e1636]: Fair value, −37.4% margin of safety
+                  - generic [ref=e1641]: −37.4%
+                  - generic [ref=e1642]: Fair value
+              - cell "$18.74" [ref=e1643]
+              - cell "$36.0B" [ref=e1644]
+              - cell "−9.2%" [ref=e1645]
+              - cell "32.6%" [ref=e1646]
+              - cell "0.14" [ref=e1647]
+              - cell "21.5" [ref=e1648]
+            - row [ref=e1649] [cursor=pointer]:
+              - cell [ref=e1650]:
+                - checkbox "Include EXPE in the portfolio" [ref=e1652]
+              - cell [ref=e1654]:
+                - link "EXPE Expedia Group, Inc." [ref=e1655]:
+                  - /url: /stocks/EXPE
+                  - generic [ref=e1656]: EXPE
+                  - generic [ref=e1657]: Expedia Group, Inc.
+              - cell "Undervalued, −23.4% margin of safety −23.4% Undervalued" [ref=e1658]:
+                - generic [ref=e1659]:
+                  - generic [ref=e1660]: Undervalued, −23.4% margin of safety
+                  - generic [ref=e1665]: −23.4%
+                  - generic [ref=e1666]: Undervalued
+              - cell "$298.04" [ref=e1667]
+              - cell "$35.8B" [ref=e1668]
+              - cell "+32.0%" [ref=e1669]
+              - cell "49.3%" [ref=e1670]
+              - cell "1.05" [ref=e1671]
+              - cell "18.6" [ref=e1672]
+            - row [ref=e1673] [cursor=pointer]:
+              - cell [ref=e1674]:
+                - checkbox "Include HSY in the portfolio" [ref=e1676]
+              - cell [ref=e1678]:
+                - link "HSY The Hershey Company" [ref=e1679]:
+                  - /url: /stocks/HSY
+                  - generic [ref=e1680]: HSY
+                  - generic [ref=e1681]: The Hershey Company
+              - cell "Undervalued, −25.1% margin of safety −25.1% Undervalued" [ref=e1682]:
+                - generic [ref=e1683]:
+                  - generic [ref=e1684]: Undervalued, −25.1% margin of safety
+                  - generic [ref=e1689]: −25.1%
+                  - generic [ref=e1690]: Undervalued
+              - cell "$173.15" [ref=e1691]
+              - cell "$34.8B" [ref=e1692]
+              - cell "−6.8%" [ref=e1693]
+              - cell "27.4%" [ref=e1694]
+              - cell "-0.11" [ref=e1695]
+              - cell "23.6" [ref=e1696]
+            - row [ref=e1697] [cursor=pointer]:
+              - cell [ref=e1698]:
+                - checkbox "Include STLD in the portfolio" [ref=e1700]
+              - cell [ref=e1702]:
+                - link "STLD Steel Dynamics, Inc." [ref=e1703]:
+                  - /url: /stocks/STLD
+                  - generic [ref=e1704]: STLD
+                  - generic [ref=e1705]: Steel Dynamics, Inc.
+              - cell "Fair value, −31.0% margin of safety −31.0% Fair value" [ref=e1706]:
+                - generic [ref=e1707]:
+                  - generic [ref=e1708]: Fair value, −31.0% margin of safety
+                  - generic [ref=e1713]: −31.0%
+                  - generic [ref=e1714]: Fair value
+              - cell "$242.06" [ref=e1715]
+              - cell "$34.7B" [ref=e1716]
+              - cell "+61.5%" [ref=e1717]
+              - cell "36.6%" [ref=e1718]
+              - cell "1.13" [ref=e1719]
+              - cell "21.9" [ref=e1720]
+            - row [ref=e1721] [cursor=pointer]:
+              - cell [ref=e1722]:
+                - checkbox "Include EQT in the portfolio" [ref=e1724]
+              - cell [ref=e1726]:
+                - link "EQT EQT Corporation" [ref=e1727]:
+                  - /url: /stocks/EQT
+                  - generic [ref=e1728]: EQT
+                  - generic [ref=e1729]: EQT Corporation
+              - cell "Undervalued, −13.6% margin of safety −13.6% Undervalued" [ref=e1730]:
+                - generic [ref=e1731]:
+                  - generic [ref=e1732]: Undervalued, −13.6% margin of safety
+                  - generic [ref=e1737]: −13.6%
+                  - generic [ref=e1738]: Undervalued
+              - cell "$55.17" [ref=e1739]
+              - cell "$34.5B" [ref=e1740]
+              - cell "+6.3%" [ref=e1741]
+              - cell "30.4%" [ref=e1742]
+              - cell "0.13" [ref=e1743]
+              - cell "12.8" [ref=e1744]
+            - row [ref=e1745] [cursor=pointer]:
+              - cell [ref=e1746]:
+                - checkbox "Include RMD in the portfolio" [ref=e1748]
+              - cell [ref=e1750]:
+                - link "RMD ResMed Inc." [ref=e1751]:
+                  - /url: /stocks/RMD
+                  - generic [ref=e1752]: RMD
+                  - generic [ref=e1753]: ResMed Inc.
+              - cell "Fair value, −36.6% margin of safety −36.6% Fair value" [ref=e1754]:
+                - generic [ref=e1755]:
+                  - generic [ref=e1756]: Fair value, −36.6% margin of safety
+                  - generic [ref=e1761]: −36.6%
+                  - generic [ref=e1762]: Fair value
+              - cell "$228.35" [ref=e1763]
+              - cell "$32.9B" [ref=e1764]
+              - cell "−18.2%" [ref=e1765]
+              - cell "28.5%" [ref=e1766]
+              - cell "0.45" [ref=e1767]
+              - cell "21.9" [ref=e1768]
+            - row [ref=e1769] [cursor=pointer]:
+              - cell [ref=e1770]:
+                - checkbox "Include BIIB in the portfolio" [ref=e1772]
+              - cell [ref=e1774]:
+                - link "BIIB Biogen Inc." [ref=e1775]:
+                  - /url: /stocks/BIIB
+                  - generic [ref=e1776]: BIIB
+                  - generic [ref=e1777]: Biogen Inc.
+              - cell "Fair value, −34.0% margin of safety −34.0% Fair value" [ref=e1778]:
+                - generic [ref=e1779]:
+                  - generic [ref=e1780]: Fair value, −34.0% margin of safety
+                  - generic [ref=e1785]: −34.0%
+                  - generic [ref=e1786]: Fair value
+              - cell "$220.83" [ref=e1787]
+              - cell "$32.6B" [ref=e1788]
+              - cell "+45.6%" [ref=e1789]
+              - cell "34.9%" [ref=e1790]
+              - cell "0.36" [ref=e1791]
+              - cell "39.1" [ref=e1792]
+            - row [ref=e1793] [cursor=pointer]:
+              - cell [ref=e1794]:
+                - checkbox "Include ZTS in the portfolio" [ref=e1796]
+              - cell [ref=e1798]:
+                - link "ZTS Zoetis Inc." [ref=e1799]:
+                  - /url: /stocks/ZTS
+                  - generic [ref=e1800]: ZTS
+                  - generic [ref=e1801]: Zoetis Inc.
+              - cell "Deep value, +17.1% margin of safety +17.1% Deep value" [ref=e1802]:
+                - generic [ref=e1803]:
+                  - generic [ref=e1804]: Deep value, +17.1% margin of safety
+                  - generic [ref=e1809]: +17.1%
+                  - generic [ref=e1810]: Deep value
+              - cell "$75.81" [ref=e1811]
+              - cell "$31.3B" [ref=e1812]
+              - cell "−70.4%" [ref=e1813]
+              - cell "39.6%" [ref=e1814]
+              - cell "0.58" [ref=e1815]
+              - cell "12.5" [ref=e1816]
+            - row [ref=e1817] [cursor=pointer]:
+              - cell [ref=e1818]:
+                - checkbox "Include CPRT in the portfolio" [ref=e1820]
+              - cell [ref=e1822]:
+                - link "CPRT Copart, Inc." [ref=e1823]:
+                  - /url: /stocks/CPRT
+                  - generic [ref=e1824]: CPRT
+                  - generic [ref=e1825]: Copart, Inc.
+              - cell "Fair value, −31.7% margin of safety −31.7% Fair value" [ref=e1826]:
+                - generic [ref=e1827]:
+                  - generic [ref=e1828]: Fair value, −31.7% margin of safety
+                  - generic [ref=e1833]: −31.7%
+                  - generic [ref=e1834]: Fair value
+              - cell "$33.72" [ref=e1835]
+              - cell "$31.2B" [ref=e1836]
+              - cell "−39.3%" [ref=e1837]
+              - cell "29.9%" [ref=e1838]
+              - cell "0.21" [ref=e1839]
+              - cell "20.9" [ref=e1840]
+            - row [ref=e1841] [cursor=pointer]:
+              - cell [ref=e1842]:
+                - checkbox "Include GEHC in the portfolio" [ref=e1844]
+              - cell [ref=e1846]:
+                - link "GEHC GE HealthCare Technologies Inc." [ref=e1847]:
+                  - /url: /stocks/GEHC
+                  - generic [ref=e1848]: GEHC
+                  - generic [ref=e1849]: GE HealthCare Technologies Inc.
+              - cell "Undervalued, −11.5% margin of safety −11.5% Undervalued" [ref=e1850]:
+                - generic [ref=e1851]:
+                  - generic [ref=e1852]: Undervalued, −11.5% margin of safety
+                  - generic [ref=e1857]: −11.5%
+                  - generic [ref=e1858]: Undervalued
+              - cell "$68.86" [ref=e1859]
+              - cell "$31.1B" [ref=e1860]
+              - cell "−7.4%" [ref=e1861]
+              - cell "35.2%" [ref=e1862]
+              - cell "0.79" [ref=e1863]
+              - cell "15.8" [ref=e1864]
+            - row [ref=e1865] [cursor=pointer]:
+              - cell [ref=e1866]:
+                - checkbox "Include HAL in the portfolio" [ref=e1868]
+              - cell [ref=e1870]:
+                - link "HAL Halliburton Company" [ref=e1871]:
+                  - /url: /stocks/HAL
+                  - generic [ref=e1872]: HAL
+                  - generic [ref=e1873]: Halliburton Company
+              - cell "Undervalued, −24.4% margin of safety −24.4% Undervalued" [ref=e1874]:
+                - generic [ref=e1875]:
+                  - generic [ref=e1876]: Undervalued, −24.4% margin of safety
+                  - generic [ref=e1881]: −24.4%
+                  - generic [ref=e1882]: Undervalued
+              - cell "$37.07" [ref=e1883]
+              - cell "$30.9B" [ref=e1884]
+              - cell "+50.1%" [ref=e1885]
+              - cell "35.5%" [ref=e1886]
+              - cell "0.21" [ref=e1887]
+              - cell "19.4" [ref=e1888]
+            - row [ref=e1889] [cursor=pointer]:
+              - cell [ref=e1890]:
+                - checkbox "Include KHC in the portfolio" [ref=e1892]
+              - cell [ref=e1894]:
+                - link "KHC The Kraft Heinz Company" [ref=e1895]:
+                  - /url: /stocks/KHC
+                  - generic [ref=e1896]: KHC
+                  - generic [ref=e1897]: The Kraft Heinz Company
+              - cell "Deep value, +29.3% margin of safety +29.3% Deep value" [ref=e1898]:
+                - generic [ref=e1899]:
+                  - generic [ref=e1900]: Deep value, +29.3% margin of safety
+                  - generic [ref=e1905]: +29.3%
+                  - generic [ref=e1906]: Deep value
+              - cell "$24.85" [ref=e1907]
+              - cell "$29.5B" [ref=e1908]
+              - cell "−8.1%" [ref=e1909]
+              - cell "26.7%" [ref=e1910]
+              - cell "-0.05" [ref=e1911]
+              - cell "—" [ref=e1912]
+            - row [ref=e1913] [cursor=pointer]:
+              - cell [ref=e1914]:
+                - checkbox "Include HPQ in the portfolio" [ref=e1916]
+              - cell [ref=e1918]:
+                - link "HPQ HP Inc." [ref=e1919]:
+                  - /url: /stocks/HPQ
+                  - generic [ref=e1920]: HPQ
+                  - generic [ref=e1921]: HP Inc.
+              - cell "Deep value, +54.5% margin of safety +54.5% Deep value" [ref=e1922]:
+                - generic [ref=e1923]:
+                  - generic [ref=e1924]: Deep value, +54.5% margin of safety
+                  - generic [ref=e1929]: +54.5%
+                  - generic [ref=e1930]: Deep value
+              - cell "$32.64" [ref=e1931]
+              - cell "$29.4B" [ref=e1932]
+              - cell "+12.1%" [ref=e1933]
+              - cell "43.2%" [ref=e1934]
+              - cell "0.74" [ref=e1935]
+              - cell "12.0" [ref=e1936]
+            - row [ref=e1937] [cursor=pointer]:
+              - cell [ref=e1938]:
+                - checkbox "Include DG in the portfolio" [ref=e1940]
+              - cell [ref=e1942]:
+                - link "DG Dollar General Corporation" [ref=e1943]:
+                  - /url: /stocks/DG
+                  - generic [ref=e1944]: DG
+                  - generic [ref=e1945]: Dollar General Corporation
+              - cell "Fair value, −34.1% margin of safety −34.1% Fair value" [ref=e1946]:
+                - generic [ref=e1947]:
+                  - generic [ref=e1948]: Fair value, −34.1% margin of safety
+                  - generic [ref=e1953]: −34.1%
+                  - generic [ref=e1954]: Fair value
+              - cell "$133.21" [ref=e1955]
+              - cell "$29.4B" [ref=e1956]
+              - cell "+20.6%" [ref=e1957]
+              - cell "36.9%" [ref=e1958]
+              - cell "0.53" [ref=e1959]
+              - cell "18.8" [ref=e1960]
+            - row [ref=e1961] [cursor=pointer]:
+              - cell [ref=e1962]:
+                - checkbox "Include LVS in the portfolio" [ref=e1964]
+              - cell [ref=e1966]:
+                - link "LVS Las Vegas Sands Corp." [ref=e1967]:
+                  - /url: /stocks/LVS
+                  - generic [ref=e1968]: LVS
+                  - generic [ref=e1969]: Las Vegas Sands Corp.
+              - cell "Deep value, +18.2% margin of safety +18.2% Deep value" [ref=e1970]:
+                - generic [ref=e1971]:
+                  - generic [ref=e1972]: Deep value, +18.2% margin of safety
+                  - generic [ref=e1977]: +18.2%
+                  - generic [ref=e1978]: Deep value
+              - cell "$44.37" [ref=e1979]
+              - cell "$28.7B" [ref=e1980]
+              - cell "−21.7%" [ref=e1981]
+              - cell "35.4%" [ref=e1982]
+              - cell "0.63" [ref=e1983]
+              - cell "17.3" [ref=e1984]
+            - row [ref=e1985] [cursor=pointer]:
+              - cell [ref=e1986]:
+                - checkbox "Include CTSH in the portfolio" [ref=e1988]
+              - cell [ref=e1990]:
+                - link "CTSH Cognizant Technology Solutions Corporation" [ref=e1991]:
+                  - /url: /stocks/CTSH
+                  - generic [ref=e1992]: CTSH
+                  - generic [ref=e1993]: Cognizant Technology Solutions Corporation
+              - cell "Deep value, +56.3% margin of safety +56.3% Deep value" [ref=e1994]:
+                - generic [ref=e1995]:
+                  - generic [ref=e1996]: Deep value, +56.3% margin of safety
+                  - generic [ref=e2001]: +56.3%
+                  - generic [ref=e2002]: Deep value
+              - cell "$62.31" [ref=e2003]
+              - cell "$28.1B" [ref=e2004]
+              - cell "−13.7%" [ref=e2005]
+              - cell "40.2%" [ref=e2006]
+              - cell "0.26" [ref=e2007]
+              - cell "13.4" [ref=e2008]
+            - row [ref=e2009] [cursor=pointer]:
+              - cell [ref=e2010]:
+                - checkbox "Include CPAY in the portfolio" [ref=e2012]
+              - cell [ref=e2014]:
+                - link "CPAY Corpay, Inc." [ref=e2015]:
+                  - /url: /stocks/CPAY
+                  - generic [ref=e2016]: CPAY
+                  - generic [ref=e2017]: Corpay, Inc.
+              - cell "Undervalued, −13.2% margin of safety −13.2% Undervalued" [ref=e2018]:
+                - generic [ref=e2019]:
+                  - generic [ref=e2020]: Undervalued, −13.2% margin of safety
+                  - generic [ref=e2025]: −13.2%
+                  - generic [ref=e2026]: Undervalued
+              - cell "$416.37" [ref=e2027]
+              - cell "$27.3B" [ref=e2028]
+              - cell "+26.3%" [ref=e2029]
+              - cell "36.7%" [ref=e2030]
+              - cell "0.88" [ref=e2031]
+              - cell "25.3" [ref=e2032]
+            - row [ref=e2033] [cursor=pointer]:
+              - cell [ref=e2034]:
+                - checkbox "Include OTIS in the portfolio" [ref=e2036]
+              - cell [ref=e2038]:
+                - link "OTIS Otis Worldwide Corporation" [ref=e2039]:
+                  - /url: /stocks/OTIS
+                  - generic [ref=e2040]: OTIS
+                  - generic [ref=e2041]: Otis Worldwide Corporation
+              - cell "Deep value, +6.5% margin of safety +6.5% Deep value" [ref=e2042]:
+                - generic [ref=e2043]:
+                  - generic [ref=e2044]: Deep value, +6.5% margin of safety
+                  - generic [ref=e2049]: +6.5%
+                  - generic [ref=e2050]: Deep value
+              - cell "$71.21" [ref=e2051]
+              - cell "$27.1B" [ref=e2052]
+              - cell "−19.5%" [ref=e2053]
+              - cell "21.3%" [ref=e2054]
+              - cell "0.30" [ref=e2055]
+              - cell "18.3" [ref=e2056]
+            - row [ref=e2057] [cursor=pointer]:
+              - cell [ref=e2058]:
+                - checkbox "Include LH in the portfolio" [ref=e2060]
+              - cell [ref=e2062]:
+                - link "LH Labcorp Holdings Inc." [ref=e2063]:
+                  - /url: /stocks/LH
+                  - generic [ref=e2064]: LH
+                  - generic [ref=e2065]: Labcorp Holdings Inc.
+              - cell "Undervalued, +1.9% margin of safety +1.9% Undervalued" [ref=e2066]:
+                - generic [ref=e2067]:
+                  - generic [ref=e2068]: Undervalued, +1.9% margin of safety
+                  - generic [ref=e2073]: +1.9%
+                  - generic [ref=e2074]: Undervalued
+              - cell "$326.89" [ref=e2075]
+              - cell "$26.5B" [ref=e2076]
+              - cell "+17.2%" [ref=e2077]
+              - cell "23.4%" [ref=e2078]
+              - cell "0.28" [ref=e2079]
+              - cell "27.0" [ref=e2080]
+            - row [ref=e2081] [cursor=pointer]:
+              - cell [ref=e2082]:
+                - checkbox "Include VRSN in the portfolio" [ref=e2084]
+              - cell [ref=e2086]:
+                - link "VRSN VeriSign, Inc." [ref=e2087]:
+                  - /url: /stocks/VRSN
+                  - generic [ref=e2088]: VRSN
+                  - generic [ref=e2089]: VeriSign, Inc.
+              - cell "Deep value, +5.0% margin of safety +5.0% Deep value" [ref=e2090]:
+                - generic [ref=e2091]:
+                  - generic [ref=e2092]: Deep value, +5.0% margin of safety
+                  - generic [ref=e2097]: +5.0%
+                  - generic [ref=e2098]: Deep value
+              - cell "$292.08" [ref=e2099]
+              - cell "$26.4B" [ref=e2100]
+              - cell "+5.3%" [ref=e2101]
+              - cell "28.8%" [ref=e2102]
+              - cell "0.01" [ref=e2103]
+              - cell "31.7" [ref=e2104]
+            - row [ref=e2105] [cursor=pointer]:
+              - cell [ref=e2106]:
+                - checkbox "Include DOV in the portfolio" [ref=e2108]
+              - cell [ref=e2110]:
+                - link "DOV Dover Corporation" [ref=e2111]:
+                  - /url: /stocks/DOV
+                  - generic [ref=e2112]: DOV
+                  - generic [ref=e2113]: Dover Corporation
+              - cell "Fair value, −31.4% margin of safety −31.4% Fair value" [ref=e2114]:
+                - generic [ref=e2115]:
+                  - generic [ref=e2116]: Fair value, −31.4% margin of safety
+                  - generic [ref=e2121]: −31.4%
+                  - generic [ref=e2122]: Fair value
+              - cell "$192.88" [ref=e2123]
+              - cell "$26.0B" [ref=e2124]
+              - cell "+7.8%" [ref=e2125]
+              - cell "26.1%" [ref=e2126]
+              - cell "0.91" [ref=e2127]
+              - cell "23.2" [ref=e2128]
+            - row [ref=e2129] [cursor=pointer]:
+              - cell [ref=e2130]:
+                - checkbox "Include PPG in the portfolio" [ref=e2132]
+              - cell [ref=e2134]:
+                - link "PPG PPG Industries, Inc." [ref=e2135]:
+                  - /url: /stocks/PPG
+                  - generic [ref=e2136]: PPG
+                  - generic [ref=e2137]: PPG Industries, Inc.
+              - cell "Undervalued, −24.0% margin of safety −24.0% Undervalued" [ref=e2138]:
+                - generic [ref=e2139]:
+                  - generic [ref=e2140]: Undervalued, −24.0% margin of safety
+                  - generic [ref=e2145]: −24.0%
+                  - generic [ref=e2146]: Undervalued
+              - cell "$112.53" [ref=e2147]
+              - cell "$25.0B" [ref=e2148]
+              - cell "+2.6%" [ref=e2149]
+              - cell "30.4%" [ref=e2150]
+              - cell "1.06" [ref=e2151]
+              - cell "16.1" [ref=e2152]
+            - row [ref=e2153] [cursor=pointer]:
+              - cell [ref=e2154]:
+                - checkbox "Include XYL in the portfolio" [ref=e2156]
+              - cell [ref=e2158]:
+                - link "XYL Xylem Inc." [ref=e2159]:
+                  - /url: /stocks/XYL
+                  - generic [ref=e2160]: XYL
+                  - generic [ref=e2161]: Xylem Inc.
+              - cell "Fair value, −37.1% margin of safety −37.1% Fair value" [ref=e2162]:
+                - generic [ref=e2163]:
+                  - generic [ref=e2164]: Fair value, −37.1% margin of safety
+                  - generic [ref=e2169]: −37.1%
+                  - generic [ref=e2170]: Fair value
+              - cell "$105.69" [ref=e2171]
+              - cell "$24.7B" [ref=e2172]
+              - cell "−29.5%" [ref=e2173]
+              - cell "24.8%" [ref=e2174]
+              - cell "0.82" [ref=e2175]
+              - cell "37.4" [ref=e2176]
+            - row [ref=e2177] [cursor=pointer]:
+              - cell [ref=e2178]:
+                - checkbox "Include DRI in the portfolio" [ref=e2180]
+              - cell [ref=e2182]:
+                - link "DRI Darden Restaurants, Inc." [ref=e2183]:
+                  - /url: /stocks/DRI
+                  - generic [ref=e2184]: DRI
+                  - generic [ref=e2185]: Darden Restaurants, Inc.
+              - cell "Undervalued, −21.7% margin of safety −21.7% Undervalued" [ref=e2186]:
+                - generic [ref=e2187]:
+                  - generic [ref=e2188]: Undervalued, −21.7% margin of safety
+                  - generic [ref=e2193]: −21.7%
+                  - generic [ref=e2194]: Undervalued
+              - cell "$216.88" [ref=e2195]
+              - cell "$24.6B" [ref=e2196]
+              - cell "+3.1%" [ref=e2197]
+              - cell "27.5%" [ref=e2198]
+              - cell "0.21" [ref=e2199]
+              - cell "20.9" [ref=e2200]
+            - row [ref=e2201] [cursor=pointer]:
+              - cell [ref=e2202]:
+                - checkbox "Include HUBB in the portfolio" [ref=e2204]
+              - cell [ref=e2206]:
+                - link "HUBB Hubbell Incorporated" [ref=e2207]:
+                  - /url: /stocks/HUBB
+                  - generic [ref=e2208]: HUBB
+                  - generic [ref=e2209]: Hubbell Incorporated
+              - cell "Undervalued, −19.9% margin of safety −19.9% Undervalued" [ref=e2210]:
+                - generic [ref=e2211]:
+                  - generic [ref=e2212]: Undervalued, −19.9% margin of safety
+                  - generic [ref=e2217]: −19.9%
+                  - generic [ref=e2218]: Undervalued
+              - cell "$460.72" [ref=e2219]
+              - cell "$24.3B" [ref=e2220]
+              - cell "+5.2%" [ref=e2221]
+              - cell "31.9%" [ref=e2222]
+              - cell "1.21" [ref=e2223]
+              - cell "27.3" [ref=e2224]
+            - row [ref=e2225] [cursor=pointer]:
+              - cell [ref=e2226]:
+                - checkbox "Include VRSK in the portfolio" [ref=e2228]
+              - cell [ref=e2230]:
+                - link "VRSK Verisk Analytics, Inc." [ref=e2231]:
+                  - /url: /stocks/VRSK
+                  - generic [ref=e2232]: VRSK
+                  - generic [ref=e2233]: Verisk Analytics, Inc.
+              - cell "Undervalued, −12.7% margin of safety −12.7% Undervalued" [ref=e2234]:
+                - generic [ref=e2235]:
+                  - generic [ref=e2236]: Undervalued, −12.7% margin of safety
+                  - generic [ref=e2241]: −12.7%
+                  - generic [ref=e2242]: Undervalued
+              - cell "$185.79" [ref=e2243]
+              - cell "$24.2B" [ref=e2244]
+              - cell "−37.4%" [ref=e2245]
+              - cell "35.1%" [ref=e2246]
+              - cell "-0.34" [ref=e2247]
+              - cell "28.5" [ref=e2248]
+            - row [ref=e2249] [cursor=pointer]:
+              - cell [ref=e2250]:
+                - checkbox "Include ULTA in the portfolio" [ref=e2252]
+              - cell [ref=e2254]:
+                - link "ULTA Ulta Beauty, Inc." [ref=e2255]:
+                  - /url: /stocks/ULTA
+                  - generic [ref=e2256]: ULTA
+                  - generic [ref=e2257]: Ulta Beauty, Inc.
+              - cell "Undervalued, −15.9% margin of safety −15.9% Undervalued" [ref=e2258]:
+                - generic [ref=e2259]:
+                  - generic [ref=e2260]: Undervalued, −15.9% margin of safety
+                  - generic [ref=e2265]: −15.9%
+                  - generic [ref=e2266]: Undervalued
+              - cell "$564.12" [ref=e2267]
+              - cell "$24.1B" [ref=e2268]
+              - cell "+6.3%" [ref=e2269]
+              - cell "35.0%" [ref=e2270]
+              - cell "0.53" [ref=e2271]
+              - cell "21.1" [ref=e2272]
+            - row [ref=e2273] [cursor=pointer]:
+              - cell [ref=e2274]:
+                - checkbox "Include PHM in the portfolio" [ref=e2276]
+              - cell [ref=e2278]:
+                - link "PHM PulteGroup, Inc." [ref=e2279]:
+                  - /url: /stocks/PHM
+                  - generic [ref=e2280]: PHM
+                  - generic [ref=e2281]: PulteGroup, Inc.
+              - cell "Undervalued, −16.4% margin of safety −16.4% Undervalued" [ref=e2282]:
+                - generic [ref=e2283]:
+                  - generic [ref=e2284]: Undervalued, −16.4% margin of safety
+                  - generic [ref=e2289]: −16.4%
+                  - generic [ref=e2290]: Undervalued
+              - cell "$124.45" [ref=e2291]
+              - cell "$23.7B" [ref=e2292]
+              - cell "−10.1%" [ref=e2293]
+              - cell "32.7%" [ref=e2294]
+              - cell "0.90" [ref=e2295]
+              - cell "12.7" [ref=e2296]
+            - row [ref=e2297] [cursor=pointer]:
+              - cell [ref=e2298]:
+                - checkbox "Include VLTO in the portfolio" [ref=e2300]
+              - cell [ref=e2302]:
+                - link "VLTO Veralto Corporation" [ref=e2303]:
+                  - /url: /stocks/VLTO
+                  - generic [ref=e2304]: VLTO
+                  - generic [ref=e2305]: Veralto Corporation
+              - cell "Undervalued, −14.3% margin of safety −14.3% Undervalued" [ref=e2306]:
+                - generic [ref=e2307]:
+                  - generic [ref=e2308]: Undervalued, −14.3% margin of safety
+                  - generic [ref=e2313]: −14.3%
+                  - generic [ref=e2314]: Undervalued
+              - cell "$96.31" [ref=e2315]
+              - cell "$23.5B" [ref=e2316]
+              - cell "−10.2%" [ref=e2317]
+              - cell "23.1%" [ref=e2318]
+              - cell "0.29" [ref=e2319]
+              - cell "24.3" [ref=e2320]
+            - row [ref=e2321] [cursor=pointer]:
+              - cell [ref=e2322]:
+                - checkbox "Include EXE in the portfolio" [ref=e2324]
+              - cell [ref=e2326]:
+                - link "EXE Expand Energy Corporation" [ref=e2327]:
+                  - /url: /stocks/EXE
+                  - generic [ref=e2328]: EXE
+                  - generic [ref=e2329]: Expand Energy Corporation
+              - cell "Deep value, +123.1% margin of safety +123.1% Deep value" [ref=e2330]:
+                - generic [ref=e2331]:
+                  - generic [ref=e2332]: Deep value, +123.1% margin of safety
+                  - generic [ref=e2337]: +123.1%
+                  - generic [ref=e2338]: Deep value
+              - cell "$97.91" [ref=e2339]
+              - cell "$22.7B" [ref=e2340]
+              - cell "+1.3%" [ref=e2341]
+              - cell "30.8%" [ref=e2342]
+              - cell "0.01" [ref=e2343]
+              - cell "8.5" [ref=e2344]
+            - row [ref=e2345] [cursor=pointer]:
+              - cell [ref=e2346]:
+                - checkbox "Include FFIV in the portfolio" [ref=e2348]
+              - cell [ref=e2350]:
+                - link "FFIV F5, Inc." [ref=e2351]:
+                  - /url: /stocks/FFIV
+                  - generic [ref=e2352]: FFIV
+                  - generic [ref=e2353]: F5, Inc.
+              - cell "Fair value, −28.1% margin of safety −28.1% Fair value" [ref=e2354]:
+                - generic [ref=e2355]:
+                  - generic [ref=e2356]: Fair value, −28.1% margin of safety
+                  - generic [ref=e2361]: −28.1%
+                  - generic [ref=e2362]: Fair value
+              - cell "$390.47" [ref=e2363]
+              - cell "$22.1B" [ref=e2364]
+              - cell "+21.7%" [ref=e2365]
+              - cell "35.9%" [ref=e2366]
+              - cell "1.00" [ref=e2367]
+              - cell "31.1" [ref=e2368]
+            - row [ref=e2369] [cursor=pointer]:
+              - cell [ref=e2370]:
+                - checkbox "Include STE in the portfolio" [ref=e2372]
+              - cell [ref=e2374]:
+                - link "STE STERIS plc" [ref=e2375]:
+                  - /url: /stocks/STE
+                  - generic [ref=e2376]: STE
+                  - generic [ref=e2377]: STERIS plc
+              - cell "Fair value, −34.2% margin of safety −34.2% Fair value" [ref=e2378]:
+                - generic [ref=e2379]:
+                  - generic [ref=e2380]: Fair value, −34.2% margin of safety
+                  - generic [ref=e2385]: −34.2%
+                  - generic [ref=e2386]: Fair value
+              - cell "$224.59" [ref=e2387]
+              - cell "$21.9B" [ref=e2388]
+              - cell "−8.0%" [ref=e2389]
+              - cell "25.4%" [ref=e2390]
+              - cell "0.47" [ref=e2391]
+              - cell "27.5" [ref=e2392]
+            - row [ref=e2393] [cursor=pointer]:
+              - cell [ref=e2394]:
+                - checkbox "Include STZ in the portfolio" [ref=e2396]
+              - cell [ref=e2398]:
+                - link "STZ Constellation Brands, Inc." [ref=e2399]:
+                  - /url: /stocks/STZ
+                  - generic [ref=e2400]: STZ
+                  - generic [ref=e2401]: Constellation Brands, Inc.
+              - cell "Undervalued, −0.8% margin of safety −0.8% Undervalued" [ref=e2402]:
+                - generic [ref=e2403]:
+                  - generic [ref=e2404]: Undervalued, −0.8% margin of safety
+                  - generic [ref=e2409]: −0.8%
+                  - generic [ref=e2410]: Undervalued
+              - cell "$128.18" [ref=e2411]
+              - cell "$21.9B" [ref=e2412]
+              - cell "−12.9%" [ref=e2413]
+              - cell "30.0%" [ref=e2414]
+              - cell "0.03" [ref=e2415]
+              - cell "12.2" [ref=e2416]
+            - row [ref=e2417] [cursor=pointer]:
+              - cell [ref=e2418]:
+                - checkbox "Include EIX in the portfolio" [ref=e2420]
+              - cell [ref=e2422]:
+                - link "EIX Edison International" [ref=e2423]:
+                  - /url: /stocks/EIX
+                  - generic [ref=e2424]: EIX
+                  - generic [ref=e2425]: Edison International
+              - cell "Deep value, +73.8% margin of safety +73.8% Deep value" [ref=e2426]:
+                - generic [ref=e2427]:
+                  - generic [ref=e2428]: Deep value, +73.8% margin of safety
+                  - generic [ref=e2433]: +73.8%
+                  - generic [ref=e2434]: Deep value
+              - cell "$56.77" [ref=e2435]
+              - cell "$21.8B" [ref=e2436]
+              - cell "+3.8%" [ref=e2437]
+              - cell "38.5%" [ref=e2438]
+              - cell "0.08" [ref=e2439]
+              - cell "11.6" [ref=e2440]
+            - row [ref=e2441] [cursor=pointer]:
+              - cell [ref=e2442]:
+                - checkbox "Include CHTR in the portfolio" [ref=e2444]
+              - cell [ref=e2446]:
+                - link "CHTR Charter Communications, Inc." [ref=e2447]:
+                  - /url: /stocks/CHTR
+                  - generic [ref=e2448]: CHTR
+                  - generic [ref=e2449]: Charter Communications, Inc.
+              - cell "Deep value, +169.1% margin of safety +169.1% Deep value" [ref=e2450]:
+                - generic [ref=e2451]:
+                  - generic [ref=e2452]: Deep value, +169.1% margin of safety
+                  - generic [ref=e2457]: +169.1%
+                  - generic [ref=e2458]: Deep value
+              - cell "$151.99" [ref=e2459]
+              - cell "$20.5B" [ref=e2460]
+              - cell "−53.5%" [ref=e2461]
+              - cell "52.5%" [ref=e2462]
+              - cell "0.24" [ref=e2463]
+              - cell "4.0" [ref=e2464]
+            - row [ref=e2465] [cursor=pointer]:
+              - cell [ref=e2466]:
+                - checkbox "Include LEN in the portfolio" [ref=e2468]
+              - cell [ref=e2470]:
+                - link "LEN Lennar Corporation" [ref=e2471]:
+                  - /url: /stocks/LEN
+                  - generic [ref=e2472]: LEN
+                  - generic [ref=e2473]: Lennar Corporation
+              - cell "Undervalued, −7.2% margin of safety −7.2% Undervalued" [ref=e2474]:
+                - generic [ref=e2475]:
+                  - generic [ref=e2476]: Undervalued, −7.2% margin of safety
+                  - generic [ref=e2481]: −7.2%
+                  - generic [ref=e2482]: Undervalued
+              - cell "$83.58" [ref=e2483]
+              - cell "$20.1B" [ref=e2484]
+              - cell "−50.2%" [ref=e2485]
+              - cell "36.8%" [ref=e2486]
+              - cell "0.92" [ref=e2487]
+              - cell "13.1" [ref=e2488]
+            - row [ref=e2489] [cursor=pointer]:
+              - cell [ref=e2490]:
+                - checkbox "Include SNA in the portfolio" [ref=e2492]
+              - cell [ref=e2494]:
+                - link "SNA Snap-on Incorporated" [ref=e2495]:
+                  - /url: /stocks/SNA
+                  - generic [ref=e2496]: SNA
+                  - generic [ref=e2497]: Snap-on Incorporated
+              - cell "Undervalued, −20.3% margin of safety −20.3% Undervalued" [ref=e2498]:
+                - generic [ref=e2499]:
+                  - generic [ref=e2500]: Undervalued, −20.3% margin of safety
+                  - generic [ref=e2505]: −20.3%
+                  - generic [ref=e2506]: Undervalued
+              - cell "$383.00" [ref=e2507]
+              - cell "$19.8B" [ref=e2508]
+              - cell "+15.3%" [ref=e2509]
+              - cell "19.8%" [ref=e2510]
+              - cell "0.58" [ref=e2511]
+              - cell "19.5" [ref=e2512]
+            - row [ref=e2513] [cursor=pointer]:
+              - cell [ref=e2514]:
+                - checkbox "Include BR in the portfolio" [ref=e2516]
+              - cell [ref=e2518]:
+                - link "BR Broadridge Financial Solutions, Inc." [ref=e2519]:
+                  - /url: /stocks/BR
+                  - generic [ref=e2520]: BR
+                  - generic [ref=e2521]: Broadridge Financial Solutions, Inc.
+              - cell "Deep value, +50.6% margin of safety +50.6% Deep value" [ref=e2522]:
+                - generic [ref=e2523]:
+                  - generic [ref=e2524]: Deep value, +50.6% margin of safety
+                  - generic [ref=e2529]: +50.6%
+                  - generic [ref=e2530]: Deep value
+              - cell "$172.88" [ref=e2531]
+              - cell "$19.7B" [ref=e2532]
+              - cell "−37.7%" [ref=e2533]
+              - cell "28.6%" [ref=e2534]
+              - cell "0.12" [ref=e2535]
+              - cell "18.0" [ref=e2536]
+            - row [ref=e2537] [cursor=pointer]:
+              - cell [ref=e2538]:
+                - checkbox "Include VTRS in the portfolio" [ref=e2540]
+              - cell [ref=e2542]:
+                - link "VTRS Viatris Inc." [ref=e2543]:
+                  - /url: /stocks/VTRS
+                  - generic [ref=e2544]: VTRS
+                  - generic [ref=e2545]: Viatris Inc.
+              - cell "Deep value, +22.1% margin of safety +22.1% Deep value" [ref=e2546]:
+                - generic [ref=e2547]:
+                  - generic [ref=e2548]: Deep value, +22.1% margin of safety
+                  - generic [ref=e2553]: +22.1%
+                  - generic [ref=e2554]: Deep value
+              - cell "$16.88" [ref=e2555]
+              - cell "$19.4B" [ref=e2556]
+              - cell "+49.1%" [ref=e2557]
+              - cell "31.9%" [ref=e2558]
+              - cell "0.72" [ref=e2559]
+              - cell "—" [ref=e2560]
+            - row [ref=e2561] [cursor=pointer]:
+              - cell [ref=e2562]:
+                - checkbox "Include BBY in the portfolio" [ref=e2564]
+              - cell [ref=e2566]:
+                - link "BBY Best Buy Co., Inc." [ref=e2567]:
+                  - /url: /stocks/BBY
+                  - generic [ref=e2568]: BBY
+                  - generic [ref=e2569]: Best Buy Co., Inc.
+              - cell "Undervalued, −11.5% margin of safety −11.5% Undervalued" [ref=e2570]:
+                - generic [ref=e2571]:
+                  - generic [ref=e2572]: Undervalued, −11.5% margin of safety
+                  - generic [ref=e2577]: −11.5%
+                  - generic [ref=e2578]: Undervalued
+              - cell "$90.27" [ref=e2579]
+              - cell "$19.0B" [ref=e2580]
+              - cell "+15.8%" [ref=e2581]
+              - cell "37.7%" [ref=e2582]
+              - cell "0.71" [ref=e2583]
+              - cell "16.7" [ref=e2584]
+            - row [ref=e2585] [cursor=pointer]:
+              - cell [ref=e2586]:
+                - checkbox "Include ZBH in the portfolio" [ref=e2588]
+              - cell [ref=e2590]:
+                - link "ZBH Zimmer Biomet Holdings, Inc." [ref=e2591]:
+                  - /url: /stocks/ZBH
+                  - generic [ref=e2592]: ZBH
+                  - generic [ref=e2593]: Zimmer Biomet Holdings, Inc.
+              - cell "Deep value, +4.2% margin of safety +4.2% Deep value" [ref=e2594]:
+                - generic [ref=e2595]:
+                  - generic [ref=e2596]: Deep value, +4.2% margin of safety
+                  - generic [ref=e2601]: +4.2%
+                  - generic [ref=e2602]: Deep value
+              - cell "$98.07" [ref=e2603]
+              - cell "$18.7B" [ref=e2604]
+              - cell "−6.6%" [ref=e2605]
+              - cell "32.5%" [ref=e2606]
+              - cell "0.22" [ref=e2607]
+              - cell "28.8" [ref=e2608]
+            - row [ref=e2609] [cursor=pointer]:
+              - cell [ref=e2610]:
+                - checkbox "Include GEN in the portfolio" [ref=e2612]
+              - cell [ref=e2614]:
+                - link "GEN Gen Digital Inc." [ref=e2615]:
+                  - /url: /stocks/GEN
+                  - generic [ref=e2616]: GEN
+                  - generic [ref=e2617]: Gen Digital Inc.
+              - cell "Deep value, +47.1% margin of safety +47.1% Deep value" [ref=e2618]:
+                - generic [ref=e2619]:
+                  - generic [ref=e2620]: Deep value, +47.1% margin of safety
+                  - generic [ref=e2625]: +47.1%
+                  - generic [ref=e2626]: Deep value
+              - cell "$30.65" [ref=e2627]
+              - cell "$18.3B" [ref=e2628]
+              - cell "+3.7%" [ref=e2629]
+              - cell "34.8%" [ref=e2630]
+              - cell "0.86" [ref=e2631]
+              - cell "17.8" [ref=e2632]
+            - row [ref=e2633] [cursor=pointer]:
+              - cell [ref=e2634]:
+                - checkbox "Include TSCO in the portfolio" [ref=e2636]
+              - cell [ref=e2638]:
+                - link "TSCO Tractor Supply Company" [ref=e2639]:
+                  - /url: /stocks/TSCO
+                  - generic [ref=e2640]: TSCO
+                  - generic [ref=e2641]: Tractor Supply Company
+              - cell "Fair value, −27.5% margin of safety −27.5% Fair value" [ref=e2642]:
+                - generic [ref=e2643]:
+                  - generic [ref=e2644]: Fair value, −27.5% margin of safety
+                  - generic [ref=e2649]: −27.5%
+                  - generic [ref=e2650]: Fair value
+              - cell "$34.99" [ref=e2651]
+              - cell "$18.2B" [ref=e2652]
+              - cell "−55.0%" [ref=e2653]
+              - cell "32.4%" [ref=e2654]
+              - cell "0.39" [ref=e2655]
+              - cell "18.2" [ref=e2656]
+            - row [ref=e2657] [cursor=pointer]:
+              - cell [ref=e2658]:
+                - checkbox "Include NWS in the portfolio" [ref=e2660]
+              - cell [ref=e2662]:
+                - link "NWS News Corporation" [ref=e2663]:
+                  - /url: /stocks/NWS
+                  - generic [ref=e2664]: NWS
+                  - generic [ref=e2665]: News Corporation
+              - cell "Deep value, +6.4% margin of safety +6.4% Deep value" [ref=e2666]:
+                - generic [ref=e2667]:
+                  - generic [ref=e2668]: Deep value, +6.4% margin of safety
+                  - generic [ref=e2673]: +6.4%
+                  - generic [ref=e2674]: Deep value
+              - cell "$33.90" [ref=e2675]
+              - cell "$18.2B" [ref=e2676]
+              - cell "+2.2%" [ref=e2677]
+              - cell "27.8%" [ref=e2678]
+              - cell "0.32" [ref=e2679]
+              - cell "32.9" [ref=e2680]
+            - row [ref=e2681] [cursor=pointer]:
+              - cell [ref=e2682]:
+                - checkbox "Include NVR in the portfolio" [ref=e2684]
+              - cell [ref=e2686]:
+                - link "NVR NVR, Inc." [ref=e2687]:
+                  - /url: /stocks/NVR
+                  - generic [ref=e2688]: NVR
+                  - generic [ref=e2689]: NVR, Inc.
+              - cell "Fair value, −29.0% margin of safety −29.0% Fair value" [ref=e2690]:
+                - generic [ref=e2691]:
+                  - generic [ref=e2692]: Fair value, −29.0% margin of safety
+                  - generic [ref=e2697]: −29.0%
+                  - generic [ref=e2698]: Fair value
+              - cell "$6,298.85" [ref=e2699]
+              - cell "$16.9B" [ref=e2700]
+              - cell "−28.9%" [ref=e2701]
+              - cell "27.2%" [ref=e2702]
+              - cell "0.54" [ref=e2703]
+              - cell "16.3" [ref=e2704]
+            - row [ref=e2705] [cursor=pointer]:
+              - cell [ref=e2706]:
+                - checkbox "Include LDOS in the portfolio" [ref=e2708]
+              - cell [ref=e2710]:
+                - link "LDOS Leidos Holdings, Inc." [ref=e2711]:
+                  - /url: /stocks/LDOS
+                  - generic [ref=e2712]: LDOS
+                  - generic [ref=e2713]: Leidos Holdings, Inc.
+              - cell "Deep value, +155.2% margin of safety +155.2% Deep value" [ref=e2714]:
+                - generic [ref=e2715]:
+                  - generic [ref=e2716]: Deep value, +155.2% margin of safety
+                  - generic [ref=e2721]: +155.2%
+                  - generic [ref=e2722]: Deep value
+              - cell "$133.05" [ref=e2723]
+              - cell "$16.7B" [ref=e2724]
+              - cell "−29.4%" [ref=e2725]
+              - cell "34.3%" [ref=e2726]
+              - cell "0.44" [ref=e2727]
+              - cell "12.4" [ref=e2728]
+            - row [ref=e2729] [cursor=pointer]:
+              - cell [ref=e2730]:
+                - checkbox "Include NWSA in the portfolio" [ref=e2732]
+              - cell [ref=e2734]:
+                - link "NWSA News Corporation" [ref=e2735]:
+                  - /url: /stocks/NWSA
+                  - generic [ref=e2736]: NWSA
+                  - generic [ref=e2737]: News Corporation
+              - cell "Undervalued, −1.8% margin of safety −1.8% Undervalued" [ref=e2738]:
+                - generic [ref=e2739]:
+                  - generic [ref=e2740]: Undervalued, −1.8% margin of safety
+                  - generic [ref=e2745]: −1.8%
+                  - generic [ref=e2746]: Undervalued
+              - cell "$30.39" [ref=e2747]
+              - cell "$16.3B" [ref=e2748]
+              - cell "+3.7%" [ref=e2749]
+              - cell "26.8%" [ref=e2750]
+              - cell "0.28" [ref=e2751]
+              - cell "29.5" [ref=e2752]
+            - row [ref=e2753] [cursor=pointer]:
+              - cell [ref=e2754]:
+                - checkbox "Include PTC in the portfolio" [ref=e2756]
+              - cell [ref=e2758]:
+                - link "PTC PTC Inc." [ref=e2759]:
+                  - /url: /stocks/PTC
+                  - generic [ref=e2760]: PTC
+                  - generic [ref=e2761]: PTC Inc.
+              - cell "Deep value, +71.6% margin of safety +71.6% Deep value" [ref=e2762]:
+                - generic [ref=e2763]:
+                  - generic [ref=e2764]: Deep value, +71.6% margin of safety
+                  - generic [ref=e2769]: +71.6%
+                  - generic [ref=e2770]: Deep value
+              - cell "$141.02" [ref=e2771]
+              - cell "$15.3B" [ref=e2772]
+              - cell "−41.4%" [ref=e2773]
+              - cell "35.1%" [ref=e2774]
+              - cell "0.49" [ref=e2775]
+              - cell "13.6" [ref=e2776]
+            - row [ref=e2777] [cursor=pointer]:
+              - cell [ref=e2778]:
+                - checkbox "Include AKAM in the portfolio" [ref=e2780]
+              - cell [ref=e2782]:
+                - link "AKAM Akamai Technologies, Inc." [ref=e2783]:
+                  - /url: /stocks/AKAM
+                  - generic [ref=e2784]: AKAM
+                  - generic [ref=e2785]: Akamai Technologies, Inc.
+              - cell "Undervalued, −1.8% margin of safety −1.8% Undervalued" [ref=e2786]:
+                - generic [ref=e2787]:
+                  - generic [ref=e2788]: Undervalued, −1.8% margin of safety
+                  - generic [ref=e2793]: −1.8%
+                  - generic [ref=e2794]: Undervalued
+              - cell "$105.22" [ref=e2795]
+              - cell "$15.1B" [ref=e2796]
+              - cell "+31.0%" [ref=e2797]
+              - cell "57.5%" [ref=e2798]
+              - cell "1.20" [ref=e2799]
+              - cell "37.9" [ref=e2800]
+            - row [ref=e2801] [cursor=pointer]:
+              - cell [ref=e2802]:
+                - checkbox "Include TYL in the portfolio" [ref=e2804]
+              - cell [ref=e2806]:
+                - link "TYL Tyler Technologies, Inc." [ref=e2807]:
+                  - /url: /stocks/TYL
+                  - generic [ref=e2808]: TYL
+                  - generic [ref=e2809]: Tyler Technologies, Inc.
+              - cell "Undervalued, +2.5% margin of safety +2.5% Undervalued" [ref=e2810]:
+                - generic [ref=e2811]:
+                  - generic [ref=e2812]: Undervalued, +2.5% margin of safety
+                  - generic [ref=e2817]: +2.5%
+                  - generic [ref=e2818]: Undervalued
+              - cell "$364.03" [ref=e2819]
+              - cell "$14.9B" [ref=e2820]
+              - cell "−42.0%" [ref=e2821]
+              - cell "41.5%" [ref=e2822]
+              - cell "0.09" [ref=e2823]
+              - cell "48.3" [ref=e2824]
+            - row [ref=e2825] [cursor=pointer]:
+              - cell [ref=e2826]:
+                - checkbox "Include MAS in the portfolio" [ref=e2828]
+              - cell [ref=e2830]:
+                - link "MAS Masco Corporation" [ref=e2831]:
+                  - /url: /stocks/MAS
+                  - generic [ref=e2832]: MAS
+                  - generic [ref=e2833]: Masco Corporation
+              - cell "Fair value, −29.9% margin of safety −29.9% Fair value" [ref=e2834]:
+                - generic [ref=e2835]:
+                  - generic [ref=e2836]: Fair value, −29.9% margin of safety
+                  - generic [ref=e2841]: −29.9%
+                  - generic [ref=e2842]: Fair value
+              - cell "$72.70" [ref=e2843]
+              - cell "$14.3B" [ref=e2844]
+              - cell "−1.7%" [ref=e2845]
+              - cell "35.0%" [ref=e2846]
+              - cell "1.14" [ref=e2847]
+              - cell "16.7" [ref=e2848]
+            - row [ref=e2849] [cursor=pointer]:
+              - cell [ref=e2850]:
+                - checkbox "Include TRMB in the portfolio" [ref=e2852]
+              - cell [ref=e2854]:
+                - link "TRMB Trimble Inc." [ref=e2855]:
+                  - /url: /stocks/TRMB
+                  - generic [ref=e2856]: TRMB
+                  - generic [ref=e2857]: Trimble Inc.
+              - cell "Fair value, −26.4% margin of safety −26.4% Fair value" [ref=e2858]:
+                - generic [ref=e2859]:
+                  - generic [ref=e2860]: Fair value, −26.4% margin of safety
+                  - generic [ref=e2865]: −26.4%
+                  - generic [ref=e2866]: Fair value
+              - cell "$59.47" [ref=e2867]
+              - cell "$13.9B" [ref=e2868]
+              - cell "−29.3%" [ref=e2869]
+              - cell "32.1%" [ref=e2870]
+              - cell "1.14" [ref=e2871]
+              - cell "31.3" [ref=e2872]
+            - row [ref=e2873] [cursor=pointer]:
+              - cell [ref=e2874]:
+                - checkbox "Include TXT in the portfolio" [ref=e2876]
+              - cell [ref=e2878]:
+                - link "TXT Textron Inc." [ref=e2879]:
+                  - /url: /stocks/TXT
+                  - generic [ref=e2880]: TXT
+                  - generic [ref=e2881]: Textron Inc.
+              - cell "Deep value, +9.4% margin of safety +9.4% Deep value" [ref=e2882]:
+                - generic [ref=e2883]:
+                  - generic [ref=e2884]: Deep value, +9.4% margin of safety
+                  - generic [ref=e2889]: +9.4%
+                  - generic [ref=e2890]: Deep value
+              - cell "$79.07" [ref=e2891]
+              - cell "$13.6B" [ref=e2892]
+              - cell "−2.8%" [ref=e2893]
+              - cell "26.9%" [ref=e2894]
+              - cell "0.75" [ref=e2895]
+              - cell "14.9" [ref=e2896]
+            - row [ref=e2897] [cursor=pointer]:
+              - cell [ref=e2898]:
+                - checkbox "Include LII in the portfolio" [ref=e2900]
+              - cell [ref=e2902]:
+                - link "LII Lennox International Inc." [ref=e2903]:
+                  - /url: /stocks/LII
+                  - generic [ref=e2904]: LII
+                  - generic [ref=e2905]: Lennox International Inc.
+              - cell "Fair value, −32.6% margin of safety −32.6% Fair value" [ref=e2906]:
+                - generic [ref=e2907]:
+                  - generic [ref=e2908]: Fair value, −32.6% margin of safety
+                  - generic [ref=e2913]: −32.6%
+                  - generic [ref=e2914]: Fair value
+              - cell "$390.53" [ref=e2915]
+              - cell "$13.5B" [ref=e2916]
+              - cell "−36.3%" [ref=e2917]
+              - cell "42.5%" [ref=e2918]
+              - cell "1.41" [ref=e2919]
+              - cell "17.7" [ref=e2920]
+            - row [ref=e2921] [cursor=pointer]:
+              - cell [ref=e2922]:
+                - checkbox "Include ALLE in the portfolio" [ref=e2924]
+              - cell [ref=e2926]:
+                - link "ALLE Allegion plc" [ref=e2927]:
+                  - /url: /stocks/ALLE
+                  - generic [ref=e2928]: ALLE
+                  - generic [ref=e2929]: Allegion plc
+              - cell "Undervalued, −23.4% margin of safety −23.4% Undervalued" [ref=e2930]:
+                - generic [ref=e2931]:
+                  - generic [ref=e2932]: Undervalued, −23.4% margin of safety
+                  - generic [ref=e2937]: −23.4%
+                  - generic [ref=e2938]: Undervalued
+              - cell "$157.12" [ref=e2939]
+              - cell "$13.4B" [ref=e2940]
+              - cell "−8.3%" [ref=e2941]
+              - cell "27.4%" [ref=e2942]
+              - cell "0.57" [ref=e2943]
+              - cell "20.6" [ref=e2944]
+            - row [ref=e2945] [cursor=pointer]:
+              - cell [ref=e2946]:
+                - checkbox "Include AVY in the portfolio" [ref=e2948]
+              - cell [ref=e2950]:
+                - link "AVY Avery Dennison Corporation" [ref=e2951]:
+                  - /url: /stocks/AVY
+                  - generic [ref=e2952]: AVY
+                  - generic [ref=e2953]: Avery Dennison Corporation
+              - cell "Undervalued, −11.9% margin of safety −11.9% Undervalued" [ref=e2954]:
+                - generic [ref=e2955]:
+                  - generic [ref=e2956]: Undervalued, −11.9% margin of safety
+                  - generic [ref=e2961]: −11.9%
+                  - generic [ref=e2962]: Undervalued
+              - cell "$175.06" [ref=e2963]
+              - cell "$13.3B" [ref=e2964]
+              - cell "+4.7%" [ref=e2965]
+              - cell "25.2%" [ref=e2966]
+              - cell "0.48" [ref=e2967]
+              - cell "19.2" [ref=e2968]
+            - row [ref=e2969] [cursor=pointer]:
+              - cell [ref=e2970]:
+                - checkbox "Include HAS in the portfolio" [ref=e2972]
+              - cell [ref=e2974]:
+                - link "HAS Hasbro, Inc." [ref=e2975]:
+                  - /url: /stocks/HAS
+                  - generic [ref=e2976]: HAS
+                  - generic [ref=e2977]: Hasbro, Inc.
+              - cell "Undervalued, −10.5% margin of safety −10.5% Undervalued" [ref=e2978]:
+                - generic [ref=e2979]:
+                  - generic [ref=e2980]: Undervalued, −10.5% margin of safety
+                  - generic [ref=e2985]: −10.5%
+                  - generic [ref=e2986]: Undervalued
+              - cell "$92.53" [ref=e2987]
+              - cell "$13.1B" [ref=e2988]
+              - cell "+14.1%" [ref=e2989]
+              - cell "30.4%" [ref=e2990]
+              - cell "0.74" [ref=e2991]
+              - cell "16.6" [ref=e2992]
+            - row [ref=e2993] [cursor=pointer]:
+              - cell [ref=e2994]:
+                - checkbox "Include GDDY in the portfolio" [ref=e2996]
+              - cell [ref=e2998]:
+                - link "GDDY GoDaddy Inc." [ref=e2999]:
+                  - /url: /stocks/GDDY
+                  - generic [ref=e3000]: GDDY
+                  - generic [ref=e3001]: GoDaddy Inc.
+              - cell "Deep value, +82.6% margin of safety +82.6% Deep value" [ref=e3002]:
+                - generic [ref=e3003]:
+                  - generic [ref=e3004]: Deep value, +82.6% margin of safety
+                  - generic [ref=e3009]: +82.6%
+                  - generic [ref=e3010]: Deep value
+              - cell "$101.31" [ref=e3011]
+              - cell "$12.8B" [ref=e3012]
+              - cell "−35.8%" [ref=e3013]
+              - cell "47.0%" [ref=e3014]
+              - cell "0.18" [ref=e3015]
+              - cell "15.0" [ref=e3016]
+            - row [ref=e3017] [cursor=pointer]:
+              - cell [ref=e3018]:
+                - checkbox "Include BF-B in the portfolio" [ref=e3020]
+              - cell [ref=e3022]:
+                - link "BF-B Brown-Forman Corporation" [ref=e3023]:
+                  - /url: /stocks/BF-B
+                  - generic [ref=e3024]: BF-B
+                  - generic [ref=e3025]: Brown-Forman Corporation
+              - cell "Fair value, −34.3% margin of safety −34.3% Fair value" [ref=e3026]:
+                - generic [ref=e3027]:
+                  - generic [ref=e3028]: Fair value, −34.3% margin of safety
+                  - generic [ref=e3033]: −34.3%
+                  - generic [ref=e3034]: Fair value
+              - cell "$26.73" [ref=e3035]
+              - cell "$12.3B" [ref=e3036]
+              - cell "−5.4%" [ref=e3037]
+              - cell "38.6%" [ref=e3038]
+              - cell "0.04" [ref=e3039]
+              - cell "17.5" [ref=e3040]
+            - row [ref=e3041] [cursor=pointer]:
+              - cell [ref=e3042]:
+                - checkbox "Include PSKY in the portfolio" [ref=e3044]
+              - cell [ref=e3046]:
+                - link "PSKY Paramount Skydance Corporation" [ref=e3047]:
+                  - /url: /stocks/PSKY
+                  - generic [ref=e3048]: PSKY
+                  - generic [ref=e3049]: Paramount Skydance Corporation
+              - cell "Deep value, +131.6% margin of safety +131.6% Deep value" [ref=e3050]:
+                - generic [ref=e3051]:
+                  - generic [ref=e3052]: Deep value, +131.6% margin of safety
+                  - generic [ref=e3057]: +131.6%
+                  - generic [ref=e3058]: Deep value
+              - cell "$10.86" [ref=e3059]
+              - cell "$12.2B" [ref=e3060]
+              - cell "−30.5%" [ref=e3061]
+              - cell "51.9%" [ref=e3062]
+              - cell "0.81" [ref=e3063]
+              - cell "—" [ref=e3064]
+            - row [ref=e3065] [cursor=pointer]:
+              - cell [ref=e3066]:
+                - checkbox "Include HRL in the portfolio" [ref=e3068]
+              - cell [ref=e3070]:
+                - link "HRL Hormel Foods Corporation" [ref=e3071]:
+                  - /url: /stocks/HRL
+                  - generic [ref=e3072]: HRL
+                  - generic [ref=e3073]: Hormel Foods Corporation
+              - cell "Undervalued, −24.7% margin of safety −24.7% Undervalued" [ref=e3074]:
+                - generic [ref=e3075]:
+                  - generic [ref=e3076]: Undervalued, −24.7% margin of safety
+                  - generic [ref=e3081]: −24.7%
+                  - generic [ref=e3082]: Undervalued
+              - cell "$21.54" [ref=e3083]
+              - cell "$11.9B" [ref=e3084]
+              - cell "−15.9%" [ref=e3085]
+              - cell "29.3%" [ref=e3086]
+              - cell "-0.11" [ref=e3087]
+              - cell "25.3" [ref=e3088]
+            - row [ref=e3089] [cursor=pointer]:
+              - cell [ref=e3090]:
+                - checkbox "Include IT in the portfolio" [ref=e3092]
+              - cell [ref=e3094]:
+                - link "IT Gartner, Inc." [ref=e3095]:
+                  - /url: /stocks/IT
+                  - generic [ref=e3096]: IT
+                  - generic [ref=e3097]: Gartner, Inc.
+              - cell "Deep value, +20.4% margin of safety +20.4% Deep value" [ref=e3098]:
+                - generic [ref=e3099]:
+                  - generic [ref=e3100]: Deep value, +20.4% margin of safety
+                  - generic [ref=e3105]: +20.4%
+                  - generic [ref=e3106]: Deep value
+              - cell "$186.42" [ref=e3107]
+              - cell "$11.8B" [ref=e3108]
+              - cell "−23.9%" [ref=e3109]
+              - cell "55.3%" [ref=e3110]
+              - cell "0.47" [ref=e3111]
+              - cell "16.7" [ref=e3112]
+            - row [ref=e3113] [cursor=pointer]:
+              - cell [ref=e3114]:
+                - checkbox "Include DVA in the portfolio" [ref=e3116]
+              - cell [ref=e3118]:
+                - link "DVA DaVita Inc." [ref=e3119]:
+                  - /url: /stocks/DVA
+                  - generic [ref=e3120]: DVA
+                  - generic [ref=e3121]: DaVita Inc.
+              - cell "Deep value, +73.3% margin of safety +73.3% Deep value" [ref=e3122]:
+                - generic [ref=e3123]:
+                  - generic [ref=e3124]: Deep value, +73.3% margin of safety
+                  - generic [ref=e3129]: +73.3%
+                  - generic [ref=e3130]: Deep value
+              - cell "$183.99" [ref=e3131]
+              - cell "$11.7B" [ref=e3132]
+              - cell "+30.5%" [ref=e3133]
+              - cell "43.8%" [ref=e3134]
+              - cell "0.02" [ref=e3135]
+              - cell "15.1" [ref=e3136]
+            - row [ref=e3137] [cursor=pointer]:
+              - cell [ref=e3138]:
+                - checkbox "Include DECK in the portfolio" [ref=e3140]
+              - cell [ref=e3142]:
+                - link "DECK Deckers Outdoor Corporation" [ref=e3143]:
+                  - /url: /stocks/DECK
+                  - generic [ref=e3144]: DECK
+                  - generic [ref=e3145]: Deckers Outdoor Corporation
+              - cell "Undervalued, −7.2% margin of safety −7.2% Undervalued" [ref=e3146]:
+                - generic [ref=e3147]:
+                  - generic [ref=e3148]: Undervalued, −7.2% margin of safety
+                  - generic [ref=e3153]: −7.2%
+                  - generic [ref=e3154]: Undervalued
+              - cell "$85.81" [ref=e3155]
+              - cell "$11.7B" [ref=e3156]
+              - cell "−36.7%" [ref=e3157]
+              - cell "44.6%" [ref=e3158]
+              - cell "1.03" [ref=e3159]
+              - cell "12.2" [ref=e3160]
+            - row [ref=e3161] [cursor=pointer]:
+              - cell [ref=e3162]:
+                - checkbox "Include JKHY in the portfolio" [ref=e3164]
+              - cell [ref=e3166]:
+                - link "JKHY Jack Henry & Associates, Inc." [ref=e3167]:
+                  - /url: /stocks/JKHY
+                  - generic [ref=e3168]: JKHY
+                  - generic [ref=e3169]: Jack Henry & Associates, Inc.
+              - cell "Deep value, +26.4% margin of safety +26.4% Deep value" [ref=e3170]:
+                - generic [ref=e3171]:
+                  - generic [ref=e3172]: Deep value, +26.4% margin of safety
+                  - generic [ref=e3177]: +26.4%
+                  - generic [ref=e3178]: Deep value
+              - cell "$165.64" [ref=e3179]
+              - cell "$11.6B" [ref=e3180]
+              - cell "+2.3%" [ref=e3181]
+              - cell "28.1%" [ref=e3182]
+              - cell "-0.05" [ref=e3183]
+              - cell "23.2" [ref=e3184]
+            - row [ref=e3185] [cursor=pointer]:
+              - cell [ref=e3186]:
+                - checkbox "Include DPZ in the portfolio" [ref=e3188]
+              - cell [ref=e3190]:
+                - link "DPZ Domino's Pizza, Inc." [ref=e3191]:
+                  - /url: /stocks/DPZ
+                  - generic [ref=e3192]: DPZ
+                  - generic [ref=e3193]: Domino's Pizza, Inc.
+              - cell "Fair value, −34.8% margin of safety −34.8% Fair value" [ref=e3194]:
+                - generic [ref=e3195]:
+                  - generic [ref=e3196]: Fair value, −34.8% margin of safety
+                  - generic [ref=e3201]: −34.8%
+                  - generic [ref=e3202]: Fair value
+              - cell "$341.08" [ref=e3203]
+              - cell "$11.3B" [ref=e3204]
+              - cell "−30.5%" [ref=e3205]
+              - cell "30.0%" [ref=e3206]
+              - cell "0.11" [ref=e3207]
+              - cell "25.2" [ref=e3208]
+            - row [ref=e3209] [cursor=pointer]:
+              - cell [ref=e3210]:
+                - checkbox "Include ALGN in the portfolio" [ref=e3212]
+              - cell [ref=e3214]:
+                - link "ALGN Align Technology, Inc." [ref=e3215]:
+                  - /url: /stocks/ALGN
+                  - generic [ref=e3216]: ALGN
+                  - generic [ref=e3217]: Align Technology, Inc.
+              - cell "Fair value, −32.8% margin of safety −32.8% Fair value" [ref=e3218]:
+                - generic [ref=e3219]:
+                  - generic [ref=e3220]: Fair value, −32.8% margin of safety
+                  - generic [ref=e3225]: −32.8%
+                  - generic [ref=e3226]: Fair value
+              - cell "$158.64" [ref=e3227]
+              - cell "$11.3B" [ref=e3228]
+              - cell "+16.4%" [ref=e3229]
+              - cell "39.1%" [ref=e3230]
+              - cell "1.44" [ref=e3231]
+              - cell "27.6" [ref=e3232]
+            - row [ref=e3233] [cursor=pointer]:
+              - cell [ref=e3234]:
+                - checkbox "Include CLX in the portfolio" [ref=e3236]
+              - cell [ref=e3238]:
+                - link "CLX The Clorox Company" [ref=e3239]:
+                  - /url: /stocks/CLX
+                  - generic [ref=e3240]: CLX
+                  - generic [ref=e3241]: The Clorox Company
+              - cell "Undervalued, −11.1% margin of safety −11.1% Undervalued" [ref=e3242]:
+                - generic [ref=e3243]:
+                  - generic [ref=e3244]: Undervalued, −11.1% margin of safety
+                  - generic [ref=e3249]: −11.1%
+                  - generic [ref=e3250]: Undervalued
+              - cell "$93.06" [ref=e3251]
+              - cell "$11.3B" [ref=e3252]
+              - cell "−29.2%" [ref=e3253]
+              - cell "31.0%" [ref=e3254]
+              - cell "0.23" [ref=e3255]
+              - cell "26.7" [ref=e3256]
+            - row [ref=e3257] [cursor=pointer]:
+              - cell [ref=e3258]:
+                - checkbox "Include LULU in the portfolio" [ref=e3260]
+              - cell [ref=e3262]:
+                - link "LULU lululemon athletica inc." [ref=e3263]:
+                  - /url: /stocks/LULU
+                  - generic [ref=e3264]: LULU
+                  - generic [ref=e3265]: lululemon athletica inc.
+              - cell "Deep value, +35.5% margin of safety +35.5% Deep value" [ref=e3266]:
+                - generic [ref=e3267]:
+                  - generic [ref=e3268]: Deep value, +35.5% margin of safety
+                  - generic [ref=e3273]: +35.5%
+                  - generic [ref=e3274]: Deep value
+              - cell "$100.61" [ref=e3275]
+              - cell "$11.1B" [ref=e3276]
+              - cell "−71.7%" [ref=e3277]
+              - cell "50.1%" [ref=e3278]
+              - cell "1.35" [ref=e3279]
+              - cell "8.1" [ref=e3280]
+            - row [ref=e3281] [cursor=pointer]:
+              - cell [ref=e3282]:
+                - checkbox "Include MGM in the portfolio" [ref=e3284]
+              - cell [ref=e3286]:
+                - link "MGM MGM Resorts International" [ref=e3287]:
+                  - /url: /stocks/MGM
+                  - generic [ref=e3288]: MGM
+                  - generic [ref=e3289]: MGM Resorts International
+              - cell "Deep value, +3.2% margin of safety +3.2% Deep value" [ref=e3290]:
+                - generic [ref=e3291]:
+                  - generic [ref=e3292]: Deep value, +3.2% margin of safety
+                  - generic [ref=e3297]: +3.2%
+                  - generic [ref=e3298]: Deep value
+              - cell "$41.22" [ref=e3299]
+              - cell "$10.5B" [ref=e3300]
+              - cell "+10.7%" [ref=e3301]
+              - cell "37.3%" [ref=e3302]
+              - cell "0.85" [ref=e3303]
+              - cell "25.0" [ref=e3304]
+            - row [ref=e3305] [cursor=pointer]:
+              - cell [ref=e3306]:
+                - checkbox "Include HSIC in the portfolio" [ref=e3308]
+              - cell [ref=e3310]:
+                - link "HSIC Henry Schein, Inc." [ref=e3311]:
+                  - /url: /stocks/HSIC
+                  - generic [ref=e3312]: HSIC
+                  - generic [ref=e3313]: Henry Schein, Inc.
+              - cell "Undervalued, −12.1% margin of safety −12.1% Undervalued" [ref=e3314]:
+                - generic [ref=e3315]:
+                  - generic [ref=e3316]: Undervalued, −12.1% margin of safety
+                  - generic [ref=e3321]: −12.1%
+                  - generic [ref=e3322]: Undervalued
+              - cell "$89.81" [ref=e3323]
+              - cell "$10.0B" [ref=e3324]
+              - cell "+28.1%" [ref=e3325]
+              - cell "25.6%" [ref=e3326]
+              - cell "0.52" [ref=e3327]
+              - cell "26.2" [ref=e3328]
+            - row [ref=e3329] [cursor=pointer]:
+              - cell [ref=e3330]:
+                - checkbox "Include UHS in the portfolio" [ref=e3332]
+              - cell [ref=e3334]:
+                - link "UHS Universal Health Services, Inc." [ref=e3335]:
+                  - /url: /stocks/UHS
+                  - generic [ref=e3336]: UHS
+                  - generic [ref=e3337]: Universal Health Services, Inc.
+              - cell "Deep value, +129.3% margin of safety +129.3% Deep value" [ref=e3338]:
+                - generic [ref=e3339]:
+                  - generic [ref=e3340]: Deep value, +129.3% margin of safety
+                  - generic [ref=e3345]: +129.3%
+                  - generic [ref=e3346]: Deep value
+              - cell "$169.65" [ref=e3347]
+              - cell "$10.0B" [ref=e3348]
+              - cell "−9.0%" [ref=e3349]
+              - cell "32.5%" [ref=e3350]
+              - cell "0.23" [ref=e3351]
+              - cell "6.9" [ref=e3352]
+            - row [ref=e3353] [cursor=pointer]:
+              - cell [ref=e3354]:
+                - checkbox "Include PNR in the portfolio" [ref=e3356]
+              - cell [ref=e3358]:
+                - link "PNR Pentair plc" [ref=e3359]:
+                  - /url: /stocks/PNR
+                  - generic [ref=e3360]: PNR
+                  - generic [ref=e3361]: Pentair plc
+              - cell "Undervalued, −12.6% margin of safety −12.6% Undervalued" [ref=e3362]:
+                - generic [ref=e3363]:
+                  - generic [ref=e3364]: Undervalued, −12.6% margin of safety
+                  - generic [ref=e3369]: −12.6%
+                  - generic [ref=e3370]: Undervalued
+              - cell "$60.21" [ref=e3371]
+              - cell "$9.6B" [ref=e3372]
+              - cell "−60.3%" [ref=e3373]
+              - cell "33.4%" [ref=e3374]
+              - cell "0.98" [ref=e3375]
+              - cell "15.1" [ref=e3376]
+            - row [ref=e3377] [cursor=pointer]:
+              - cell [ref=e3378]:
+                - checkbox "Include WYNN in the portfolio" [ref=e3380]
+              - cell [ref=e3382]:
+                - link "WYNN Wynn Resorts, Limited" [ref=e3383]:
+                  - /url: /stocks/WYNN
+                  - generic [ref=e3384]: WYNN
+                  - generic [ref=e3385]: Wynn Resorts, Limited
+              - cell "Undervalued, −0.4% margin of safety −0.4% Undervalued" [ref=e3386]:
+                - generic [ref=e3387]:
+                  - generic [ref=e3388]: Undervalued, −0.4% margin of safety
+                  - generic [ref=e3393]: −0.4%
+                  - generic [ref=e3394]: Undervalued
+              - cell "$91.54" [ref=e3395]
+              - cell "$9.4B" [ref=e3396]
+              - cell "−29.5%" [ref=e3397]
+              - cell "33.9%" [ref=e3398]
+              - cell "0.87" [ref=e3399]
+              - cell "22.7" [ref=e3400]
+            - row [ref=e3401] [cursor=pointer]:
+              - cell [ref=e3402]:
+                - checkbox "Include AOS in the portfolio" [ref=e3404]
+              - cell [ref=e3406]:
+                - link "AOS A. O. Smith Corporation" [ref=e3407]:
+                  - /url: /stocks/AOS
+                  - generic [ref=e3408]: AOS
+                  - generic [ref=e3409]: A. O. Smith Corporation
+              - cell "Undervalued, −13.8% margin of safety −13.8% Undervalued" [ref=e3410]:
+                - generic [ref=e3411]:
+                  - generic [ref=e3412]: Undervalued, −13.8% margin of safety
+                  - generic [ref=e3417]: −13.8%
+                  - generic [ref=e3418]: Undervalued
+              - cell "$60.48" [ref=e3419]
+              - cell "$8.2B" [ref=e3420]
+              - cell "−18.3%" [ref=e3421]
+              - cell "26.9%" [ref=e3422]
+              - cell "0.76" [ref=e3423]
+              - cell "16.8" [ref=e3424]
+            - row [ref=e3425] [cursor=pointer]:
+              - cell [ref=e3426]:
+                - checkbox "Include MOS in the portfolio" [ref=e3428]
+              - cell [ref=e3430]:
+                - link "MOS The Mosaic Company" [ref=e3431]:
+                  - /url: /stocks/MOS
+                  - generic [ref=e3432]: MOS
+                  - generic [ref=e3433]: The Mosaic Company
+              - cell "Undervalued, −8.9% margin of safety −8.9% Undervalued" [ref=e3434]:
+                - generic [ref=e3435]:
+                  - generic [ref=e3436]: Undervalued, −8.9% margin of safety
+                  - generic [ref=e3441]: −8.9%
+                  - generic [ref=e3442]: Undervalued
+              - cell "$25.85" [ref=e3443]
+              - cell "$8.2B" [ref=e3444]
+              - cell "−23.3%" [ref=e3445]
+              - cell "44.8%" [ref=e3446]
+              - cell "0.79" [ref=e3447]
+              - cell "—" [ref=e3448]
+            - row [ref=e3449] [cursor=pointer]:
+              - cell [ref=e3450]:
+                - checkbox "Include TTD in the portfolio" [ref=e3452]
+              - cell [ref=e3454]:
+                - link "TTD The Trade Desk, Inc." [ref=e3455]:
+                  - /url: /stocks/TTD
+                  - generic [ref=e3456]: TTD
+                  - generic [ref=e3457]: The Trade Desk, Inc.
+              - cell "Deep value, +33.7% margin of safety +33.7% Deep value" [ref=e3458]:
+                - generic [ref=e3459]:
+                  - generic [ref=e3460]: Deep value, +33.7% margin of safety
+                  - generic [ref=e3465]: +33.7%
+                  - generic [ref=e3466]: Deep value
+              - cell "$14.43" [ref=e3467]
+              - cell "$6.8B" [ref=e3468]
+              - cell "−128.0%" [ref=e3469]
+              - cell "58.1%" [ref=e3470]
+              - cell "0.88" [ref=e3471]
+              - cell "17.2" [ref=e3472]
+  - button "Open Next.js Dev Tools" [ref=e3478] [cursor=pointer]

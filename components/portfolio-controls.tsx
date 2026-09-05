@@ -23,11 +23,12 @@ import { cn } from "@/lib/utils"
  * as the screener's filter rail, a standing set of constraints that the panels
  * beside it are a reading of, so it takes the same shape.
  *
- * These are not preferences. Each one changes the set of portfolios the solver
- * is allowed to pick from, so each one says what it does in a line underneath
- * it. That line replaced an info popover per group: a control whose effect is
- * hidden behind a click gets turned at random, and the analysis pages had
- * already settled on plain notes under the figure instead.
+ * Each control used to carry a sentence of its own explaining what it does,
+ * on top of a sentence per group and a paragraph under the position fields.
+ * Stacked up that is more prose than dial, and it pushed the resolution
+ * slider off the bottom of a laptop rail. The dials state their own units,
+ * ranges and resolved values now; the standing explanation of what the page
+ * is for lives in "How this works".
  *
  * There is no run button here. The action lives in the results toolbar, above
  * the chart it changes, so it stays on screen while the rail scrolls and is
@@ -36,38 +37,30 @@ import { cn } from "@/lib/utils"
 
 function ControlGroup({
   label,
-  note,
   children,
 }: {
   label: string
-  /** What this group does, in one line. */
-  note?: string
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-border px-6 py-5 last:border-b-0">
-      <div className="flex flex-col gap-0.5">
-        <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-          {label}
-        </span>
-        {note && (
-          <span className="text-xs leading-snug text-muted-foreground">
-            {note}
-          </span>
-        )}
-      </div>
+    <div className="flex flex-col gap-3 border-b border-border px-6 py-4 last:border-b-0">
+      <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+        {label}
+      </span>
       {children}
     </div>
   )
 }
 
 /**
- * A dial whose current value is printed against its own label.
+ * A dial whose current value is printed against its own label, and whose ends
+ * are printed under it.
  *
  * The same construction the screener uses for margin and beta. A slider states
  * its range by its own geometry, which a number box cannot, and for a quantity
  * whose interesting property is the sweep rather than any particular figure
- * that is the whole control.
+ * that is the whole control. The end labels replace a sentence that spelled
+ * the same two numbers out in words.
  */
 function SliderField({
   id,
@@ -77,7 +70,8 @@ function SliderField({
   min,
   max,
   step,
-  note,
+  minLabel,
+  maxLabel,
   onChange,
 }: {
   id: string
@@ -87,7 +81,8 @@ function SliderField({
   min: number
   max: number
   step: number
-  note?: React.ReactNode
+  minLabel?: string
+  maxLabel?: string
   onChange: (value: string) => void
 }) {
   return (
@@ -109,9 +104,10 @@ function SliderField({
         onChange={(event) => onChange(event.target.value)}
         className="w-full accent-primary"
       />
-      {note && (
-        <span className="text-xs leading-snug text-muted-foreground">
-          {note}
+      {(minLabel ?? maxLabel) && (
+        <span className="flex justify-between font-mono text-[0.6875rem] text-muted-foreground tabular-nums">
+          <span>{minLabel}</span>
+          <span>{maxLabel}</span>
         </span>
       )}
     </div>
@@ -122,23 +118,45 @@ function SliderField({
  * Label above input rather than beside it. Labels in this app are uppercase
  * and letter-spaced, so a side-by-side row either wraps them onto two lines or
  * runs them into the field; both of which happened before this stacked.
+ *
+ * `auto` is the interesting part. Blank means the solver picks the bound, and
+ * the field used to say so with the literal word "auto" — which told the
+ * reader that a number existed without telling them what it was. The value the
+ * last solve actually used is the placeholder instead, with a small "auto" tag
+ * on the label saying where it came from, so a blank field reads as "3.00%,
+ * chosen for you" rather than as a hole. It was previously legible only in the
+ * constraints panel below, which is a strange place to keep the current value
+ * of a control.
  */
 function NumberField({
   id,
   label,
   suffix,
   error,
+  resolved,
   ...props
 }: React.ComponentProps<typeof Input> & {
   id: string
   label: string
   suffix?: string
   error?: string
+  /** What the last solve resolved this bound to when it was left blank. */
+  resolved?: string
 }) {
+  const isAuto = String(props.value ?? "").trim() === ""
+
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
-      <Label htmlFor={id} className="text-muted-foreground">
+      <Label
+        htmlFor={id}
+        className="flex items-baseline justify-between gap-2 text-muted-foreground"
+      >
         {label}
+        {isAuto && (
+          <span className="text-[0.625rem] tracking-wider normal-case">
+            auto
+          </span>
+        )}
       </Label>
       <div className="flex items-baseline gap-1.5">
         <Input
@@ -146,6 +164,7 @@ function NumberField({
           inputMode="decimal"
           className="h-8 font-mono tabular-nums"
           aria-invalid={Boolean(error)}
+          placeholder={resolved ?? "auto"}
           {...props}
         />
         {suffix && (
@@ -219,6 +238,7 @@ export function PortfolioControls({
   onReset,
   universeSize,
   dirty,
+  resolved,
 }: {
   settings: PortfolioSettings
   errors: SettingsErrors
@@ -228,6 +248,11 @@ export function PortfolioControls({
   universeSize: number
   /** These settings have not been solved yet. */
   dirty: boolean
+  /**
+   * What the last solve resolved the blank position bounds to, as percentages
+   * ready to print. Absent before anything has been solved.
+   */
+  resolved: { minWeight?: string; maxWeight?: string }
 }) {
   const set = <K extends keyof PortfolioSettings>(
     key: K,
@@ -264,11 +289,6 @@ export function PortfolioControls({
               : "stocks in the index"}
           </span>
         </p>
-        <span className="text-xs leading-snug text-muted-foreground">
-          {universeSize > 0
-            ? "only these can be bought: a stock the filters rejected cannot enter the portfolio at any weight."
-            : "screen first to narrow this: the optimiser reads expected return off past return, so left alone it favours whatever has already gone up."}
-        </span>
         {dirty && (
           <span className="text-xs text-status-warning">
             Settings changed since the last run.
@@ -276,10 +296,7 @@ export function PortfolioControls({
         )}
       </div>
 
-      <ControlGroup
-        label="Position size"
-        note="the most and least of the portfolio any one stock can be."
-      >
+      <ControlGroup label="Position size">
         <div className="grid grid-cols-2 gap-4">
           <NumberField
             id="min-weight"
@@ -287,7 +304,7 @@ export function PortfolioControls({
             suffix="%"
             type="number"
             step="0.5"
-            placeholder="auto"
+            resolved={resolved.minWeight}
             value={settings.minWeight}
             error={errors.minWeight}
             onChange={(e) => set("minWeight", e.target.value)}
@@ -298,28 +315,20 @@ export function PortfolioControls({
             suffix="%"
             type="number"
             step="0.5"
-            placeholder="auto"
+            resolved={resolved.maxWeight}
             value={settings.maxWeight}
             error={errors.maxWeight}
             onChange={(e) => set("maxWeight", e.target.value)}
           />
         </div>
-        <span className="text-xs leading-snug text-muted-foreground">
-          Left blank the solver picks a cap that fits the number of names: a 3%
-          cap needs 34 of them to add up to a whole portfolio.
-        </span>
         <ToggleRow
           checked={settings.shortAllowed}
           onChange={(next) => set("shortAllowed", next)}
           label="Allow short selling"
-          note="lets a weight go negative, so a holding can be funded by selling a name the solver expects to do worse."
         />
       </ControlGroup>
 
-      <ControlGroup
-        label="Diversification"
-        note="how hard the solver is pushed to spread money across names instead of piling it on a few."
-      >
+      <ControlGroup label="Diversification">
         <SliderField
           id="gamma"
           label="L2 penalty"
@@ -328,19 +337,13 @@ export function PortfolioControls({
           min={0}
           max={MAX_GAMMA}
           step={0.05}
+          minLabel="0"
+          maxLabel={String(MAX_GAMMA)}
           onChange={(value) => set("gamma", value)}
-          note={
-            gamma > 0
-              ? "money spread wider; watch eff. names in the anchor table climb."
-              : "off: most names come back at exactly 0% or exactly the cap, with nothing in between."
-          }
         />
       </ControlGroup>
 
-      <ControlGroup
-        label="Resolution"
-        note="how many portfolios get solved along the curve."
-      >
+      <ControlGroup label="Resolution">
         <SliderField
           id="n-portfolios"
           label="Frontier points"
@@ -349,8 +352,9 @@ export function PortfolioControls({
           min={MIN_PORTFOLIOS}
           max={MAX_PORTFOLIOS}
           step={1}
+          minLabel={String(MIN_PORTFOLIOS)}
+          maxLabel={String(MAX_PORTFOLIOS)}
           onChange={(value) => set("portfolios", value)}
-          note={`${MIN_PORTFOLIOS} to ${MAX_PORTFOLIOS}. every point is its own solve, so this is what decides how long a run takes; past a handful the curve stops changing shape.`}
         />
         {errors.portfolios && (
           <span className="text-xs text-destructive">{errors.portfolios}</span>

@@ -67,9 +67,14 @@ import {
 const CHART_ROWS = 10
 const ROW_HEIGHT = 46
 
+// Weight and risk are two measurements of the same holding, always plotted as
+// an adjacent pair in a fixed order — so they are two steps of the one blue
+// ramp rather than two hues. The orange that used to carry risk was a second
+// identity for something that is not a second entity, and it was the loudest
+// thing on a page whose palette is otherwise blue and ink.
 const holdingsConfig = {
-  weight: { label: "Weight", color: "var(--color-series-1)" },
-  risk: { label: "Risk contribution", color: "var(--color-series-2)" },
+  weight: { label: "Weight", color: "var(--color-seq-4)" },
+  risk: { label: "Risk contribution", color: "var(--color-seq-2)" },
 } satisfies ChartConfig
 
 // Sector exposure is magnitude by category, not identity: the axis labels name
@@ -224,43 +229,36 @@ export function HoldingsChart({
           </BarChart>
         </ChartContainer>
 
-        {hasRisk ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span
-                className="size-3 shrink-0"
-                style={{ background: "var(--color-series-1)" }}
-                aria-hidden="true"
-              />
-              Weight: the share of money in the name
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span
-                className="size-3 shrink-0"
-                style={{ background: "var(--color-series-2)" }}
-                aria-hidden="true"
-              />
-              Risk: its share of the portfolio’s total risk
-            </span>
-          </div>
-        ) : (
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Risk contributions are measured from the covariance matrix, so they
-            arrive with a live solve rather than with the shipped baseline.
-          </p>
-        )}
-
-        {tail.length > 0 && (
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            The remaining{" "}
-            <span className="font-mono tabular-nums">{tail.length}</span>{" "}
-            {tail.length === 1 ? "holding accounts" : "holdings account"} for{" "}
-            <span className="font-mono tabular-nums">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+          {hasRisk ? (
+            <>
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="size-2.5 shrink-0"
+                  style={{ background: "var(--color-seq-4)" }}
+                  aria-hidden="true"
+                />
+                Weight
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="size-2.5 shrink-0"
+                  style={{ background: "var(--color-seq-2)" }}
+                  aria-hidden="true"
+                />
+                Risk share
+              </span>
+            </>
+          ) : (
+            <span>Risk shares arrive with a live solve.</span>
+          )}
+          {tail.length > 0 && (
+            <span className="tabular-figures">
+              Remaining {tail.length} in the ledger ·{" "}
               {formatPercent(tailWeight)}
-            </span>{" "}
-            of the portfolio and are listed in the ledger.
-          </p>
-        )}
+            </span>
+          )}
+        </div>
       </PanelBody>
     </Panel>
   )
@@ -343,8 +341,8 @@ export function HoldingsTable({
                           width: `${((Math.abs(row.weight) / peak) * 100).toFixed(1)}%`,
                           background:
                             row.weight < 0
-                              ? "var(--color-series-2)"
-                              : "var(--color-series-1)",
+                              ? "var(--color-overvalued)"
+                              : "var(--color-seq-4)",
                         }}
                       />
                     </span>
@@ -391,7 +389,6 @@ export function SectorExposure({
   if (data.length === 0) return null
 
   const covered = data.reduce((total, row) => total + row.weight, 0)
-  const top = data[0]
   const axis = nicePercentAxis(data.map((row) => row.weight))
 
   return (
@@ -470,26 +467,17 @@ export function SectorExposure({
           </BarChart>
         </ChartContainer>
 
-        {/* The point of the panel, stated once rather than hidden behind an
-            info trigger: the solver was never told what a sector is, so this
-            is a check on the result and not a rule it followed. */}
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {top.sector} is the largest exposure at{" "}
-          <span className="font-mono tabular-nums">
-            {formatPercent(top.weight)}
-          </span>
-          . The solver was given no sector limits, so it will happily pile into
-          one if those names move independently enough.
-          {covered < 0.995 && (
-            <>
-              {" "}
-              <span className="font-mono tabular-nums">
-                {formatPercent(1 - covered)}
-              </span>{" "}
-              of the portfolio has no sector on file and is not shown.
-            </>
-          )}
-        </p>
+        {/* The bars already say which sector is largest and by how much, so
+            the sentence that restated it is gone. What survives is the one
+            thing the chart cannot show: weight that is missing from it. */}
+        {covered < 0.995 && (
+          <p className="text-xs text-muted-foreground">
+            <span className="font-mono tabular-nums">
+              {formatPercent(1 - covered)}
+            </span>{" "}
+            of the portfolio has no sector on file and is not shown.
+          </p>
+        )}
       </PanelBody>
     </Panel>
   )

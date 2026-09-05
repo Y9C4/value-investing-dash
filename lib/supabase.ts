@@ -41,7 +41,10 @@ function headers(key: string): Record<string, string> {
  * `cache: "force-cache"` is required, not decorative: Next declines to cache a
  * request carrying an `Authorization` header unless caching is asked for
  * explicitly, and without it the screener would re-read Supabase on every
- * visitor instead of once an hour.
+ * visitor instead of once an hour. It is asked for only when there is a window
+ * to cache within — `revalidate: 0` is how callers say "do not", which dev
+ * passes, and stating both makes Next warn on every render that the two
+ * disagree. See `cacheOptions`.
  *
  * The retry is the interesting part. An empty result is a legitimate 200, so
  * Next caches it like any other, and a single request that lands while the
@@ -53,6 +56,23 @@ function headers(key: string): Record<string, string> {
  * It costs a round trip on a path that was about to fall back anyway, and it
  * turns an hour of stale emptiness into one slightly slower render.
  */
+/**
+ * `cache` and `next.revalidate`, agreeing with each other.
+ *
+ * `revalidate: 0` means "never serve this from the data cache", which is what
+ * `lib/universe.ts` asks for in development so an edit is visible on reload.
+ * Pairing that with `force-cache` is a contradiction, and Next says so on
+ * every request: *Specified "cache: force-cache" and "revalidate: 0", only one
+ * should be specified*. Dev-only and harmless to the response, but it is a
+ * warning printed several times per page load, which is how a real one gets
+ * missed. Zero takes `no-store` and says the same thing without the argument.
+ */
+function cacheOptions(next: { revalidate: number; tags?: string[] }) {
+  return next.revalidate === 0
+    ? ({ cache: "no-store" } as const)
+    : ({ cache: "force-cache" as const, next })
+}
+
 export async function selectSnapshotRow<T>(
   table: string,
   query: string,
@@ -65,8 +85,7 @@ export async function selectSnapshotRow<T>(
   try {
     const response = await fetch(target, {
       headers: headers(SUPABASE_KEY),
-      cache: "force-cache",
-      next,
+      ...cacheOptions(next),
     })
 
     if (!response.ok) return null
@@ -108,8 +127,7 @@ export async function selectRows<T>(
   try {
     const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
       headers: headers(SUPABASE_KEY),
-      cache: "force-cache",
-      next,
+      ...cacheOptions(next),
     })
 
     if (!response.ok) return null

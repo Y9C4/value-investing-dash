@@ -29,6 +29,11 @@ export function percentTickFormatter(span: number) {
   return (value: number) =>
     value.toLocaleString("en-US", {
       style: "percent",
+      // Fixed rather than maximum: a tick that lands on a whole number would
+      // otherwise print "11%" between "10.3%" and "11.7%", and a column of
+      // ticks that disagree about their precision reads as three different
+      // measurements.
+      minimumFractionDigits: digits,
       maximumFractionDigits: digits,
     })
 }
