@@ -87,8 +87,21 @@ export function nicePercentAxis(
  */
 export function formatSignedPercent(value: number) {
   const formatted = formatPercent(Math.abs(value))
-  return value < 0 ? `−${formatted}` : formatted
+  return value < 0 ? `-${formatted}` : formatted
 }
+
+/**
+ * A signed ratio with an explicit `+` — the Sharpe-delta reading, where the
+ * sign is the whole point (beat the benchmark, or did not) rather than a
+ * direction to notice in passing. Same philosophy as the margin formatter in
+ * `valuation-scale.tsx`, for a quantity that is not a percentage.
+ */
+export function formatSharpeDelta(value: number) {
+  const formatted = Math.abs(value).toFixed(2)
+  return value < 0 ? `-${formatted}` : `+${formatted}`
+}
+
+
 
 /**
  * Market capitalisation, given in billions, rendered the way it is spoken.

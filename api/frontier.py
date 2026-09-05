@@ -394,6 +394,42 @@ def _make_frontier(
     return ef
 
 
+def _market_reference(
+    prices: pd.DataFrame, risk_free_rate: float
+) -> dict | None:
+    """The S&P 500 itself, scored the same way a portfolio is.
+
+    The point of optimising is to beat the index on a risk-adjusted basis, so
+    the index has to be measured on the same terms as the thing being compared
+    to it: same date range, same estimators. `prices` is expected to be a
+    single-column frame for `config.SP500_INDEX_TICKER`, already aligned to
+    the exact dates the portfolio's own `mu`/`S` were computed from — pulling
+    it from a different window or a different formula (there is an existing
+    `market.expected_market_return()`, on a one-year log-return basis, used
+    elsewhere for CAPM) would flatter or punish the comparison by construction
+    rather than by anything true about either side.
+
+    None when the index has no usable price history for the window, which is
+    a data gap rather than something to fail the whole solve over: the
+    portfolio is still real without a benchmark to draw beside it.
+    """
+    prices = prices.dropna()
+    if len(prices) < 2:
+        return None
+
+    try:
+        mu = expected_returns.mean_historical_return(prices).iloc[0]
+        S = risk_models.CovarianceShrinkage(prices).ledoit_wolf()
+    except ValueError:
+        # A too-short or degenerate window is a data gap, not a reason to
+        # 500 a request that would otherwise have solved fine.
+        return None
+
+    volatility = float(np.sqrt(S.iloc[0, 0]))
+    sharpe = (mu - risk_free_rate) / volatility if volatility else 0.0
+    return {"return": float(mu), "volatility": volatility, "sharpe": float(sharpe)}
+
+
 def _stats(
     weights: np.ndarray, mu: pd.Series, S: pd.DataFrame, risk_free_rate: float
 ) -> tuple[float, float, float]:
@@ -666,6 +702,22 @@ def _summarise(point: dict, index: pd.Index) -> dict:
     }
 
 
+def _with_risk(summary: dict, weights: np.ndarray, S: pd.DataFrame) -> dict:
+    """Attach the variance decomposition to an already-summarised point.
+
+    Keyed to the summary's own surviving holdings rather than the whole
+    universe, so it lines up with the weights beside it and carries no rows
+    for names the point does not hold.
+    """
+    contributions = risk_contributions(weights, S)
+    summary["risk_contributions"] = {
+        ticker: round(contributions[ticker], 4)
+        for ticker in summary["weights"]
+        if ticker in contributions
+    }
+    return summary
+
+
 def _capital_market_line(
     tangency: dict, envelope: list[dict], risk_free_rate: float
 ) -> list[dict]:
@@ -748,13 +800,27 @@ def build(
         check_solve_budget()
     started = time.monotonic()
 
-    prices, excluded = _drop_short_history(market.prices_df(universe), universe)
+    # The index rides along in the same fetch — one more column, the same
+    # parallel/cached read — rather than a separate round trip. Split off
+    # before `_drop_short_history`, which reports on the *requested* universe
+    # and would misreport "5 of 5 requested tickers" as "5 of 6".
+    raw = market.prices_df([*universe, config.SP500_INDEX_TICKER])
+    index_prices = raw[[config.SP500_INDEX_TICKER]]
+    prices, excluded = _drop_short_history(raw[universe], universe)
 
     mu = expected_returns.mean_historical_return(prices).clip(
         lower=-MU_CLIP, upper=MU_CLIP
     )
     S = risk_models.CovarianceShrinkage(prices).ledoit_wolf()
     risk_free_rate = market.average_risk_free_rate()
+    # Realigned to `prices.index` rather than used as fetched: the shared
+    # frame's date range is the union across every ticker in the request, and
+    # the portfolio's own window is `prices.index` post-history-filter. Scoring
+    # the index over dates the portfolio was not evaluated on would be a
+    # second, silent way for the two figures to disagree.
+    market_reference = _market_reference(
+        index_prices.reindex(prices.index), risk_free_rate
+    )
     constraints = resolve_constraints(
         int(prices.shape[1]), short_allowed, min_weight, max_weight, gamma
     )
@@ -762,25 +828,36 @@ def build(
     points = trace_frontier(mu, S, risk_free_rate, constraints, n_points)
     tangency = refine_tangency(points, mu, S, risk_free_rate, constraints)
 
-    max_sharpe = _summarise(tangency, mu.index)
-    # Only for the tangency: it is the one the page presents as "the" portfolio.
-    contributions = risk_contributions(tangency["weights"], S)
-    max_sharpe["risk_contributions"] = {
-        ticker: round(contributions[ticker], 4)
-        for ticker in max_sharpe["weights"]
-        if ticker in contributions
-    }
+    max_sharpe = _with_risk(_summarise(tangency, mu.index), tangency["weights"], S)
+
+    # Hoisted rather than inlined into the `sectors` comprehension below, where
+    # it would be rebuilt once per candidate ticker: ~500 rebuilds of a
+    # 499-element set, measured at 18.6ms against 0.1ms for this.
+    solved_universe = set(mu.index)
+
+    # Every solved point, summarised exactly the way the anchors are.
+    #
+    # The envelope used to carry four floats per point and drop the weights the
+    # solve had just produced, which made the two anchors the only portfolios on
+    # the curve the page could actually describe. The page now lets a reader
+    # select any point on the frontier, and a point without weights is one that
+    # cannot be selected. Nothing here is newly computed: `trace_frontier`
+    # already solved each point's weights, and the variance decomposition is a
+    # matrix-vector product against a covariance matrix that is already in
+    # memory — next to the QP behind every point, it is free.
+    summaries = [
+        _with_risk(_summarise(point, mu.index), point["weights"], S)
+        for point in points
+    ]
 
     envelope = [
         {
             # Position along the frontier, not a blend weight — it was one when
             # two anchors were interpolated, and the chart still orders by it.
             "t": float(index / (len(points) - 1)) if len(points) > 1 else 0.0,
-            "return": point["return"],
-            "volatility": point["volatility"],
-            "sharpe": point["sharpe"],
+            **summary,
         }
-        for index, point in enumerate(points)
+        for index, summary in enumerate(summaries)
     ]
 
     payload = {
@@ -799,16 +876,27 @@ def build(
         "min_stock_weight": constraints.lower,
         "l2_gamma": constraints.gamma,
         "excluded_short_history": excluded,
+        # The benchmark every portfolio on this curve is implicitly competing
+        # with. None when the index had no usable price data for the window —
+        # a gap the frontend already knows how to read as "not drawn" rather
+        # than as a zero.
+        "market": market_reference,
+        # Keyed to the solved universe, not to the tangency's holdings. Any
+        # point on the curve can now be the one on screen, and a point holding
+        # a name the tangency happens not to hold would otherwise have had its
+        # sector silently missing from the breakdown.
         "sectors": {
             ticker: sector
             for ticker, sector in sector_map().items()
-            if ticker in max_sharpe["weights"]
+            if ticker in solved_universe
         },
         "tangency_beats_risk_free": max_sharpe["sharpe"] > 0,
         "max_sharpe": max_sharpe,
         # The trace runs upward from the minimum-variance portfolio, so its
-        # first point is that anchor by construction.
-        "min_volatility": _summarise(points[0], mu.index),
+        # first point is that anchor by construction — the same object as
+        # `envelope[0]`, which is why selecting either must highlight one mark
+        # rather than two.
+        "min_volatility": summaries[0],
         "capital_market_line": _capital_market_line(
             max_sharpe, envelope, risk_free_rate
         ),

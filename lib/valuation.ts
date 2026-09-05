@@ -366,6 +366,22 @@ export const BAND_FILL: Record<ValuationBand, string> = {
   unrated: "var(--color-muted)",
 }
 
+/**
+ * Text colour class for a band. Written out as literal Tailwind classes
+ * (not `text-${band}` template strings) because Tailwind's scanner only
+ * generates a utility for class names it can find as static text — a
+ * template literal never matches, so callers must go through this map
+ * rather than interpolating `band` into a class name themselves.
+ */
+export const BAND_TEXT_CLASS: Record<ValuationBand, string> = {
+  "deep-value": "text-deep-value",
+  undervalued: "text-undervalued",
+  fair: "text-fair",
+  overvalued: "text-overvalued",
+  expensive: "text-expensive",
+  unrated: "text-muted-foreground",
+}
+
 export type ScreenerFilters = {
   search: string
   sectors: string[]
@@ -474,4 +490,81 @@ export function applyFilters(
 
     return true
   })
+}
+
+/** What the models say about a whole portfolio, weighted by position size. */
+export type PortfolioConsensus = {
+  /**
+   * `Σ(weight × consensus margin)` over every holding.
+   *
+   * A weighted sum rather than an average, because portfolio weights already
+   * sum to one: the solver allocates a whole portfolio, so dividing again
+   * would be normalising something that is already normalised.
+   */
+  marginOfSafety: number
+  /**
+   * The share of portfolio weight at least one model could value.
+   *
+   * Reported rather than folded into the figure above. An unvalued holding
+   * enters the sum at zero — "assume fairly priced" — which is a defensible
+   * default and an invisible one, so the page says how much of the portfolio
+   * is resting on it.
+   */
+  coverage: number
+  ratedHoldings: number
+  totalHoldings: number
+}
+
+/**
+ * The consensus margin of safety of a portfolio, weighted by position size.
+ *
+ * Three steps, and only the last is new here. Each model prices a company and
+ * reports a margin; `consensusMarginOfSafety` folds those into one number per
+ * stock, weighted by each model's confidence; this weights those by how much
+ * of the portfolio sits in each name.
+ *
+ * A stock no model could value counts as fairly priced rather than being
+ * dropped. That is a deliberate choice with a cost — it pulls the total toward
+ * zero in proportion to how much of the book is unrated — and `coverage` is
+ * what makes the cost legible instead of silent. Note this is a weaker bar
+ * than the screener's `isRated`, which demands every model speak: the
+ * confidence weighting already handles a partial set correctly, and requiring
+ * all five would compute this over a fraction of most portfolios.
+ *
+ * Short positions enter with their sign. Being short a name the models call
+ * expensive contributes positively, which is the literal reading of the
+ * arithmetic and has not been checked against how anyone wants shorts to read.
+ */
+export function portfolioConsensus(
+  weights: Record<string, number>,
+  stocksByTicker: Map<string, Stock>,
+  methods: MethodId[] = []
+): PortfolioConsensus {
+  const entries = Object.entries(weights)
+  let marginOfSafety = 0
+  let totalWeight = 0
+  let coveredWeight = 0
+  let rated = 0
+
+  for (const [ticker, weight] of entries) {
+    totalWeight += Math.abs(weight)
+    const stock = stocksByTicker.get(ticker)
+
+    if (stock && activeVerdicts(stock, methods).length > 0) {
+      rated += 1
+      coveredWeight += Math.abs(weight)
+    }
+
+    // `consensusMarginOfSafety` already answers 0 for a stock no model could
+    // value, which is exactly the intended contribution — there is no separate
+    // branch for the unrated case because there does not need to be.
+    marginOfSafety += weight * (stock ? consensusMarginOfSafety(stock, methods) : 0)
+  }
+
+  return {
+    marginOfSafety,
+    coverage: totalWeight > 0 ? coveredWeight / totalWeight : 0,
+    ratedHoldings: rated,
+    totalHoldings: entries.length,
+  }
 }

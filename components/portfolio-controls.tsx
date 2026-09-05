@@ -2,6 +2,7 @@
 
 import { RiCloseLine } from "@remixicon/react"
 
+import { MethodToggle } from "@/components/screener-filters"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +13,7 @@ import {
   type PortfolioSettings,
   type SettingsErrors,
 } from "@/lib/portfolio-settings"
+import { VALUATION_METHODS, type MethodId } from "@/lib/valuation"
 import { cn } from "@/lib/utils"
 
 /**
@@ -89,7 +91,7 @@ function SliderField({
     <div className="flex flex-col gap-1.5">
       <Label
         htmlFor={id}
-        className="flex items-baseline justify-between text-sm font-normal"
+        className="flex items-baseline justify-between text-xs font-normal"
       >
         <span className="text-muted-foreground">{label}</span>
         <span className="font-mono text-sm tabular-nums">{display}</span>
@@ -239,6 +241,10 @@ export function PortfolioControls({
   universeSize,
   dirty,
   resolved,
+  methods,
+  onMethodsChange,
+  methodCoverage,
+  ratedHoldings,
 }: {
   settings: PortfolioSettings
   errors: SettingsErrors
@@ -248,6 +254,13 @@ export function PortfolioControls({
   universeSize: number
   /** These settings have not been solved yet. */
   dirty: boolean
+  /** Models the consensus is taken over. Empty means all of them. */
+  methods: MethodId[]
+  onMethodsChange: (next: MethodId[]) => void
+  /** How many of the held names each model could value. */
+  methodCoverage: Record<MethodId, number>
+  /** Holdings in the portfolio on screen, the denominator for the above. */
+  ratedHoldings: number
   /**
    * What the last solve resolved the blank position bounds to, as percentages
    * ready to print. Absent before anything has been solved.
@@ -281,17 +294,15 @@ export function PortfolioControls({
       <div className="flex flex-col gap-1 border-b border-border px-6 py-4">
         <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-3xl font-semibold tabular-nums">
-            {universeSize > 0 ? universeSize : "All"}
+            {universeSize > 0 ? universeSize : "500"}
           </span>
           <span className="text-sm text-muted-foreground">
-            {universeSize > 0
-              ? `screened ${universeSize === 1 ? "stock" : "stocks"}`
-              : "stocks in the index"}
+            /500 stocks
           </span>
         </p>
         {dirty && (
           <span className="text-xs text-status-warning">
-            Settings changed since the last run.
+            Settings changed
           </span>
         )}
       </div>
@@ -331,7 +342,7 @@ export function PortfolioControls({
       <ControlGroup label="Diversification">
         <SliderField
           id="gamma"
-          label="L2 penalty"
+          label="Concentration Penalty (L2)"
           value={gamma}
           display={gamma.toFixed(2)}
           min={0}
@@ -346,7 +357,7 @@ export function PortfolioControls({
       <ControlGroup label="Resolution">
         <SliderField
           id="n-portfolios"
-          label="Frontier points"
+          label="# Portfolios"
           value={portfolios}
           display={String(portfolios)}
           min={MIN_PORTFOLIOS}
@@ -359,6 +370,43 @@ export function PortfolioControls({
         {errors.portfolios && (
           <span className="text-xs text-destructive">{errors.portfolios}</span>
         )}
+      </ControlGroup>
+
+      {/* The only group here that is not a solver input. Everything above
+          changes which portfolios exist and needs a re-run to take effect;
+          this changes what the models say about the one on screen, and lands
+          immediately — which is why it says so, and why it sits at the bottom
+          rather than among the dials that do need the button. */}
+      <ControlGroup label="Consensus models">
+        <span className="text-xs leading-snug text-muted-foreground">
+          Valuation models used to give the portfolio's consensus margin, or the fair value of assets in the portfolio given by the models vs it's price.
+        </span>
+        <div className="flex flex-col gap-1.5">
+          {VALUATION_METHODS.map((method) => (
+            <MethodToggle
+              key={method.id}
+              method={method}
+              active={methods.length === 0 || methods.includes(method.id)}
+              coverage={methodCoverage[method.id] ?? 0}
+              total={ratedHoldings}
+              onClick={() => {
+                // An empty selection means "all", so the first click has to
+                // materialise that into a real list minus the one just turned
+                // off, or nothing would appear to happen.
+                const current =
+                  methods.length === 0
+                    ? VALUATION_METHODS.map((m) => m.id)
+                    : methods
+                const next = current.includes(method.id)
+                    ? current.filter((id) => id !== method.id)
+                    : [...current, method.id]
+                // Switching the last one off would leave nothing to average.
+                if (next.length === 0) return
+                onMethodsChange(next)
+              }}
+            />
+          ))}
+        </div>
       </ControlGroup>
     </div>
   )

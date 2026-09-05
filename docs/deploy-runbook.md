@@ -425,3 +425,333 @@ call to action, which misses both the snapshot and the in-process cache — the
 gap already noted in §1C.10 of the plan. If that turns out to be the common
 arrival in practice, the fix is to precompute the screened default too, not to
 fight the CPU throttle.
+
+---
+
+# The API end to end: a handoff
+
+Everything above is how the solver got deployed. This is how it is *wired* —
+what each page needs from it, what happens when it is asleep, how to push a
+change to either side, and the six things that will bite you.
+
+## 1. The shape
+
+```
+                 ┌──────────────────────────────┐
+   browser ────► │  Vercel (Next.js App Router) │
+                 │  · server components         │
+                 │  · /api/* route handlers     │
+                 └───────┬──────────────┬───────┘
+                         │              │
+              anon key   │              │  X-Margin-Origin
+              + RLS      │              │  X-Backfill-Token
+                         ▼              ▼
+              ┌────────────────┐   ┌──────────────────┐
+              │ Supabase       │◄──┤ Cloud Run        │
+              │ Postgres       │   │ margin-solver    │
+              └────────────────┘   └──────────────────┘
+                                            ▲
+                            Cloud Scheduler ─┘  (3 jobs)
+```
+
+**Two rules hold the whole design together.**
+
+*The browser never learns the Cloud Run URL.* `MARKET_DATA_API_URL` is read
+only inside route handlers and server components — never in a `"use client"`
+file, never behind a `NEXT_PUBLIC_` prefix. That is what makes
+`X-Margin-Origin` meaningful: the secret can only be attached by code running
+on Vercel, so a request without it did not come from the dashboard.
+
+*The dashboard reads Postgres directly wherever the answer is already stored.*
+Next talks to Supabase with the publishable (anon) key over plain PostgREST
+`fetch`, and row-level security is what makes that safe — `anon` may SELECT
+`universe_snapshot`, `frontier_snapshot` and `daily_close_prices`, and nothing
+else. `valuations`, `ticker_statistics`, `quarterly_fundamentals` and
+`company_profile` all return `[]` to that key. The service role key, which
+bypasses RLS entirely, exists only in `api/.env` and Secret Manager.
+
+## 2. What each page actually needs
+
+The important property, and the one worth protecting in any future change:
+**two of the three pages render completely with Cloud Run scaled to zero.**
+
+### `/screener` — never touches the solver
+
+`app/screener/page.tsx` calls `loadUniverse()` (`lib/universe.ts`), which tries
+three sources in order:
+
+1. `universe_snapshot` row `id=1` via `selectSnapshotRow` — the normal path.
+   One indexed row holding the whole scored payload the valuations backfill
+   assembled: ~500 stocks, every verdict, `risk_free_rate`,
+   `expected_market_return`, the `^GSPC` index level and the `job_runs`
+   freshness block.
+2. `GET /valuations` on Cloud Run — only if the snapshot row is missing.
+3. `SAMPLE_UNIVERSE` — labelled "illustrative" on every surface that renders it.
+
+Caching: `revalidate` 3600 in production, **0 in development**. The dev zero is
+deliberate. In production nothing purges the tag — the snapshot is written by
+Cloud Scheduler calling the service directly, with no Next in the chain to call
+`revalidateTag` — so an hour is the true staleness window; locally that window
+hides a backfill you just ran.
+
+`selectSnapshotRow` retries once with `cache: "no-store"` when the first read
+comes back **empty**. An empty result is a legitimate 200, so Next would
+otherwise cache "there is no snapshot" for the full hour if one request landed
+mid-write.
+
+### `/stocks/[ticker]` — never touches the solver in practice
+
+Server render: the same `loadUniverse()` call, which supplies the verdicts,
+`beta`, `realisedReturn`, `riskFreeRate` and `marketReturn`.
+
+Client fetch: `components/ticker-history.tsx` calls
+`GET /api/close-history/[ticker]`, which reads the last 252 rows of
+`daily_close_prices` straight from Postgres (`order=date.desc&limit=252`, then
+reversed). Cloud Run's `GET /returns/{ticker}` is the fallback for the case the
+anon path cannot cover — no Supabase credentials, or a database the solver can
+reach and Vercel cannot.
+
+This route used to proxy the solver unconditionally, which is why a
+scaled-to-zero service produced a 502 on the price chart. The response now
+carries closes and nothing else: every other figure the panel prints already
+arrived with the server render, and fetching them twice let the two copies
+disagree.
+
+### `/portfolio` — the only page that needs the solver, and only sometimes
+
+Server render: `loadUniverse()` again, for the valuations joined against the
+holdings.
+
+Client fetch: `POST /api/efficient-frontier`. That handler splits the traffic:
+
+- **The default request** — no ticker list, `short_allowed=false`, blank
+  min/max weight, gamma 0, and `n_portfolios` either absent or exactly
+  `DEFAULT_PORTFOLIOS` — is answered from the `frontier_snapshot` row under the
+  fixed key `"default"`, written nightly by `frontier.precompute_default()`.
+  Measured at **0.24 s** with the solver dead. Before this path existed the same
+  click cost **64.7 s** on Cloud Run.
+- **Everything else** — any screened set, any changed constraint, any re-run —
+  goes to Cloud Run. That is the right division: those are genuinely new work.
+
+The stored payload is rewritten on the way out: `cached` is forced to `true`
+(the scheduled run recorded it as a miss, because it did the work) and
+`resolution_capped` to `false`.
+
+## 3. Every route, and what guards it
+
+| Next route | upstream | guard |
+|---|---|---|
+| `POST /api/efficient-frontier` | `frontier_snapshot`, else Cloud Run | per-IP rate limit, then `X-Margin-Origin` |
+| `GET /api/close-history/[ticker]` | `daily_close_prices`, else Cloud Run | none needed — anon-readable, cached |
+| `POST /api/backfill/*` (6) | Cloud Run | `ENABLE_DATA_PAGE`, then `X-Backfill-Token` |
+
+`GET /api/valuations` and `GET /api/history/[ticker]` used to sit here too:
+unguarded passthroughs left from before the snapshot read path, forwarding no
+origin header and taking no rate limit. Nothing called either. **Both deleted**
+— the whole Next surface that reaches Cloud Run is now the two rows above.
+
+On the Python side (`api/main.py`):
+
+| endpoint | guard |
+|---|---|
+| `GET /health`, `/valuations`, `/returns/{t}`, `/history/{t}`, `/quote/{t}`, `/info/{t}` | open, on purpose — cheap, cacheable, curl-able from the README |
+| `POST /efficient-frontier` | `require_margin_origin` → 403 |
+| `POST /backfill/*` (6) | `require_backfill_token` → 401, or 503 if the token is unset |
+
+Both guards use `secrets.compare_digest`, and both are **no-ops when their
+secret is unset** — which is what lets `pnpm dev` and the sweep script call a
+local service with no configuration. That also means a Cloud Run deploy that
+loses `MARGIN_ORIGIN_SECRET` silently opens the solve endpoint to the world
+rather than failing loudly. Check it after any `--set-env-vars` edit, which
+*replaces* rather than merges.
+
+### The four cost layers, in the order a request meets them
+
+1. **Per-IP rate limit** (`lib/rate-limit.ts`, on Vercel) — 10 solves/minute,
+   60/hour, keyed off `x-forwarded-for`. In-memory per serverless instance, so
+   imperfect across instances; Vercel's own DDoS protection sits in front.
+   `0` disables it; blank falls back to the defaults rather than reading as
+   zero, which is the bug that silently disabled the whole limiter once.
+2. **The default-snapshot short circuit** — the most common request never
+   reaches the solver at all.
+3. **`POINT_BUDGET = 12_000`** (`api/frontier.py`) — points × assets. 499 names
+   can only ever get ~24 points however many are asked for; a 20-name screened
+   set still gets the full 200. Reported back as `n_portfolios_requested` and
+   `resolution_capped`, and shown on the page.
+4. **`SOLVE_BUDGET_SECONDS = 600` per rolling hour** — past it the solver
+   answers 429 with `Retry-After`, which the Next route forwards verbatim.
+   Cache hits and the precomputed default are exempt, because they cost no CPU.
+
+## 4. How data reaches the warehouse
+
+Cloud Scheduler → `POST /backfill/all` on Cloud Run → `backfill.everything()`,
+which runs the stages in dependency order and does **not** stop when one fails
+(the report says what happened to each), except that valuations are skipped when
+every feeder failed.
+
+```
+daily_close_prices      ~30 s
+factor_returns          ~4 s
+quarterly_fundamentals  ~500 s   (skipped when skip_fundamentals=true)
+valuations              ~60 s
+  ├─ write_universe_snapshot()     → universe_snapshot   (id=1)
+  └─ frontier.precompute_default() → frontier_snapshot   (2 rows)
+```
+
+`precompute_default()` writes the **same payload twice**: once under the hashed
+cache key the solver's own probe looks up, once under the literal `"default"`
+key the dashboard reads. The hash is a SHA-256 of canonical JSON; asking
+TypeScript to reproduce it would be a contract in two languages that breaks
+silently the first time either side reorders a field.
+
+Every stage logs to `job_runs`, and `write_universe_snapshot()` bakes that table
+into its payload — which is why the valuations run records itself *before*
+writing the snapshot, or its own row would not appear until the next day.
+
+## 5. Pushing a change
+
+### To the solver
+
+```bash
+gcloud run deploy margin-solver --source api/ --region us-central1
+```
+
+Nothing else. Flags, secrets, service account and env vars are properties of the
+service and survive a redeploy — **do not repeat `--set-env-vars`**, which
+replaces the whole set rather than merging into it. Use
+`--update-env-vars KEY=value` to change one.
+
+Takes ~3.5 minutes, nearly all of it pip building scipy, cvxpy and clarabel.
+`gcloud builds list` stays empty throughout (source deploys use Cloud Build v2,
+which that command does not read) and `gcloud run operations` does not exist.
+The reliable probe:
+
+```bash
+gcloud run services describe margin-solver --region us-central1 \
+  --format 'value(status.latestReadyRevisionName)'
+```
+
+Traffic moves to the new revision automatically. A 404 on `/health` in the first
+second or two after the URL resolves means "not Ready yet", not "broken".
+
+**A code change alone does not update what the pages read.** The snapshots are
+written by the backfill, so anything touching valuation logic, the universe
+payload or the frontier defaults needs a run afterwards:
+
+```bash
+curl -s -X POST -H "X-Backfill-Token: $BACKFILL_TOKEN" \
+     "$SERVICE_URL/backfill/valuations"      # ~60 s, rewrites both snapshots
+```
+
+That is the cheap one. `POST /backfill/all` is ten minutes and is only needed
+when the *inputs* are stale.
+
+### To the dashboard
+
+`git push` — Vercel builds from the repo. Env changes take effect on the next
+deploy, not immediately: a variable edited in the dashboard needs a redeploy to
+be picked up.
+
+### To the database
+
+Migrations live in `supabase/migrations/`. The live database is shared with the
+running dev servers, so additive-only during a session, and check the anon
+surface after anything touching RLS:
+
+```bash
+# Must return rows
+curl -s -H "apikey: $ANON" "$URL/rest/v1/universe_snapshot?select=id&limit=1"
+# Must return []
+curl -s -H "apikey: $ANON" "$URL/rest/v1/valuations?select=ticker&limit=1"
+```
+
+### The constants that must move together
+
+| one side | the other |
+|---|---|
+| `ENVELOPE_POINTS` (`api/frontier.py`) | `DEFAULT_PORTFOLIOS` (`lib/portfolio-settings.ts`) |
+| `MIN`/`MAX_ENVELOPE_POINTS` | `MIN`/`MAX_PORTFOLIOS` |
+| `RETURNS_LOOKBACK_DAYS` (`api/market.py`) | `LOOKBACK_DAYS` (close-history route) |
+| Cloud Run `--timeout 1800` | Scheduler `--attempt-deadline 1800s` |
+| `MARGIN_ORIGIN_SECRET` on Cloud Run | the same string on Vercel |
+| `maxDuration = 300` (frontier route) | `AbortSignal.timeout(280_000)` inside it |
+
+The first row has already caused an outage-shaped bug twice, and it is the
+subject of the first item below.
+
+## 6. What to watch out for
+
+**The default-frontier cache key is built from the *resolved* point count.**
+Change `DEFAULT_PORTFOLIOS` without changing `ENVELOPE_POINTS`, redeploying and
+re-running the backfill, and every default `/portfolio` visit either misses the
+snapshot and pays a full solve, or — worse — hits it and renders a curve at the
+wrong resolution while claiming to be the default.
+
+**This is live right now.** Both constants read 10 in the repo, but the deployed
+revision `margin-solver-00004-nz8` was built at 3, so the stored row is a
+3-point curve:
+
+```
+frontier_snapshot['default']  n_portfolios=3  envelope=3  computed_at 11:09 UTC
+POST /api/efficient-frontier?n_portfolios=10  →  n_portfolios 3, envelope 3, cached true
+```
+
+The page asks for 10, is served 3, and nothing on screen says why —
+`resolution_capped` is forced false by the snapshot reader. It clears itself the
+moment the solver is redeployed and `POST /backfill/valuations` re-runs. Until
+then the default curve is coarser than the rail claims.
+
+**The same redeploy owes a second debt.** `build()` now keeps each envelope
+point's weights and risk decomposition instead of discarding them — the change
+that lets `/portfolio` describe any portfolio on the curve rather than only its
+two ends. Nothing new is computed for it; `trace_frontier` already solved those
+weights, and the response is a few hundred KB larger for carrying them. Until
+the deploy lands, the frontend degrades exactly as designed: the anchors stay
+selectable, every point between them renders disabled, and no error is shown.
+The stored snapshot needs the backfill afterwards for the same reason the
+resolution does — the row is a payload, so a code change alone does not move it.
+Both debts clear in one motion:
+
+```bash
+gcloud run deploy margin-solver --source api/ --region us-central1
+curl -s -X POST -H "X-Backfill-Token: $BACKFILL_TOKEN" \
+     "$SERVICE_URL/backfill/valuations"
+
+# Then confirm both at once: 10 points, and weights on a point that is not an anchor.
+curl -s -X POST -H 'content-type: application/json' -d '{}' \
+     "http://localhost:3000/api/efficient-frontier?n_portfolios=10" |
+  python -c "import json,sys; d=json.load(sys.stdin); e=d['envelope']; \
+print('points', len(e), 'weighted', sum(1 for p in e if p.get('weights')))"
+# expect: points 10 weighted 10
+```
+
+**`--set-env-vars` replaces; `--update-env-vars` merges.** The former is how you
+lose `SUPABASE_URL` or, quietly, `MARGIN_ORIGIN_SECRET` — and an unset origin
+secret does not fail, it turns the guard off.
+
+**~~`SUPABASE_SERVICE_ROLE_KEY` is in the root `.env` and nothing reads it.~~**
+**Removed.** `grep -rn SERVICE_ROLE app lib components` was already empty —
+`lib/supabase.ts` uses only the two `NEXT_PUBLIC_` values — so the line was
+harmless on disk and catastrophic on Vercel, one careless "copy my .env into
+the project settings" away. `api/.env` keeps its own copy, which is the only
+place the Python side ever read it from. Keep it that way: the root `.env` is
+the file that gets pasted into a hosting dashboard.
+
+**Local dev now points at Cloud Run.** `MARKET_DATA_API_URL` in `.env` is the
+deployed service, so every screened solve from `localhost:3000` spends the live
+hourly compute budget and counts against the free tier. Point it back at
+`http://127.0.0.1:8000` whenever the local solver is running.
+
+**The keep-warm ping buys less than it looks.** With request-based billing CPU
+is throttled between requests, so the `lifespan` price-cache thread makes
+progress mainly while some other request is in flight, and a 0.1-second health
+ping grants it very little. This does not matter for the default frontier, which
+needs no price read, and does matter for a screened set arriving from the
+screener's CTA — which misses both the snapshot and the in-process cache. If
+that becomes the common arrival, precompute the screened default too rather than
+fighting the throttle.
+
+**`margin-weekly` has not yet been observed completing.** It fires `0 7 * * 6`
+America/Toronto (11:00 UTC Saturday) and is the only ten-minute request in the
+system, so it is the one job whose `--attempt-deadline` has never been tested
+against a real run.

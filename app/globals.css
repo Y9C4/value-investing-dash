@@ -31,8 +31,11 @@
   --color-seq-3: var(--seq-3);
   --color-seq-4: var(--seq-4);
   --color-seq-5: var(--seq-5);
+  --color-deep-value: var(--deep-value);
   --color-undervalued: var(--undervalued);
+  --color-fair: var(--fair);
   --color-overvalued: var(--overvalued);
+  --color-expensive: var(--expensive);
   --color-valuation-neutral: var(--valuation-neutral);
   --color-status-good: var(--status-good);
   --color-status-warning: var(--status-warning);
@@ -112,9 +115,16 @@
   --seq-5: #0d366b;
 
   /* Diverging — the app's core signal: price vs intrinsic value. Two poles
-     either side of a neutral gray midpoint (fair value). */
+     either side of a neutral gray midpoint (fair value). Deep-value/expensive
+     are text colours for the band's outer edges, not the band-fill hues
+     (those run at reduced opacity and don't hold up as text) — same hue as
+     undervalued/overvalued, stepped darker for more contrast on the white
+     card. */
+  --deep-value: #086908;
   --undervalued: #0ca30c;
+  --fair: var(--muted-foreground);
   --overvalued: #d03b3b;
+  --expensive: #a52727;
   --valuation-neutral: oklch(0.923 0.003 48.717);
 
   /* Status — reserved meaning, always shipped with an icon + label. */
@@ -182,8 +192,13 @@
   --seq-4: #3987e5;
   --seq-5: #184f95;
 
+  /* Same reasoning as light, stepped brighter instead of darker so they still
+     pop off the dark card. */
+  --deep-value: #10db10;
   --undervalued: #0ca30c;
+  --fair: var(--muted-foreground);
   --overvalued: #e66767;
+  --expensive: #ef9d9d;
   --valuation-neutral: oklch(0.372 0.008 56.366);
 
   --status-good: #0ca30c;

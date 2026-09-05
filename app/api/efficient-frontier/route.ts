@@ -21,8 +21,21 @@ export const maxDuration = 300
  */
 const DEFAULT_SNAPSHOT_KEY = "default"
 
-/** An hour: the snapshot is rewritten once a day by the scheduled backfill. */
-const SNAPSHOT_REVALIDATE_SECONDS = 3600
+/**
+ * An hour: the snapshot is rewritten once a day by the scheduled backfill.
+ *
+ * Zero in development, for the reason `REVALIDATE_SECONDS` in `lib/universe.ts`
+ * is zero there — and this route had drifted from it. Nothing purges the entry:
+ * the snapshot is written by Cloud Scheduler calling the service directly, with
+ * no Next in the chain to call `revalidateTag`. In production an hour is
+ * therefore the true staleness window and that is fine. Locally it meant a
+ * backfill you had just run stayed invisible on `/portfolio` for an hour while
+ * `/screener`, which reads the other snapshot, updated immediately — measured
+ * once as a default curve still reporting three points and no per-point weights
+ * against a stored row that had nine of each.
+ */
+const SNAPSHOT_REVALIDATE_SECONDS =
+  process.env.NODE_ENV === "development" ? 0 : 3600
 
 /**
  * The ticker list from a JSON body, or null when there isn't one.

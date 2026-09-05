@@ -28,6 +28,7 @@ import { formatMarketCap, formatSharePrice } from "@/lib/format"
 import { useScrollPane } from "@/lib/use-scroll-pane"
 import {
   BAND_LABELS,
+  BAND_TEXT_CLASS,
   consensusMarginOfSafety,
   isRated,
   valuationBand,
@@ -58,16 +59,15 @@ const COLUMNS: {
     { key: "ticker", label: "Stock", align: "left", numeric: false },
     {
       key: "margin",
-      label: "Margin of safety",
-      align: "left",
+      label: "Consensus Margin",
+      align: "right",
       numeric: false,
       help: {
-        title: "Margin of safety",
-        body: "Benjamin Graham's term, and the central idea of value investing: the discount between what a company is worth and what it currently costs. Here it is (fair value − price) ÷ price, where fair value is the weighted consensus of the models switched on in the filter rail.",
+        title: "Consensus Margin",
+        body: "The discount between what a company is worth and what it currently costs. (fair value - price) ÷ price, where fair value is the weighted consensus of the toggled valuation models.",
         points: [
-          "+20% means the models put the company's worth a fifth above its price — you are paying 80 cents for a dollar of value.",
-          "-20% means the price sits a fifth above what the models can justify.",
-          "The cushion is the point: buy far enough below fair value and the estimate can be wrong without losing money.",
+          "+20% means the models put the company's fair value 20% more than its current market value.",
+          "-20% means the models put the company's fair value 20% more than its current market value.",
         ],
       },
     },
@@ -86,10 +86,9 @@ const COLUMNS: {
       numeric: true,
       help: {
         title: "Annualised log return",
-        body: "The mean daily log return over the trailing 252 trading days, scaled by 252. Log returns are used because they add across time, which is what makes that scaling valid — simple returns do not.",
+        body: "The mean daily log return over the last 252 trading days * 252.",
         points: [
-          "Realised, not forecast: this is what the stock actually did.",
-          "A mean-variance optimiser treats a number like this as an expected return, which is exactly why a stock that has already run up looks attractive to it.",
+          "Realised returns aren't a reliable forecast of future returns, but for the mean varience optimiser, they're used as expected returns",
         ],
       },
     },
@@ -100,9 +99,9 @@ const COLUMNS: {
       numeric: true,
       help: {
         title: "Annualised volatility",
-        body: "Standard deviation of the same daily log return series, scaled by √252. It is the risk term the optimiser trades off against return when building the frontier.",
+        body: "Standard deviation of daily log returns * √252.",
         points: [
-          "Measured over the same 252-day window as the return beside it, so the pair describes one period.",
+          "Past Volatility isn't a reliable forecast of future volatility, but for the mean varience optimiser, they're used as expected volatility",
         ],
       },
     },
@@ -112,11 +111,11 @@ const COLUMNS: {
       align: "right",
       numeric: true,
       help: {
-        title: "Beta vs the S&P 500",
-        body: "Covariance with the index divided by the index's variance, over the same trailing 252 trading days. It measures how much of a stock's movement is the market moving rather than the company.",
+        title: "Beta vs Market Index",
+        body: "Cov(Rp, Rm) / Var(Rm). Measures the stock's sensitivity to movements in the market index (S&P 500: ^GSPC).",
         points: [
-          "Computed here rather than taken from the data provider, whose figure uses a five-year monthly window and would not match the models beside it.",
-          "Negative values are real over this window: several defensive names moved inversely to an index driven by a handful of mega-caps.",
+          "Under the CAPM, beta measures an asset's systematic risk relative to the market.",
+          "A beta above 1 indicates greater sensitivity to market movements, while a beta below 1 indicates lower sensitivity."
         ],
       },
     },
@@ -156,7 +155,7 @@ function ColumnHelp({
                 key={point}
                 className="flex gap-2 text-xs leading-relaxed font-normal tracking-normal text-muted-foreground"
               >
-                <span aria-hidden="true">—</span>
+                <span aria-hidden="true">-</span>
                 <span>{point}</span>
               </li>
             ))}
@@ -337,15 +336,14 @@ export function ScreenerTable({
                     )}
 
                     <span
-                      className={`w-16 shrink-0 text-right font-mono text-sm text-${BAND_FILL[valuationBand(margin)]}"}`}
+                      className={`w-16 shrink-0 text-right font-mono text-sm ${BAND_TEXT_CLASS[valuationBand(margin)]}`}
                     >
                       {rated ? formatSignedPercent(margin) : "-"}
                     </span>
 
                     <span
-                      className={`hidden text-xs whitespace-nowrap 2xl:inline text-${BAND_FILL[valuationBand(margin)]}`}
+                      className={`hidden text-xs whitespace-nowrap 2xl:inline ${BAND_TEXT_CLASS[valuationBand(margin)]}`}
                     >
-
                       {BAND_LABELS[band]}
                     </span>
                   </div>

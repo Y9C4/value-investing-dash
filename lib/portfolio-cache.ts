@@ -1,6 +1,7 @@
 "use client"
 
 import type { FrontierResponse } from "@/lib/baseline-frontier"
+import type { SelectedPortfolio } from "@/lib/portfolio-selection"
 import type { PortfolioSettings } from "@/lib/portfolio-settings"
 
 /**
@@ -29,6 +30,12 @@ export type CachedSolve = {
   settings: PortfolioSettings
   data: FrontierResponse
   savedAt: number
+  /**
+   * Which point on the curve was being read. Optional: entries written before
+   * the frontier was selectable have none, and the page falls back to the
+   * tangency it would have shown them anyway.
+   */
+  selected?: SelectedPortfolio
 }
 
 /**

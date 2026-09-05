@@ -1,5 +1,6 @@
 import { PortfolioBuilder } from "@/components/portfolio-builder"
 import { decodeTickerSet } from "@/lib/ticker-set"
+import { loadUniverse } from "@/lib/universe"
 
 export const metadata = {
   title: "Portfolio",
@@ -19,6 +20,12 @@ export default async function PortfolioPage({
 }) {
   const { tickers, set } = await searchParams
 
+  // The same read the screener does, for the same cached snapshot. The
+  // frontier service knows what a portfolio holds and nothing about what those
+  // holdings are worth, so the valuations have to be joined in here — this is
+  // the only page that needs both, and neither costs a solve.
+  const { stocks } = await loadUniverse()
+
   const decoded = set ? decodeTickerSet(set) : null
 
   const screened =
@@ -36,7 +43,11 @@ export default async function PortfolioPage({
 
   return (
     <div className="px-6 py-5 lg:px-10">
-      <PortfolioBuilder tickers={screened} staleSet={staleSet} />
+      <PortfolioBuilder
+        tickers={screened}
+        staleSet={staleSet}
+        stocks={stocks}
+      />
     </div>
   )
 }

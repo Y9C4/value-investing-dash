@@ -26,6 +26,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import type { FrontierResponse } from "@/lib/baseline-frontier"
+import type { SelectedPortfolio } from "@/lib/portfolio-selection"
 import { formatPercent, percentTickFormatter } from "@/lib/format"
 
 /**
@@ -103,6 +104,27 @@ function LegendLine({ dashed, color }: { dashed?: boolean; color: string }) {
   )
 }
 
+/**
+ * The benchmark's own mark: a diamond, not a circle.
+ *
+ * The market is a real measurement, scored the same way every point on the
+ * curve is — it earns the anchors' ink rather than the CML's chrome — but it
+ * is not a portfolio and cannot be selected, so it needed a shape the reader
+ * would never mistake for one more circle on the curve.
+ */
+function LegendDiamond() {
+  return (
+    <svg viewBox="0 0 10 10" className="size-2.5 shrink-0">
+      <path
+        d="M5,0.5 L9.5,5 L5,9.5 L0.5,5 Z"
+        fill="var(--color-card)"
+        stroke="var(--color-foreground)"
+        strokeWidth="1.6"
+      />
+    </svg>
+  )
+}
+
 /** The marker vocabulary, shared with the anchor table so the two agree. */
 export function LegendDot({ hollow }: { hollow?: boolean }) {
   return (
@@ -134,16 +156,26 @@ export function FrontierChart({
   isBaseline,
   loading,
   solving,
+  selected,
+  onSelect,
 }: {
   data: FrontierResponse
   isBaseline: boolean
   loading: boolean
   /** What the in-flight solve was asked for, for the progress readout. */
   solving?: { portfolios: number; assets: number; seconds: number }
+  /** Which portfolio the page is describing; drawn here as a filled mark. */
+  selected: SelectedPortfolio
+  onSelect: (next: SelectedPortfolio) => void
 }) {
-  const envelopeData = data.envelope.map((point) => ({
+  // The index rides along in the datum so a click can say which point it hit.
+  // Recharts hands the whole payload back to the handler, so anything the
+  // selection needs has to be in here rather than recovered by position.
+  const envelopeData = data.envelope.map((point, index) => ({
     volatility: point.volatility,
     return: point.return,
+    index,
+    selectable: Boolean(point.weights),
   }))
 
   // The API extends the CML well into levered territory. Past a little beyond
@@ -192,8 +224,16 @@ export function FrontierChart({
    * it leaves the window (`allowDataOverflow`) rather than being allowed to
    * dictate the scale.
    */
+  // The market is folded into the framing, not just plotted inside it: the
+  // whole point of drawing it is to show whether the curve beats it, and a
+  // benchmark the axes silently clipped would answer that question by hiding
+  // it rather than by showing a "no".
   const volatilities = data.envelope.map((point) => point.volatility)
   const returns = data.envelope.map((point) => point.return)
+  if (data.market) {
+    volatilities.push(data.market.volatility)
+    returns.push(data.market.return)
+  }
   const volatilityDomain = framed(volatilities)
   const returnDomain = framed(returns)
   // Volatility cannot be negative, and a tick at -1% on a small-span frontier
@@ -213,6 +253,27 @@ export function FrontierChart({
   // Every solved portfolio gets a marker; the anchors are two of these points
   // restated larger, not separate things.
   const showPoints = envelopeData.length <= MARKER_LIMIT
+
+  // Only points the response actually carries weights for can be selected —
+  // the shipped baseline and any pre-selection cached solve carry none — and
+  // only while their markers are visible, so a click never has to be aimed at
+  // something that is not drawn.
+  const pickable = showPoints
+    ? envelopeData.filter((point) => point.selectable)
+    : []
+
+  // Where to draw the selection ring. The anchors resolve to their own exact
+  // coordinates rather than to an envelope index, because the tangency is a
+  // refinement that generally sits between two solved points.
+  const selectedPoint =
+    selected.kind === "maxSharpe"
+      ? { volatility: data.max_sharpe.volatility, return: data.max_sharpe.return }
+      : selected.kind === "minVolatility"
+        ? {
+            volatility: data.min_volatility.volatility,
+            return: data.min_volatility.return,
+          }
+        : (envelopeData[selected.index] ?? null)
 
   return (
     <Panel>
@@ -281,6 +342,13 @@ export function FrontierChart({
             </YAxis>
             <ZAxis range={[18, 18]} />
             <ZAxis zAxisId="anchor" range={[150, 150]} />
+            {/* A click target has to be bigger than a 3px dot to be hittable
+                with a mouse, and bigger than the mark it selects so the two
+                never fight over the same pixel. */}
+            <ZAxis zAxisId="pick" range={[220, 220]} />
+            {/* The selection ring sits outside whatever mark it is ringing —
+                at the anchors' own size it just filled the hollow one in. */}
+            <ZAxis zAxisId="selected" range={[420, 420]} />
             <ChartTooltip
               cursor={{ strokeDasharray: "3 3" }}
               content={
@@ -373,8 +441,72 @@ export function FrontierChart({
                 stroke="var(--color-anchor)"
                 strokeWidth={2}
                 isAnimationActive={false}
+                onClick={() => onSelect({ kind: key })}
+                className="cursor-pointer"
               />
             ))}
+            {/* The benchmark every point on this curve is implicitly
+                competing with — a diamond rather than one more circle, so it
+                reads as a different kind of mark: measured the same way, but
+                not a portfolio and not something to click. */}
+            {data.market && (
+              <Scatter
+                name="S&P 500"
+                data={[
+                  {
+                    volatility: data.market.volatility,
+                    return: data.market.return,
+                  },
+                ]}
+                zAxisId="anchor"
+                shape="diamond"
+                fill="var(--color-card)"
+                stroke="var(--color-anchor)"
+                strokeWidth={2}
+                isAnimationActive={false}
+                legendType="none"
+              />
+            )}
+            {/* The ring around whichever portfolio the page is describing.
+                Drawn before the click layer so the transparent hit targets
+                still sit on top of it, and drawn at all only once there is a
+                curve of real portfolios to move between. */}
+            {selectedPoint && (
+              <Scatter
+                data={[selectedPoint]}
+                zAxisId="selected"
+                shape="circle"
+                fill="none"
+                stroke="var(--color-anchor)"
+                strokeWidth={2}
+                isAnimationActive={false}
+                tooltipType="none"
+                legendType="none"
+              />
+            )}
+            {/* The selection surface: one transparent disc per solved point,
+                larger than the mark under it. Gated on the same threshold as
+                the visible dots, so the chart is never clickable where it does
+                not look clickable — past that density the list beside it is
+                how a portfolio gets picked. */}
+            {pickable.length > 0 && (
+              <Scatter
+                data={pickable}
+                zAxisId="pick"
+                shape="circle"
+                fill="transparent"
+                isAnimationActive={false}
+                tooltipType="none"
+                legendType="none"
+                className="cursor-pointer"
+                onClick={(entry) => {
+                  const index = (entry as unknown as { index?: number })?.index
+                  if (typeof index === "number") {
+                    onSelect({ kind: "envelope", index })
+                  }
+                }}
+              />
+            )}
           </ComposedChart>
         </ChartContainer>
 
@@ -398,6 +530,12 @@ export function FrontierChart({
             <LegendDot hollow />
             Min volatility
           </span>
+          {data.market && (
+            <span className="flex items-center gap-1.5">
+              <LegendDiamond />
+              S&P 500
+            </span>
+          )}
         </div>
 
         {/* The one thing here a reader cannot see for themselves: a line that

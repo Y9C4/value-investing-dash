@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   RiDownloadLine,
   RiEqualizerLine,
@@ -10,7 +10,6 @@ import {
 
 import {
   FrontierChart,
-  LegendDot,
   SharpeCurve,
   hasTangency,
 } from "@/components/efficient-frontier"
@@ -20,6 +19,7 @@ import {
   SectorExposure,
 } from "@/components/portfolio-composition"
 import { PortfolioControls } from "@/components/portfolio-controls"
+import { PortfolioList } from "@/components/portfolio-list"
 import { Button } from "@/components/ui/button"
 import {
   Panel,
@@ -31,18 +31,24 @@ import {
   StatStrip,
 } from "@/components/ui/panel"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
   BASELINE_FRONTIER,
   type FrontierResponse,
 } from "@/lib/baseline-frontier"
-import { formatPercent } from "@/lib/format"
+import { formatSignedPercent as formatMargin } from "@/components/valuation-scale"
+import {
+  formatAxisPercent,
+  formatPercent,
+  formatSharpeDelta,
+} from "@/lib/format"
+import {
+  activeVerdicts,
+  portfolioConsensus,
+  VALUATION_METHODS,
+  disagreementBand,
+  BAND_TEXT_CLASS,
+  type MethodId,
+  type Stock,
+} from "@/lib/valuation"
 import {
   readSolve,
   scopeKey,
@@ -51,8 +57,13 @@ import {
 } from "@/lib/portfolio-cache"
 import { downloadPortfolioCsv } from "@/lib/portfolio-export"
 import {
+  MAX_SHARPE,
+  resolvePortfolio,
+  selectionLabel,
+  type SelectedPortfolio,
+} from "@/lib/portfolio-selection"
+import {
   DEFAULT_SETTINGS,
-  effectiveHoldings,
   buildFrontierRequest,
   validateSettings,
   type PortfolioSettings,
@@ -186,11 +197,19 @@ function ConstraintsPanel({
 export function PortfolioBuilder({
   tickers = [],
   staleSet = false,
+  stocks = [],
 }: {
   /** A screened subset handed over by the screener; empty means the full index. */
   tickers?: string[]
   /** The `?set=` token was built against a different index and cannot be read. */
   staleSet?: boolean
+  /**
+   * The scored universe, for the consensus readout. Handed down from the
+   * server render rather than fetched here: it is the same snapshot the
+   * screener already reads, and the portfolio page has no business asking for
+   * it twice.
+   */
+  stocks?: Stock[]
 }) {
   const [settings, setSettings] = useState<PortfolioSettings>(DEFAULT_SETTINGS)
   // Seeded so the page is never blank: the baseline renders instantly and is
@@ -206,6 +225,25 @@ export function PortfolioBuilder({
   /** The settings the displayed solve was produced under. */
   const [solvedSettings, setSolvedSettings] =
     useState<PortfolioSettings | null>(null)
+  /**
+   * Which portfolio on the curve every panel below is describing.
+   *
+   * The tangency to begin with, and again after every solve: envelope indices
+   * are positions in one particular curve, so carrying "point 7" across a
+   * re-run at a different resolution would silently rename whichever portfolio
+   * happened to land there.
+   */
+  const [selected, setSelected] = useState<SelectedPortfolio>(MAX_SHARPE)
+  /**
+   * Which models the consensus is taken over. Empty means all of them, the
+   * same reading the screener's rail uses.
+   *
+   * Not part of `PortfolioSettings`: those are solver inputs and changing one
+   * makes the curve on screen stale, which is what the "settings changed"
+   * warning is about. This changes nothing the solver did — it re-reads the
+   * verdicts already in the payload — so it must not mark anything dirty.
+   */
+  const [methods, setMethods] = useState<MethodId[]>([])
 
   /**
    * Null while the rail's visibility is still whatever CSS chose for this
@@ -260,6 +298,10 @@ export function PortfolioBuilder({
         setIsBaseline(false)
         setSolvedAt(cached.savedAt)
         setSolvedSettings(cached.settings)
+        // Absent on entries written before the curve was selectable, and
+        // `resolvePortfolio` falls back on its own for an index this solve no
+        // longer has — so nothing here has to validate it.
+        if (cached.selected) setSelected(cached.selected)
         return
       }
     }
@@ -312,8 +354,8 @@ export function PortfolioBuilder({
       if (res.status === 431) {
         throw new Error(
           "The request headers were too large for the dev server (HTTP 431). " +
-            "The optimiser was never reached. This is almost always cookies " +
-            "accumulated on localhost. Clear them for this site and retry.",
+          "The optimiser was never reached. This is almost always cookies " +
+          "accumulated on localhost. Clear them for this site and retry.",
         )
       }
 
@@ -342,7 +384,17 @@ export function PortfolioBuilder({
       setIsBaseline(false)
       setSolvedAt(savedAt)
       setSolvedSettings(next)
-      writeSolve({ scope, settings: next, data: solved, savedAt })
+      // A new curve is a new set of portfolios, so the page reopens on the one
+      // it defaults to rather than on whichever index the last curve had
+      // selected — that index means something different here, or nothing.
+      setSelected(MAX_SHARPE)
+      writeSolve({
+        scope,
+        settings: next,
+        data: solved,
+        savedAt,
+        selected: MAX_SHARPE,
+      })
     } catch (err) {
       // Keep the previous render on screen rather than dropping to a blank
       // frame: the error line says what happened.
@@ -352,13 +404,65 @@ export function PortfolioBuilder({
     }
   }
 
-  const tangency = data.max_sharpe
-  const heldCount = Object.keys(tangency.weights).length
-  const effective = effectiveHoldings(tangency.weights)
-  const largest = Math.max(
-    0,
-    ...Object.values(tangency.weights).map((weight) => Math.abs(weight)),
+  /**
+   * Move the page to another portfolio on the curve.
+   *
+   * The cache is rewritten so the choice survives looking up a holding and
+   * coming back, which is the same journey the solve itself is kept for. Only
+   * a real solve is worth storing: the baseline is reinstated on load anyway,
+   * and writing it would overwrite a solve for a different scope.
+   */
+  function selectPortfolio(next: SelectedPortfolio) {
+    setSelected(next)
+    if (isBaseline || solvedAt === null) return
+    writeSolve({
+      scope,
+      settings: solvedSettings ?? settings,
+      data,
+      savedAt: solvedAt,
+      selected: next,
+    })
+  }
+
+  // The portfolio every panel below this point describes. The tangency by
+  // default and after every solve, but any point on the curve once the reader
+  // picks one — the whole page is a reading of this one object.
+  const active = resolvePortfolio(data, selected)
+  const activeLabel = selectionLabel(data, selected)
+  // Built once from a prop that arrives whole from the server, so this is a
+  // memo against re-renders rather than against real work.
+  const stocksByTicker = useMemo(
+    () => new Map(stocks.map((stock) => [stock.ticker, stock])),
+    [stocks]
   )
+
+  // A weighted sum over at most a few hundred holdings — microseconds, and no
+  // network call: every model's verdict is already in the payload above. The
+  // memo keeps it off the render path when only the rail moved.
+  const consensus = useMemo(
+    () => portfolioConsensus(active.weights, stocksByTicker, methods),
+    [active.weights, stocksByTicker, methods]
+  )
+
+  // How many of *these* holdings each model could value — the screener counts
+  // the same thing over the whole index, but the question here is what the
+  // portfolio on screen rests on.
+  const methodCoverage = useMemo(() => {
+    const counts = Object.fromEntries(
+      VALUATION_METHODS.map((method) => [method.id, 0])
+    ) as Record<MethodId, number>
+
+    for (const ticker of Object.keys(active.weights)) {
+      const stock = stocksByTicker.get(ticker)
+      if (!stock) continue
+      for (const verdict of activeVerdicts(stock)) {
+        counts[verdict.method] += 1
+      }
+    }
+    return counts
+  }, [active.weights, stocksByTicker])
+
+  const heldCount = Object.keys(active.weights).length
   const sectors = data.sectors ?? {}
 
   /**
@@ -383,19 +487,6 @@ export function PortfolioBuilder({
   const dirty =
     solvedSettings !== null &&
     JSON.stringify(solvedSettings) !== JSON.stringify(settings)
-
-  const anchors = [
-    {
-      key: "maxSharpe" as const,
-      title: "Max Sharpe",
-      portfolio: data.max_sharpe,
-    },
-    {
-      key: "minVolatility" as const,
-      title: "Min volatility",
-      portfolio: data.min_volatility,
-    },
-  ]
 
   return (
     <div
@@ -432,6 +523,10 @@ export function PortfolioBuilder({
           universeSize={tickers.length}
           dirty={dirty}
           resolved={resolvedBounds}
+          methods={methods}
+          onMethodsChange={setMethods}
+          methodCoverage={methodCoverage}
+          ratedHoldings={heldCount}
         />
 
         <ConstraintsPanel data={data} tickers={tickers} isBaseline={isBaseline} />
@@ -478,20 +573,20 @@ export function PortfolioBuilder({
 
             <span className="font-mono text-xs text-muted-foreground tabular-nums">
               {tickers.length > 0
-                ? `${tickers.length} screened ${tickers.length === 1 ? "name" : "names"}`
+                ? `${tickers.length} screened ${tickers.length === 1 ? "stock" : "stocks"}`
                 : "Full index"}
               {isBaseline
-                ? " · illustrative baseline"
+                ? " : Example"
                 : solvedAt
-                  ? ` · solved ${new Date(solvedAt).toLocaleTimeString(
-                      "en-GB",
-                      {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      },
-                    )}`
+                  ? ` : solved ${new Date(solvedAt).toLocaleTimeString(
+                    "en-GB",
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    },
+                  )}`
                   : ""}
-              {dirty && " · settings changed"}
+              {dirty && "- settings changed"}
             </span>
           </div>
 
@@ -554,186 +649,174 @@ export function PortfolioBuilder({
             loading && "opacity-50"
           )}
         >
-        {/* Every readout from here down describes one point on the frontier
+          {/* Every readout from here down describes one point on the frontier
             rather than the frontier, and nothing on the page used to say
             which. The header names it once; the composition panels repeat it
             in their own meta, because a reader who scrolls past this strip
             would otherwise have no way to tell.
 
-            One strip, hairline-divided, rather than six bordered tiles: six
-            boxes is six borders saying nothing, and this is the row a reader
-            scans left to right. Six readings of equal standing, so six figures
+            One strip, hairline-divided, rather than bordered tiles: a border
+            per reading is a border saying nothing, and this is the row a
+            reader scans left to right. Readings of equal standing, so figures
             at one size — Sharpe used to be set two steps larger, which made
-            the row read as one headline with five captions rather than as an
-            instrument panel. */}
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border border-b-0 border-border bg-card px-4 py-2">
-          <h2 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-            Max Sharpe portfolio
-          </h2>
-          <span className="font-mono text-xs text-muted-foreground tabular-figures">
-            {heldCount} {heldCount === 1 ? "position" : "positions"}
-          </span>
-        </div>
+            the row read as one headline with captions rather than as an
+            instrument panel.
 
-        <StatStrip className="border-t-0">
-          <Stat
-            label="Sharpe"
-            value={tangency.sharpe.toFixed(2)}
-            hint={hasTangency(data) ? undefined : "Negative: nothing beat cash"}
-          />
-          <Stat
-            label="Expected return"
-            value={formatPercent(tangency.return)}
-            hint="Annualised"
-          />
-          <Stat
-            label="Volatility"
-            value={formatPercent(tangency.volatility)}
-            hint="Annualised"
-          />
-          <Stat
-            label="Effective holdings"
-            value={effective.toFixed(1)}
-            hint={`Of ${heldCount} held`}
-          />
-          <Stat
-            label="Largest position"
-            value={formatPercent(largest)}
-            hint={
-              typeof data.max_stock_weight === "number"
-                ? `Cap ${formatPercent(data.max_stock_weight)}`
-                : undefined
-            }
-          />
-          <Stat
-            label="Risk-free rate"
-            value={formatPercent(data.risk_free_rate)}
-            hint="13-week T-bill"
-          />
-        </StatStrip>
+            Effective holdings and largest position used to sit here and no
+            longer do. Both were properties of the weight vector rather than
+            readings of the portfolio: the ledger below states every position,
+            and the cap is already printed on the control that sets it. */}
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border border-border bg-card px-4 py-2">
+            <h2 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+              {activeLabel} portfolio
+            </h2>
+            <span className="font-mono text-xs text-muted-foreground tabular-figures">
+              {heldCount} {heldCount === 1 ? "position" : "positions"}
+            </span>
+          </div>
 
-        <FrontierChart
-          data={data}
-          isBaseline={isBaseline}
-          loading={loading}
-          solving={{
-            portfolios: Number(settings.portfolios) || 0,
-            // The screened set when there is one; otherwise whatever the last
-            // solve reported, which is the full index.
-            assets: tickers.length || data.n_assets || 0,
-            seconds: elapsed,
-          }}
-        />
+          <StatStrip className="border sm:grid-cols-3 xl:grid-cols-5">
+            <Stat
+              className={
+                data.market.sharpe === undefined
+                  ? undefined
+                  : active.sharpe > data.market.sharpe
+                    ? "text-undervalued"
+                    : "text-overvalued"
+              }
+              label="Sharpe Ratio"
+              value={active.sharpe.toFixed(2)}
+              hint={`${formatSharpeDelta(active.sharpe - data.market.sharpe)} vs S&P Sharpe`}
+            />
+            <Stat
+              className={
+                data.market.return === undefined
+                  ? undefined
+                  : active.return > data.market.return
+                    ? "text-undervalued"
+                    : "text-overvalued"
+              }
+              label="Expected return"
+              value={formatPercent(active.return)}
+              hint={`${active.return - data.market.return >= 0 ? "+" : ""}${formatPercent(active.return - data.market.return)} vs S&P E[R]`}
+            />
+            <Stat
+              className={
+                data.market?.volatility === undefined
+                  ? undefined
+                  : active.volatility > data.market.volatility
+                    ? "text-overvalued"
+                    : "text-undervalued"
+              }
+              label="Expected Volatility"
+              value={formatPercent(active.volatility)}
+              hint={`${active.volatility - data.market.volatility >= 0 ? "+" : ""}${formatPercent(active.volatility - data.market.volatility)} vs S&P E[V]`}
+            />
+            <Stat
+              label="Risk-free rate"
+              value={formatPercent(data.risk_free_rate)}
+              hint="13-week T-bill"
+            />
+            {/* The one figure here that is not a property of the solve. The
+              optimiser reads risk and return off past prices and knows nothing
+              about what a company is worth; this is what the valuation models
+              say about the book it picked, weighted by position size. */}
+            <Stat
+              className={BAND_TEXT_CLASS[disagreementBand(consensus.marginOfSafety)]}
+              label="Consensus margin"
+              value={
+                consensus.totalHoldings > 0
+                  ? formatMargin(consensus.marginOfSafety)
+                  : "—"
+              }
+              hint={
+                consensus.totalHoldings > 0
+                  ? `${formatAxisPercent(consensus.coverage)} coverage with selected models`
+                  : undefined
+              }
+            />
+          </StatStrip>
 
-        {/* Full width, not a column. Five numeric columns plus the portfolio
-            name need about 470px, and a half-width panel gives them 290px at
-            1280 and 450px at 1600: the table was scrolling its own last two
-            columns out of sight at every width below 1920. */}
-        <Panel>
-          <PanelHeader>
-            <PanelTitle>Anchor portfolios</PanelTitle>
-            <PanelMeta>The two ends of the curve</PanelMeta>
-          </PanelHeader>
-          <PanelBody className="px-0 py-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Portfolio</TableHead>
-                  <TableHead className="text-right">Return</TableHead>
-                  <TableHead className="text-right">Volatility</TableHead>
-                  <TableHead className="text-right">Sharpe</TableHead>
-                  <TableHead className="text-right">
-                    Eff. names
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {anchors.map(({ key, title, portfolio }) => (
-                  <TableRow key={key}>
-                    <TableCell className="font-medium">
-                      <span className="flex items-center gap-2">
-                        {/* The same two marks the chart plots, so the row and
-                            the point on the curve are visibly one thing. */}
-                        <LegendDot hollow={key !== "maxSharpe"} />
-                        {title}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {formatPercent(portfolio.return)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {formatPercent(portfolio.volatility)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {portfolio.sharpe.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {effectiveHoldings(portfolio.weights).toFixed(1)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                <TableRow>
-                  <TableCell className="font-medium">
-                    Risk-free rate
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {formatPercent(data.risk_free_rate)}
-                  </TableCell>
-                  <TableCell />
-                  <TableCell />
-                  <TableCell />
-                </TableRow>
-              </TableBody>
-            </Table>
-          </PanelBody>
-        </Panel>
+          {/* The curve and the portfolios on it, side by side.
 
-        {/* Two columns of stacked panels rather than a grid of rows. A row
+            The chart used to run full width with a two-row anchor table under
+            it, which named the two ends of the frontier and left the eight or
+            two hundred portfolios between them as unlabelled dots. Putting the
+            list against the chart makes the curve navigable: every point on it
+            has a row, the row says what it is worth, and clicking either one
+            moves the whole page onto it. Two thirds to the chart, because the
+            list is four narrow numeric columns and the chart is the thing
+            being read. */}
+          <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(19rem,1fr)]">
+            <FrontierChart
+              data={data}
+              isBaseline={isBaseline}
+              loading={loading}
+              solving={{
+                portfolios: Number(settings.portfolios) || 0,
+                // The screened set when there is one; otherwise whatever the
+                // last solve reported, which is the full index.
+                assets: tickers.length || data.n_assets || 0,
+                seconds: elapsed,
+              }}
+              selected={selected}
+              onSelect={selectPortfolio}
+            />
+
+            <PortfolioList
+              data={data}
+              selected={selected}
+              onSelect={selectPortfolio}
+              isBaseline={isBaseline}
+            />
+          </div>
+
+          {/* Two columns of stacked panels rather than a grid of rows. A row
             grid aligns its cells at the top and leaves the shorter one
             trailing dead space to the next row, which is what the page did,
             with a 160px hole under every short panel. Distributing the panels
             between two columns instead lets them be balanced by height, so
             both columns end at about the same place. */}
-        <div className="grid items-start gap-4 xl:grid-cols-2">
-          <div className="flex min-w-0 flex-col gap-4">
-            <SharpeCurve data={data} isBaseline={isBaseline} />
+          <div className="grid items-start gap-4 xl:grid-cols-2">
+            <div className="flex min-w-0 flex-col gap-4">
+              <SharpeCurve data={data} isBaseline={isBaseline} />
 
-            {Object.keys(sectors).length > 0 ? (
-              <SectorExposure
-                portfolio={tangency}
+              {Object.keys(sectors).length > 0 ? (
+                <SectorExposure
+                  portfolio={active}
+                  sectors={sectors}
+                  scope={activeLabel}
+                />
+              ) : (
+                <Panel>
+                  <PanelHeader>
+                    <PanelTitle>Sector exposure</PanelTitle>
+                  </PanelHeader>
+                  <PanelBody>
+                    <p className="text-sm text-muted-foreground">
+                      {isBaseline
+                        ? "Run the optimisation to see the sector split."
+                        : "No sector labels on file for these holdings."}
+                    </p>
+                  </PanelBody>
+                </Panel>
+              )}
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-4">
+              <HoldingsChart
+                portfolio={active}
                 sectors={sectors}
-                scope="Max Sharpe"
+                scope={activeLabel}
               />
-            ) : (
-              <Panel>
-                <PanelHeader>
-                  <PanelTitle>Sector exposure</PanelTitle>
-                </PanelHeader>
-                <PanelBody>
-                  <p className="text-sm text-muted-foreground">
-                    {isBaseline
-                      ? "Run the optimisation to see the sector split."
-                      : "No sector labels on file for these holdings."}
-                  </p>
-                </PanelBody>
-              </Panel>
-            )}
+            </div>
           </div>
 
-          <div className="flex min-w-0 flex-col gap-4">
-            <HoldingsChart
-              portfolio={tangency}
-              sectors={sectors}
-              scope="Max Sharpe"
-            />
-          </div>
-        </div>
-
-        <HoldingsTable
-          portfolio={tangency}
-          sectors={sectors}
-          scope="Max Sharpe"
-        />
+          <HoldingsTable
+            portfolio={active}
+            sectors={sectors}
+            scope={activeLabel}
+          />
         </div>
       </div>
     </div>

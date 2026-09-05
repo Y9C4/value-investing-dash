@@ -14,6 +14,18 @@ export type EnvelopePoint = {
   return: number
   volatility: number
   sharpe: number
+  /**
+   * The holdings that produced this point — what makes it selectable.
+   *
+   * Optional, and every reader must cope with its absence, for two reasons
+   * that will both outlive this comment: the shipped baseline below has no
+   * weights for its illustrative points (see the note on `Portfolio`), and a
+   * solve cached by a service deployed before the field existed comes back
+   * with the old four-float shape until it ages out. A point without weights
+   * is a point that cannot be selected, not an error.
+   */
+  weights?: Record<string, number>
+  risk_contributions?: Record<string, number>
 }
 
 export type Portfolio = {
@@ -23,8 +35,8 @@ export type Portfolio = {
   weights: Record<string, number>
   /**
    * Each holding's share of portfolio variance, summing to 1 — the Euler
-   * decomposition, not an approximation. Sent for the tangency portfolio only,
-   * and absent from the shipped baseline because a risk decomposition is a
+   * decomposition, not an approximation. Sent for every solved point, and
+   * absent from the shipped baseline because a risk decomposition is a
    * measurement rather than an illustration and should not be invented.
    */
   risk_contributions?: Record<string, number>
@@ -78,6 +90,14 @@ export type FrontierResponse = {
    * withheld rather than drawn sloping downwards.
    */
   tangency_beats_risk_free?: boolean
+  /**
+   * The S&P 500 itself, scored the same way every point on the curve is:
+   * same date range, same return/volatility estimators. What optimising is
+   * for — beating this on a risk-adjusted basis — has nothing to show against
+   * otherwise. Absent when the index had no usable price history for the
+   * window, which is a data gap rather than something to invent a number for.
+   */
+  market?: { return: number; volatility: number; sharpe: number }
   max_sharpe: Portfolio
   min_volatility: Portfolio
   capital_market_line: CmlPoint[]
@@ -88,6 +108,11 @@ export const BASELINE_FRONTIER: FrontierResponse = {
   short_allowed: false,
   n_portfolios: 60,
   risk_free_rate: 0.0421,
+  // Illustrative, like every other figure here — long-run S&P ballpark
+  // (~10% return, ~15% volatility), not a live read of the index. Included
+  // because it is a plain {return, volatility, sharpe} triple, not weights:
+  // the thing this file already refuses to invent for the baseline.
+  market: { return: 0.105, volatility: 0.155, sharpe: 0.4058 },
   max_sharpe: {
     return: 0.156779,
     volatility: 0.124352,

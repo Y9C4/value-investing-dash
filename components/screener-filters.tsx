@@ -130,24 +130,24 @@ function MethodInfo({
 
         <div className="flex flex-col gap-1 border border-border px-3 py-2">
           <span className="text-xs tracking-wider text-muted-foreground uppercase">
-            Calculation
+            formula
           </span>
-          <code className="font-mono text-xs leading-relaxed break-words">
+          <div className="text-xs leading-relaxed break-words">
             {method.formula}
-          </code>
+          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-xs tracking-wider text-muted-foreground uppercase">
-            Produces no verdict when
+          <span className="text-xs tracking-wider text-destructive font-semibold uppercase">
+            fails when
           </span>
           <ul className="flex flex-col gap-1">
             {method.refusesWhen.map((reason) => (
               <li
                 key={reason}
-                className="flex gap-2 text-xs leading-relaxed text-muted-foreground"
+                className="flex gap-2 text-xs leading-relaxed text-destructive"
               >
-                <span aria-hidden="true">—</span>
+                <span aria-hidden="true">-</span>
                 <span>{reason}</span>
               </li>
             ))}
@@ -156,7 +156,7 @@ function MethodInfo({
 
         <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
           Values <span className="font-mono">{coverage}</span> of the{" "}
-          <span className="font-mono">{total}</span> stocks in the universe
+          <span className="font-mono">{total}</span> stocks
           {total > 0 && <> ({((coverage / total) * 100).toFixed(0)}%)</>}.
         </p>
       </PopoverContent>
@@ -164,8 +164,15 @@ function MethodInfo({
   )
 }
 
-/** One model as its own switch, carrying its full name and its coverage. */
-function MethodToggle({
+/**
+ * One model as its own switch, carrying its full name and its coverage.
+ *
+ * Exported because the portfolio page offers the same choice over the same
+ * five models: which ones the consensus is taken over. One control, so the
+ * two pages cannot drift into disagreeing about what a model is called or
+ * what switching it off looks like.
+ */
+export function MethodToggle({
   method,
   active,
   coverage,
@@ -217,12 +224,8 @@ function MethodToggle({
             </span>
           </span>
           <span className="font-mono text-xs text-muted-foreground tabular-nums">
-            {coverage}
+            {coverage}/{total}
           </span>
-        </span>
-
-        <span className="text-xs leading-snug text-muted-foreground">
-          {method.full}
         </span>
 
         {/* Coverage as a bar: how much of the universe this model can speak to. */}
@@ -380,9 +383,28 @@ export function ScreenerFilterRail({
         </div>
       </FilterGroup>
 
+      <FilterGroup label="Sector">
+        <div className="flex flex-wrap gap-2">
+          {sectors.map((sector) => (
+            <Chip
+              key={sector}
+              active={filters.sectors.includes(sector)}
+              onClick={() =>
+                onChange({
+                  ...filters,
+                  sectors: toggle(filters.sectors, sector),
+                })
+              }
+            >
+              {sector}
+            </Chip>
+          ))}
+        </div>
+      </FilterGroup>
+
       <FilterGroup
-        label="Margin of safety"
-        info={<Info title="Margin of safety">{MARGIN_BASIS}</Info>}
+        label="Min Consensus Margin"
+        info={<Info title="Minimum Consensus Margin">{MARGIN_BASIS}</Info>}
       >
         <Label
           htmlFor="min-margin"
@@ -413,25 +435,6 @@ export function ScreenerFilterRail({
         />
       </FilterGroup>
 
-      <FilterGroup label="Sector">
-        <div className="flex flex-wrap gap-2">
-          {sectors.map((sector) => (
-            <Chip
-              key={sector}
-              active={filters.sectors.includes(sector)}
-              onClick={() =>
-                onChange({
-                  ...filters,
-                  sectors: toggle(filters.sectors, sector),
-                })
-              }
-            >
-              {sector}
-            </Chip>
-          ))}
-        </div>
-      </FilterGroup>
-
       <FilterGroup
         label="Maximum beta"
         info={
@@ -446,7 +449,7 @@ export function ScreenerFilterRail({
           htmlFor="max-beta"
           className="flex items-center justify-between text-sm font-normal"
         >
-          <span className="text-muted-foreground">No more than</span>
+          <span className="text-muted-foreground">Max</span>
           <span className="font-mono tabular-nums">
             {filters.maxBeta.toFixed(2)}
           </span>

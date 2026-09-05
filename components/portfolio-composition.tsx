@@ -277,7 +277,7 @@ export function HoldingsTable({
   portfolio,
   sectors,
   scope,
-  title = "Holdings ledger",
+  title = "Holdings",
 }: {
   portfolio: Portfolio
   sectors?: Record<string, string>
