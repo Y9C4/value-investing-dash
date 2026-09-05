@@ -14,6 +14,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -107,6 +108,10 @@ export function PortfolioList({
   const rows = isBaseline ? all.filter((row) => row.selectable) : all
   const activeRef = useRef<HTMLTableRowElement>(null)
 
+  // Absent when the index had no usable price history for the window; see the
+  // footer below and the tone on each row.
+  const market = data.market
+
   // A click on the chart can select a portfolio hundreds of rows down. Without
   // this the list answers by highlighting something off screen, which reads as
   // nothing having happened.
@@ -191,13 +196,44 @@ export function PortfolioList({
                       {row.label}
                     </span>
                   </TableCell>
-                  <TableCell className={`text-right font-mono tabular-nums text-${row.portfolio.return < data.market.return ? "overvalued" : "undervalued"}`}>
+                  {/* Each figure is toned against the index's own, so the
+                      column reads as "better or worse than holding the
+                      market" rather than as three raw numbers. Written as
+                      whole class names because Tailwind matches literals in
+                      the source; an interpolated `text-${…}` compiles to
+                      nothing on its own. Untoned when there is no index to
+                      compare against. */}
+                  <TableCell
+                    className={cn(
+                      "text-right font-mono tabular-nums",
+                      market &&
+                        (row.portfolio.return < market.return
+                          ? "text-overvalued"
+                          : "text-undervalued")
+                    )}
+                  >
                     {formatPercent(row.portfolio.return)}
                   </TableCell>
-                  <TableCell className={`text-right font-mono tabular-nums text-${row.portfolio.volatility > data.market.volatility ? "overvalued" : "undervalued"}`}>
+                  <TableCell
+                    className={cn(
+                      "text-right font-mono tabular-nums",
+                      market &&
+                        (row.portfolio.volatility > market.volatility
+                          ? "text-overvalued"
+                          : "text-undervalued")
+                    )}
+                  >
                     {formatPercent(row.portfolio.volatility)}
                   </TableCell>
-                  <TableCell className={`text-right font-mono tabular-nums text-${row.portfolio.sharpe < data.market.sharpe ? "overvalued" : "undervalued"}`}>
+                  <TableCell
+                    className={cn(
+                      "text-right font-mono tabular-nums",
+                      market &&
+                        (row.portfolio.sharpe < market.sharpe
+                          ? "text-overvalued"
+                          : "text-undervalued")
+                    )}
+                  >
                     {row.portfolio.sharpe.toFixed(2)}
                   </TableCell>
                 </TableRow>
@@ -205,30 +241,36 @@ export function PortfolioList({
             })}
           </TableBody>
 
-          <TableCell
-            className={cn("font-medium text-foreground text-chart-1")}
-          >
-            <span className="flex items-center gap-2">
-              {/* The anchors wear the same two marks the chart draws
-                          for them; the points between are unmarked, which is
-                          honest — they are not distinguished portfolios, they
-                          are wherever the reader chose to look. */}
-              Market Portfolio
-            </span>
-          </TableCell>
+          {/* The index, scored the same way and on the same window as every
+              row above it. A footer rather than a last row: it is what the
+              column above is measured against, not another portfolio you can
+              pick, and `tfoot` is the one part of a table that stays put when
+              the body scrolls. Omitted entirely when the index had no usable
+              price history — the rows above then carry no tone either, and
+              the panel simply makes no claim about the market.
 
-          <TableCell className="text-right font-mono tabular-nums text-chart-1">
-            {formatPercent(data.market.return)}
-          </TableCell>
-
-          <TableCell className="text-right font-mono tabular-nums text-chart-1">
-            {formatPercent(data.market?.volatility)}
-          </TableCell>
-
-          <TableCell className="text-right font-mono tabular-nums text-chart-1">
-            {data.market.sharpe.toFixed(2)}
-          </TableCell>
-
+              Opaque, and shadowed rather than bordered, for the same reason
+              the header is: a sticky row's own background must not let the
+              body scroll through it, and its border is painted with the cell
+              and slides out from under it. */}
+          {market && (
+            <TableFooter className="sticky bottom-0 z-10 bg-card shadow-[inset_0_1px_0_0_var(--color-border)]">
+              <TableRow className="border-b-0 hover:bg-transparent">
+                <TableCell className="font-medium text-chart-1">
+                  Market portfolio
+                </TableCell>
+                <TableCell className="text-right font-mono tabular-nums text-chart-1">
+                  {formatPercent(market.return)}
+                </TableCell>
+                <TableCell className="text-right font-mono tabular-nums text-chart-1">
+                  {formatPercent(market.volatility)}
+                </TableCell>
+                <TableCell className="text-right font-mono tabular-nums text-chart-1">
+                  {market.sharpe.toFixed(2)}
+                </TableCell>
+              </TableRow>
+            </TableFooter>
+          )}
         </Table>
       </PanelBody>
 

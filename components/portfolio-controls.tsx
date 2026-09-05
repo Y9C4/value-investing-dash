@@ -379,7 +379,8 @@ export function PortfolioControls({
           rather than among the dials that do need the button. */}
       <ControlGroup label="Consensus models">
         <span className="text-xs leading-snug text-muted-foreground">
-          Valuation models used to give the portfolio's consensus margin, or the fair value of assets in the portfolio given by the models vs it's price.
+          Which models the consensus margin is averaged over: what each says
+          the portfolio&apos;s holdings are worth, against what they cost.
         </span>
         <div className="flex flex-col gap-1.5">
           {VALUATION_METHODS.map((method) => (

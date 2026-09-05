@@ -11,7 +11,6 @@ import {
 import {
   FrontierChart,
   SharpeCurve,
-  hasTangency,
 } from "@/components/efficient-frontier"
 import {
   HoldingsChart,
@@ -465,6 +464,12 @@ export function PortfolioBuilder({
   const heldCount = Object.keys(active.weights).length
   const sectors = data.sectors ?? {}
 
+  // Absent when the index had no usable price history for the window. Every
+  // reading below that compares against it is then dropped rather than shown
+  // against a zero: "+15.7% vs S&P E[R]" with no S&P behind it is a fabricated
+  // comparison, and the figure itself is still worth printing on its own.
+  const market = data.market
+
   /**
    * The bounds the solve on screen actually ran under, as the placeholders for
    * the fields that were left blank.
@@ -678,39 +683,48 @@ export function PortfolioBuilder({
           <StatStrip className="border sm:grid-cols-3 xl:grid-cols-5">
             <Stat
               className={
-                data.market.sharpe === undefined
+                market === undefined
                   ? undefined
-                  : active.sharpe > data.market.sharpe
+                  : active.sharpe > market.sharpe
                     ? "text-undervalued"
                     : "text-overvalued"
               }
               label="Sharpe Ratio"
               value={active.sharpe.toFixed(2)}
-              hint={`${formatSharpeDelta(active.sharpe - data.market.sharpe)} vs S&P Sharpe`}
+              hint={
+                market &&
+                `${formatSharpeDelta(active.sharpe - market.sharpe)} vs S&P Sharpe`
+              }
             />
             <Stat
               className={
-                data.market.return === undefined
+                market === undefined
                   ? undefined
-                  : active.return > data.market.return
+                  : active.return > market.return
                     ? "text-undervalued"
                     : "text-overvalued"
               }
               label="Expected return"
               value={formatPercent(active.return)}
-              hint={`${active.return - data.market.return >= 0 ? "+" : ""}${formatPercent(active.return - data.market.return)} vs S&P E[R]`}
+              hint={
+                market &&
+                `${active.return - market.return >= 0 ? "+" : ""}${formatPercent(active.return - market.return)} vs S&P E[R]`
+              }
             />
             <Stat
               className={
-                data.market?.volatility === undefined
+                market === undefined
                   ? undefined
-                  : active.volatility > data.market.volatility
+                  : active.volatility > market.volatility
                     ? "text-overvalued"
                     : "text-undervalued"
               }
               label="Expected Volatility"
               value={formatPercent(active.volatility)}
-              hint={`${active.volatility - data.market.volatility >= 0 ? "+" : ""}${formatPercent(active.volatility - data.market.volatility)} vs S&P E[V]`}
+              hint={
+                market &&
+                `${active.volatility - market.volatility >= 0 ? "+" : ""}${formatPercent(active.volatility - market.volatility)} vs S&P E[V]`
+              }
             />
             <Stat
               label="Risk-free rate"

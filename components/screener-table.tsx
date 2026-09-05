@@ -32,7 +32,6 @@ import {
   consensusMarginOfSafety,
   isRated,
   valuationBand,
-  BAND_FILL,
   type Stock,
   type MethodId,
 } from "@/lib/valuation"
