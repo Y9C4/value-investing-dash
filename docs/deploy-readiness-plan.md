@@ -1094,6 +1094,208 @@ page after 48 hours to confirm $0.
 the dev servers already listening on :3000 and :8000 rather than starting or
 killing them.
 
+### 1C.18 The portfolio tab, rebuilt
+
+The page was a full-width card of three columns of number inputs sitting above
+its own results — a form to be filled in before anything would happen, which on
+a laptop pushed the frontier below the fold. It is now the same object the
+screener is: **a rail of standing constraints beside the panels that are a
+reading of them.** The rail is 20rem, opens by default at 1280px and above, and
+is toggled by a `Settings` button in the results toolbar below that. Same
+`FilterGroup` geometry, same uppercase tracked labels, same measured
+`useScrollPane`.
+
+The dials themselves changed shape. γ and the frontier-point count are sliders
+with their value printed against their own label — the construction the screener
+already uses for margin and beta, and the right one for a quantity whose
+interesting property is the sweep rather than any particular figure. Short
+selling became a square switch matching the screener's model toggles. Only the
+position bounds stayed number fields, because "auto" is a real state there and a
+slider cannot express it.
+
+**The run button is not in the rail.** It sits in the results toolbar, above the
+chart it changes, so it stays on screen while the rail scrolls and is still
+reachable on a viewport where the rail is collapsed. It carries the elapsed
+seconds while solving and reads `Re-run` once there is a result.
+
+**A control panel that can lie was the one thing worth adding.** Changing a dial
+after a solve used to leave a frontier on screen that no longer matched the
+settings beside it, with nothing saying so. `dirty` compares the current
+settings against the ones that produced the displayed result, and both the rail
+and the toolbar say `settings changed`.
+
+Layout below the toolbar: the six-stat strip, the frontier full width, then
+`Sharpe along the frontier` beside a column of `Anchor portfolios` and
+`Constraints applied`, then `Weight against risk` beside `Sector exposure`, then
+the ledger.
+
+**Ten holdings, not sixteen — in the same height.** Fewer rows alone would not
+have thickened anything; the height has to stay and be spent on the rows that
+remain. `ROW_HEIGHT` 26 -> 46 and `barCategoryGap` 22% -> 12%, measured at
+**9.5px -> 16.0px per mark**. That matters because the panel exists to show the
+*gap* between weight and risk contribution, and a two-percentage-point gap is
+invisible on a 9px bar.
+
+**The ledger's tickers are links** to `/stocks/<ticker>`, and the weight column
+carries a bar. A holding is a company; a portfolio you cannot interrogate name
+by name is a list of symbols. It also split out of the chart panel into its own
+`HoldingsTable`, with a sticky header and its own scroll — which is what let the
+chart move up beside the sector split.
+
+**A solve survives navigation.** `lib/portfolio-cache.ts` writes the result to
+`sessionStorage` after a successful solve and restores it on mount.
+`sessionStorage`, not `localStorage`, deliberately: a frontier is a reading of
+prices on one afternoon and should not come back next week claiming to be
+current. Restoring is keyed on `scopeKey(tickers)` — a frontier over 32 screened
+names is not a frontier over the index, so it is restored only onto the universe
+it was solved for. Settings restore regardless of scope, since those are the
+reader's and travel. Every access is wrapped: private windows and blocked site
+data throw on the accessor itself, and the page must still render.
+
+**Export**, via `lib/portfolio-export.ts` — one CSV, four blocks separated by
+blank lines so a spreadsheet reads them as four tables: the run (source,
+as-of, scope, every constraint the solver actually enforced), the two anchors,
+every holding of both with its risk contribution, and the full solved envelope.
+`source` says out loud whether the numbers came from a live solve or the shipped
+baseline, which is the one claim the page makes that a downloaded file would
+otherwise lose. Weights at six decimals, because they are read back into a
+solver rather than into prose.
+
+**Verified** — 81/81 Playwright checks across 6 viewports x 2 themes: rail
+defaults correct either side of 1280px and the toggle overrides it in both
+directions, no horizontal overflow anywhere, no console errors. On a live solve:
+paired bars at 16.0px, chart capped at ten of 46 with the tail summarised,
+every ledger ticker linking to its own analysis page and navigating there,
+the solve surviving a round trip through `/stocks/AAPL`, a different universe
+*not* inheriting it, and the exported CSV carrying four blocks with the
+max-Sharpe weights summing to 1.0000.
+
+
+### 1C.19 The portfolio tab, second pass
+
+**A screened arrival now solves on its own.** Someone who picked 32 names and
+pressed "optimise" has already made the request; answering it with the shipped
+baseline and a button makes them ask twice. So `/portfolio?set=…` starts a solve
+on mount — unless this tab already has a cached one for that exact universe, in
+which case the cached result stands and no solver time is spent. A bare
+`/portfolio` visit keeps the baseline: it is the browsing entry point, and it
+must not spend CPU on someone who came to look. That split is the whole of it —
+**the baseline is for direct visits, a fresh solve is for arrivals from the
+screener.**
+
+This is why `runSolve` takes its settings as an argument rather than closing
+over state: the restore effect seeds settings and fires a solve in the same
+tick, and the setter has not landed yet.
+
+**`DEFAULT_PORTFOLIOS` 40 -> 8.** The default is now run automatically, so its
+cost is paid by every arrival. Measured on the full index, warm:
+
+| points | time | max Sharpe | envelope points returned |
+|---|---|---|---|
+| 2 | 2.4s | **1.20** | **1** |
+| 3 | 3.0s | 2.84 | 2 |
+| 8 | 5.5s | **2.99** | 7 |
+| 40 | 7.7s | 2.99 | 22 (budget-capped) |
+
+**It does not go to 2, and that is not a taste call.** At `n_portfolios=2` the
+max-return target is rejected, so `trace_frontier` returns the single
+min-volatility point — no curve to draw and no Sharpe panel, since that one
+needs two. `refine_tangency` then bails on its own `len(points) < 3` guard and
+the "max Sharpe" portfolio comes back as the min-volatility portfolio: **Sharpe
+1.20 instead of 2.99, on the number the page leads with.** Eight is where the
+tangency stops moving — identical to 40 at three decimals, for 2.2s less CPU,
+and monotone interpolation draws seven points as a clean curve.
+
+**Dead space.** Two causes, two fixes.
+
+The rail was a short box at the top of a column several screens tall. It is now
+`sticky` and carries `Constraints applied` beneath the dials — which is where
+that panel belonged anyway: it is not a result, it is the settings above it as
+the service resolved them, and the two disagree often enough to be worth reading
+against each other. A 3% cap comes back widened over a small screened set; a
+200-point request comes back at 24. Under the control that was overridden, that
+reads as an answer; anywhere else on the page it reads as trivia.
+
+The results were a grid of rows, which aligns cells at the top and leaves the
+shorter one trailing a hole to the next row — about 160px under every short
+panel. They are now **two columns of stacked panels balanced by height**: Sharpe
+curve and sector exposure on the left, anchors and the holdings chart on the
+right, ledger full width beneath. Measured on the full-index solve, the two
+columns end **875px against 879px** — 0% skew, against roughly 20% before.
+
+**A rendering bug caught in the screenshot.** The `Label` primitive is
+`uppercase`, so the slider labelled `L2 penalty γ` rendered as `L2 PENALTY Γ` —
+capital gamma, which is the gamma *function*, a different symbol. The label
+dropped the letter; the info trigger and the constraints readout carry it in
+lower case, where it is the right one.
+
+**Verified** — 115/115 across 6 viewports x 2 themes: a direct visit issues zero
+`/api/efficient-frontier` requests and keeps the baseline, the rail defaults to
+8 frontier points and carries the constraints readout, and a screened arrival
+reaches `Optimising…` with no click and lands in 4.3s. Plus the columns
+balancing to 0% skew, the rail staying pinned at y=65 after a 1600px scroll,
+restoring in 0.9s without re-solving, and the export unchanged.
+
+
+### 1C.20 The portfolio tab, in the analysis tab's voice
+
+**Every panel now says which portfolio it is describing.** The page solves a
+whole frontier and then breaks down exactly one point on it, and nothing said
+so: the stat strip, the holdings chart, the sector split and the ledger were
+all max-Sharpe readouts under headings that could have meant any portfolio on
+the curve. A header strip above the stat strip names it once, and the three
+composition panels repeat it in their own meta (`Max Sharpe · top 10 of 46`).
+Cheap, and it closes the only real ambiguity left on the page.
+
+**Every info popover is gone.** There were eight across the portfolio
+components: scope, position size, diversification, resolution, the two anchors,
+effective names, risk share and sector exposure. The analysis pages had already
+settled on the opposite convention, a short lower-case note under the figure
+itself, and a control whose effect is hidden behind a click gets turned at
+random anyway. The explanations that earned their place moved inline; the ones
+that were restating the label were dropped. `Info` is no longer imported by any
+portfolio component.
+
+The prose came down with them. "Corners of the feasible set" is now "weight
+spread across more names"; "1/Sigma w-squared, the holding count adjusted for
+how lopsided the weights are" is now just the column, `Eff. names`, sitting
+next to the effective-holdings figure that explains it; "the tangency portfolio"
+is "return above cash per unit of risk". The genuinely technical terms stay,
+because renaming Sharpe or the capital market line would cost a reader more
+than it saves.
+
+**Em dashes are out of the copy**, replaced by colons where the clause explains
+and semicolons where it balances, across all six portfolio files including the
+comments. The one surviving use is the placeholder for a value that does not
+exist, which is the app's convention everywhere. A sweep check asserts no em
+dash renders anywhere on a solved page.
+
+**A layout defect this pass caught.** The anchor table needs about 470px for
+five numeric columns plus the portfolio name, and the half-width column I put
+it in gives it 290px at 1280 and 450px at 1600: it had been quietly scrolling
+its own last two columns out of sight at every width below 1920. Measured, not
+noticed by eye. It is full width under the frontier now, where it also reads
+better: it is the readout of the two marked points on the chart directly above
+it. Fits at 1280 through 1920.
+
+That leaves three panels for the two-column row, and the best split of them is
+Sharpe curve plus sector exposure against the holdings chart: 914px against
+677px on the full index, 26% skew. Content-dependent, since the chart is 46px
+per row and a solve holding seven names is shorter than one holding ten.
+
+**A rendering bug, again from `Label`.** It is `uppercase`, so `L2 penalty γ`
+rendered as `L2 PENALTY Γ`: capital gamma, the gamma *function*, a different
+symbol. The label dropped the letter. The sweep now asserts no capital gamma
+appears in the rail.
+
+**Verified** — 176/176 across 6 viewports x 2 themes, adding: zero elements
+matching `[aria-label^="About "]` anywhere on the page, the max-Sharpe heading
+present once, all three composition panels naming it after a live solve, both
+wordings of the scope note appearing on the universe they belong to, every
+control group's explanation present without a click, and no em dash in the
+rendered body text.
+
+
 ---
 
 ## Open questions

@@ -36,12 +36,12 @@ import {
  * The two views of a solved frontier: the curve itself, and the Sharpe ratio
  * measured along it.
  *
- * Both are presentational — they render whatever `data` they are handed and
+ * Both are presentational: they render whatever `data` they are handed and
  * never fetch. `PortfolioBuilder` owns the solve.
  */
 
 /**
- * Three identities, which is the all-pairs cap for a scatter — any two marks
+ * Three identities, which is the all-pairs cap for a scatter: any two marks
  * here can end up adjacent, so the palette is validated with `--pairs all`.
  * The two anchors are additionally separated by shape (star) and a surface
  * ring, so identity never rests on hue alone.
@@ -115,7 +115,7 @@ export function FrontierChart({
       ? (data.max_sharpe.return - data.risk_free_rate) /
         data.max_sharpe.volatility
       : 0
-  // A screened set can contain no portfolio that beats the risk-free asset —
+  // A screened set can contain no portfolio that beats the risk-free asset,
   // routine when the filters select on cheapness rather than momentum. The
   // frontier is still real, but a line tangent to it would slope downwards and
   // claim that risk is paid negatively, so it is withheld and said out loud.
@@ -257,7 +257,7 @@ export function FrontierChart({
                 fractionally inside itself and the seams show at low point
                 counts. Monotone cubic preserves the ordering it is given and
                 cannot invent a peak between two points, which is what makes it
-                safe to use on a curve the reader is meant to trust — and it is
+                safe to use on a curve the reader is meant to trust, and it is
                 what lets a budget-capped 24-point solve look like a 200-point
                 one. */}
             <Line
@@ -322,8 +322,7 @@ export function FrontierChart({
         {isBaseline && (
           <p className="text-xs leading-relaxed text-muted-foreground">
             An illustrative baseline, so the shape is visible before anything
-            is solved. Run the optimisation for a real one — it takes a few
-            minutes.
+            is solved. Run the optimisation for a real one.
           </p>
         )}
 
@@ -331,21 +330,20 @@ export function FrontierChart({
           <p className="text-xs leading-relaxed text-muted-foreground">
             No capital market line: nothing the constraints allow out-earned
             the {formatPercent(data.risk_free_rate)} risk-free rate over this
-            window, so there is no tangency portfolio to draw one through. The
-            frontier still holds; the best available Sharpe is simply negative,
-            which a screen selecting on cheapness rather than momentum reaches
-            often.
+            window, so there is no portfolio to draw one through. The curve
+            still holds; the best Sharpe on offer is simply negative, which a
+            screen picking on cheapness rather than momentum reaches often.
           </p>
         )}
 
         {!isBaseline && (data.l2_gamma ?? 0) > 0 && (
           <p className="text-xs leading-relaxed text-muted-foreground">
-            With an L2 penalty of{" "}
+            With the diversification penalty at{" "}
             <span className="font-mono tabular-nums">{data.l2_gamma}</span>,
-            every point above minimises variance <em>plus that penalty</em>, so
-            this curve sits fractionally inside the unregularised frontier — a
-            little theoretical efficiency traded for weights that are spread
-            rather than piled on a handful of names.
+            every point above was solved with that penalty added, so the curve
+            sits a fraction inside the unpenalised one: a little efficiency
+            traded for weights that are spread rather than piled on a handful
+            of names.
           </p>
         )}
       </PanelBody>
@@ -356,9 +354,9 @@ export function FrontierChart({
 /**
  * Sharpe ratio measured along the frontier.
  *
- * The frontier chart shows where the tangency portfolio sits; this shows how
- * confidently. A flat plateau means the max-Sharpe portfolio is one of many
- * nearly as good; a sharp spike means it is a knife-edge worth distrusting.
+ * The frontier chart shows where the max-Sharpe portfolio sits; this shows
+ * how confidently. A flat plateau means it is one of many nearly as good; a
+ * sharp spike means it is a knife-edge worth distrusting.
  */
 export function SharpeCurve({
   data,
@@ -504,8 +502,8 @@ export function SharpeCurve({
           <span className="font-mono tabular-nums">
             {formatPercent(peak.volatility)}
           </span>{" "}
-          volatility — the tangency portfolio the capital market line is drawn
-          through.
+          volatility: the portfolio the capital market line is drawn through,
+          and the one every panel below describes.
           {isBaseline && " Measured on the illustrative baseline."}
         </p>
       </PanelBody>

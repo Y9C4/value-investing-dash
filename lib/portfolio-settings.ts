@@ -15,10 +15,20 @@ export const MIN_PORTFOLIOS = 2
 // a screened set of a few dozen names the full 200 are solved; over the whole
 // index the budget allows about 24.
 export const MAX_PORTFOLIOS = 200
-// 40 rather than 100. The envelope is a smooth convex curve drawn 2px wide, so
-// past a few dozen points more resolution costs solver time and changes nothing
-// a reader can see — and the default is what most visitors will run.
-export const DEFAULT_PORTFOLIOS = 40
+// 8 rather than 40, because the default is what most visitors run and it is
+// now run automatically on arrival from the screener. Measured on the full
+// index, warm: 8 points solve in 5.5s against 7.7s for 40, and land on a
+// tangency of Sharpe 2.9900 against 2.9861, the same portfolio to three
+// decimals for 2.2s less CPU. Monotone interpolation draws seven points as a
+// clean curve, so nothing visible is given up either.
+//
+// It does not go lower. At 2 the max-return solve is rejected and the envelope
+// collapses to the single min-volatility point: no curve to draw, no Sharpe
+// panel, and `refine_tangency` bails on `len(points) < 3` so the "max Sharpe"
+// portfolio becomes the min-volatility one: Sharpe 1.20 rather than 2.99, on
+// the figure this page leads with. At 3 it is 2.84. Eight is where the
+// tangency stops moving.
+export const DEFAULT_PORTFOLIOS = 8
 export const MAX_GAMMA = 5
 
 export type PortfolioSettings = {
@@ -56,7 +66,7 @@ function parseOptionalPercent(value: string): number | null | undefined {
  *
  * Only what can be judged without knowing the universe size. Whether a 2% cap
  * can fill a portfolio depends on how many stocks survived the history filter,
- * which the browser does not know — the backend answers that one.
+ * which the browser does not know; the backend answers that one.
  */
 export function validateSettings(settings: PortfolioSettings): SettingsErrors {
   const errors: SettingsErrors = {}
@@ -105,8 +115,8 @@ export function validateSettings(settings: PortfolioSettings): SettingsErrors {
  * The request for `POST /api/efficient-frontier`.
  *
  * Settings go in the query string; the **ticker list goes in the body**, which
- * is why this returns a request rather than a query. A URL is a header — it
- * counts against Node's 16KB budget alongside the reader's cookies — and
+ * is why this returns a request rather than a query. A URL is a header: it
+ * counts against Node's 16KB budget alongside the reader's cookies, and
  * spelling out the index inline made it ~3KB, so the page 431'd for anyone
  * carrying 13KB of cookies.
  *
@@ -147,7 +157,7 @@ export function buildFrontierRequest(
 /**
  * Effective number of holdings: the reciprocal Herfindahl index, `1 / Σw²`.
  *
- * The honest answer to "how diversified is this?" — a sixty-name portfolio
+ * The honest answer to "how diversified is this?": a sixty-name portfolio
  * with fifty-five at a rounding error is not a sixty-name portfolio.
  */
 export function effectiveHoldings(weights: Record<string, number>): number {

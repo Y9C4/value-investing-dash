@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import {
   Bar,
   BarChart,
@@ -9,7 +10,6 @@ import {
   YAxis,
 } from "recharts"
 
-import { Info } from "@/components/info"
 import {
   Panel,
   PanelBody,
@@ -47,13 +47,25 @@ import {
  * in a defensive one. Plotting weight against its risk contribution puts that
  * gap on screen: the two bars are the difference between what the portfolio
  * owns and what it is actually exposed to.
+ *
+ * The chart and the ledger are separate panels rather than one long one. They
+ * answer different questions: "where is the exposure lopsided" against "what
+ * exactly is held", and keeping them apart lets the chart sit beside the
+ * sector split, which is the comparison a reader actually makes.
  */
 
-// How many names the chart plots. Past this the rows are thinner than their
-// labels and the chart stops being read; the tail is summarised in a line of
-// text and carried in full by the table.
-const CHART_ROWS = 16
-const ROW_HEIGHT = 26
+// How many names the chart plots, and how much height each one gets.
+//
+// Ten rather than sixteen, in about the same total height: the point of this
+// chart is the gap between the paired bars, and at sixteen rows each mark was
+// 9px tall, which is thin enough that a two-percentage-point difference
+// between them is invisible. Measured, the pair is now ~16px each. Fewer rows
+// alone would not have done it: the height has to stay and be spent on the
+// remaining rows, which is why this went up as the count came down.
+//
+// The tail is summarised in a line below and carried in full by the ledger.
+const CHART_ROWS = 10
+const ROW_HEIGHT = 46
 
 const holdingsConfig = {
   weight: { label: "Weight", color: "var(--color-series-1)" },
@@ -89,14 +101,19 @@ function buildRows(
     .sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))
 }
 
-export function HoldingsBreakdown({
+export function HoldingsChart({
   portfolio,
   sectors,
-  title,
+  scope,
+  title = "Weight against risk",
 }: {
   portfolio: Portfolio
   sectors?: Record<string, string>
-  title: string
+  /** Which portfolio these are the holdings of. Named on every panel that
+      describes one, because the page solves a whole frontier and only ever
+      breaks down a single point on it. */
+  scope: string
+  title?: string
 }) {
   const rows = buildRows(portfolio, sectors)
   const hasRisk = rows.some((row) => row.risk !== null)
@@ -106,7 +123,7 @@ export function HoldingsBreakdown({
   // The tail is summarised in words rather than plotted as one "Other" bar.
   // Over the full index the cap binds on every name, so that bar would be
   // ~65% against a field of 3% ones and would flatten every comparison the
-  // chart exists to make. The table below carries every row anyway.
+  // chart exists to make. The ledger below carries every row anyway.
   const tailWeight = tail.reduce((total, row) => total + row.weight, 0)
 
   const axis = nicePercentAxis(
@@ -118,10 +135,10 @@ export function HoldingsBreakdown({
       <PanelHeader>
         <PanelTitle>{title}</PanelTitle>
         <PanelMeta>
-          {rows.length} {rows.length === 1 ? "holding" : "holdings"}
+          {scope} · top {chartData.length} of {rows.length}
         </PanelMeta>
       </PanelHeader>
-      <PanelBody className="flex flex-col gap-5">
+      <PanelBody className="flex flex-col gap-4">
         <ChartContainer
           config={holdingsConfig}
           className="aspect-auto w-full"
@@ -132,7 +149,11 @@ export function HoldingsBreakdown({
             layout="vertical"
             // 2px of surface between the paired bars, per the mark spec.
             barGap={2}
-            barCategoryGap="22%"
+            // 12%, not 22%. The category band is the height budget for the
+            // pair, so between this and ROW_HEIGHT the two of them decide bar
+            // thickness, and with ten rows there is room to spend it on the
+            // marks rather than on the gaps between them.
+            barCategoryGap="12%"
             margin={{ left: 4, right: 56, top: 4, bottom: 12 }}
           >
             <CartesianGrid horizontal={false} stroke="var(--color-grid)" />
@@ -203,27 +224,15 @@ export function HoldingsBreakdown({
           </BarChart>
         </ChartContainer>
 
-        {tail.length > 0 && (
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Showing the {CHART_ROWS} largest positions. The remaining{" "}
-            <span className="font-mono tabular-nums">{tail.length}</span>{" "}
-            {tail.length === 1 ? "holding accounts" : "holdings account"} for{" "}
-            <span className="font-mono tabular-nums">
-              {formatPercent(tailWeight)}
-            </span>{" "}
-            of the portfolio and are listed in full below.
-          </p>
-        )}
-
         {hasRisk ? (
-          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span
                 className="size-3 shrink-0"
                 style={{ background: "var(--color-series-1)" }}
                 aria-hidden="true"
               />
-              Weight — the share of capital in the name
+              Weight: the share of money in the name
             </span>
             <span className="flex items-center gap-1.5">
               <span
@@ -231,7 +240,7 @@ export function HoldingsBreakdown({
                 style={{ background: "var(--color-series-2)" }}
                 aria-hidden="true"
               />
-              Risk contribution — its share of portfolio variance
+              Risk: its share of the portfolio’s total risk
             </span>
           </div>
         ) : (
@@ -241,40 +250,118 @@ export function HoldingsBreakdown({
           </p>
         )}
 
-        <div className="max-h-96 overflow-y-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Ticker</TableHead>
-                <TableHead>Sector</TableHead>
-                <TableHead className="text-right">Weight</TableHead>
+        {tail.length > 0 && (
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            The remaining{" "}
+            <span className="font-mono tabular-nums">{tail.length}</span>{" "}
+            {tail.length === 1 ? "holding accounts" : "holdings account"} for{" "}
+            <span className="font-mono tabular-nums">
+              {formatPercent(tailWeight)}
+            </span>{" "}
+            of the portfolio and are listed in the ledger.
+          </p>
+        )}
+      </PanelBody>
+    </Panel>
+  )
+}
+
+/**
+ * Every position, in full.
+ *
+ * The tickers are links. A holding is a company, and the page that says what
+ * the models think it is worth is one click away; a portfolio you cannot
+ * interrogate name by name is a list of symbols. The weight also carries a
+ * bar: a column of percentages is read one cell at a time, and the shape of a
+ * book is the first thing anyone wants from it.
+ */
+export function HoldingsTable({
+  portfolio,
+  sectors,
+  scope,
+  title = "Holdings ledger",
+}: {
+  portfolio: Portfolio
+  sectors?: Record<string, string>
+  /** Which portfolio is being listed; see `HoldingsChart`. */
+  scope: string
+  title?: string
+}) {
+  const rows = buildRows(portfolio, sectors)
+  const hasRisk = rows.some((row) => row.risk !== null)
+  const peak = Math.max(
+    ...rows.map((row) => Math.abs(row.weight)),
+    Number.EPSILON
+  )
+
+  return (
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>{title}</PanelTitle>
+        <PanelMeta>
+          {scope} · {rows.length}{" "}
+          {rows.length === 1 ? "position" : "positions"}
+        </PanelMeta>
+      </PanelHeader>
+      <PanelBody className="px-0 py-0">
+        <Table containerClassName="overflow-auto max-h-[28rem]">
+          <TableHeader className="sticky top-0 z-10 bg-card [&_tr]:border-b-0">
+            {/* An inset shadow rather than a border: a sticky row's own border
+                is painted with the cell and scrolls out from under it. */}
+            <TableRow className="shadow-[inset_0_-1px_0_0_var(--color-border)] hover:bg-card">
+              <TableHead>Ticker</TableHead>
+              <TableHead>Sector</TableHead>
+              <TableHead className="text-right">Weight</TableHead>
+              {hasRisk && (
+                <TableHead className="text-right">Risk share</TableHead>
+              )}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.ticker} className="group">
+                <TableCell>
+                  <Link
+                    href={`/stocks/${row.ticker}`}
+                    className="font-mono font-medium group-hover:underline"
+                  >
+                    {row.ticker}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {row.sector ?? "—"}
+                </TableCell>
+                <TableCell>
+                  <span className="flex items-center justify-end gap-2.5">
+                    <span
+                      className="hidden h-1.5 w-20 shrink-0 bg-muted sm:block"
+                      aria-hidden="true"
+                    >
+                      <span
+                        className="block h-full"
+                        style={{
+                          width: `${((Math.abs(row.weight) / peak) * 100).toFixed(1)}%`,
+                          background:
+                            row.weight < 0
+                              ? "var(--color-series-2)"
+                              : "var(--color-series-1)",
+                        }}
+                      />
+                    </span>
+                    <span className="font-mono tabular-nums">
+                      {formatSignedPercent(row.weight)}
+                    </span>
+                  </span>
+                </TableCell>
                 {hasRisk && (
-                  <TableHead className="text-right">Risk share</TableHead>
+                  <TableCell className="text-right font-mono tabular-nums">
+                    {row.risk === null ? "—" : formatSignedPercent(row.risk)}
+                  </TableCell>
                 )}
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.ticker}>
-                  <TableCell className="font-mono">{row.ticker}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {row.sector ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {formatSignedPercent(row.weight)}
-                  </TableCell>
-                  {hasRisk && (
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {row.risk === null
-                        ? "—"
-                        : formatSignedPercent(row.risk)}
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       </PanelBody>
     </Panel>
   )
@@ -283,9 +370,12 @@ export function HoldingsBreakdown({
 export function SectorExposure({
   portfolio,
   sectors,
+  scope,
 }: {
   portfolio: Portfolio
   sectors: Record<string, string>
+  /** Which portfolio is being split up; see `HoldingsChart`. */
+  scope: string
 }) {
   const totals = new Map<string, number>()
   for (const [ticker, weight] of Object.entries(portfolio.weights)) {
@@ -307,28 +397,21 @@ export function SectorExposure({
   return (
     <Panel>
       <PanelHeader>
-        <PanelTitle>
-          Sector exposure
-          <Info title="Sector exposure" side="bottom">
-            Mean-variance optimisation has no notion of a sector &mdash; it will
-            happily concentrate one if the covariance matrix says those names
-            diversify each other. This chart is the check on that, not a
-            constraint the solver was given.
-          </Info>
-        </PanelTitle>
+        <PanelTitle>Sector exposure</PanelTitle>
         <PanelMeta>
-          {data.length} sectors
+          {scope} · {data.length} sectors
         </PanelMeta>
       </PanelHeader>
       <PanelBody className="flex flex-col gap-4">
         <ChartContainer
           config={sectorConfig}
           className="aspect-auto w-full"
-          style={{ height: `${data.length * 30 + 40}px` }}
+          style={{ height: `${data.length * 32 + 40}px` }}
         >
           <BarChart
             data={data}
             layout="vertical"
+            barCategoryGap="18%"
             margin={{ left: 4, right: 60, top: 4, bottom: 8 }}
           >
             <CartesianGrid horizontal={false} stroke="var(--color-grid)" />
@@ -387,12 +470,16 @@ export function SectorExposure({
           </BarChart>
         </ChartContainer>
 
+        {/* The point of the panel, stated once rather than hidden behind an
+            info trigger: the solver was never told what a sector is, so this
+            is a check on the result and not a rule it followed. */}
         <p className="text-xs leading-relaxed text-muted-foreground">
           {top.sector} is the largest exposure at{" "}
           <span className="font-mono tabular-nums">
             {formatPercent(top.weight)}
           </span>
-          .
+          . The solver was given no sector limits, so it will happily pile into
+          one if those names move independently enough.
           {covered < 0.995 && (
             <>
               {" "}
