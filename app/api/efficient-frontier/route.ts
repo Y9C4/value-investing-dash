@@ -1,7 +1,28 @@
 import { MARKET_DATA_API_URL, originHeaders } from "@/lib/market-data-service"
+import { DEFAULT_PORTFOLIOS } from "@/lib/portfolio-settings"
 import { checkRateLimit, clientKey } from "@/lib/rate-limit"
+import { selectRows } from "@/lib/supabase"
 
 export const maxDuration = 300
+
+/**
+ * The row `frontier.precompute_default()` writes under a fixed key.
+ *
+ * A solve is real convex optimisation and cannot move out of Python, so unlike
+ * the screener and the stock pages this route cannot be made independent of
+ * the solver in general. What it can do is stop needing the solver for the one
+ * request that is both the most common and already answered: a bare visit to
+ * /portfolio asks for the full index at default settings, which the nightly
+ * backfill has already solved and stored.
+ *
+ * That path is now served straight from Postgres. The solver is still what
+ * answers every screened set, every changed constraint and every rerun, which
+ * is the right division: those are genuinely new work.
+ */
+const DEFAULT_SNAPSHOT_KEY = "default"
+
+/** An hour: the snapshot is rewritten once a day by the scheduled backfill. */
+const SNAPSHOT_REVALIDATE_SECONDS = 3600
 
 /**
  * The ticker list from a JSON body, or null when there isn't one.
@@ -45,6 +66,24 @@ export async function POST(request: Request) {
   // cookies the server answered 431 before reaching anything. The query form
   // still works for hand-built calls, which carry no cookies.
   const tickers = (await readBodyTickers(request)) ?? searchParams.get("tickers")
+
+  // Every knob at its default and no ticker list is exactly what the stored
+  // frontier was solved for. Anything else is a different question, and asking
+  // Postgres for it would answer the wrong one confidently.
+  const isDefaultRequest =
+    !tickers &&
+    !shortAllowed &&
+    (nPortfolios === null || nPortfolios === String(DEFAULT_PORTFOLIOS)) &&
+    ["min_weight", "max_weight"].every((key) => {
+      const value = searchParams.get(key)
+      return value === null || value === ""
+    }) &&
+    ["0", "", null].includes(searchParams.get("gamma"))
+
+  if (isDefaultRequest) {
+    const stored = await readDefaultSnapshot()
+    if (stored) return Response.json(stored)
+  }
 
   const query = new URLSearchParams({ short_allowed: String(shortAllowed) })
   if (nPortfolios) query.set("n_portfolios", nPortfolios)
@@ -100,4 +139,35 @@ export async function POST(request: Request) {
     status: upstream.status,
     headers: retryAfter ? { "Retry-After": retryAfter } : undefined,
   })
+}
+
+/**
+ * The precomputed default frontier, or null if there isn't one to serve.
+ *
+ * Null on every failure — unconfigured, unreachable, empty, a payload that is
+ * not a frontier — because the caller's answer to all of them is the same:
+ * ask the solver. A stored frontier is a fast path, never the only one.
+ *
+ * `cached` is rewritten rather than trusted. The stored payload was produced by
+ * a scheduled run, where the solver records it as a miss because it did the
+ * work; from here it is unambiguously a cache hit, and the page prints that
+ * distinction.
+ */
+async function readDefaultSnapshot(): Promise<Record<string, unknown> | null> {
+  const rows = await selectRows<{ payload: Record<string, unknown> }>(
+    "frontier_snapshot",
+    `select=payload&cache_key=eq.${DEFAULT_SNAPSHOT_KEY}&limit=1`,
+    { revalidate: SNAPSHOT_REVALIDATE_SECONDS }
+  )
+
+  const payload = rows?.[0]?.payload
+  if (!payload || typeof payload !== "object") return null
+  if (!("max_sharpe" in payload) || !("envelope" in payload)) return null
+
+  return {
+    ...payload,
+    n_portfolios_requested: payload.n_portfolios,
+    resolution_capped: false,
+    cached: true,
+  }
 }

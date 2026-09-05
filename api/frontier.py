@@ -39,7 +39,37 @@ CAP_SLACK = 1.5
 # otherwise dominate the whole allocation.
 MU_CLIP = 0.50
 
-ENVELOPE_POINTS = 100
+# The default resolution, and the one the nightly precompute stores.
+#
+# These have to be the same number, and were not. The cache key is built from
+# the *resolved* point count, so a page asking for 8 points over the full index
+# resolved to 8 and looked up a key the precompute (which resolved 100 down to
+# the budget cap of 22) had never written. The default visit therefore missed
+# the snapshot it exists for and paid a full solve: 64.7s measured on Cloud
+# Run, against 0.3s for the same curve served from the snapshot.
+#
+# So this is now the single definition of "default resolution", shared by the
+# service default, the precompute, and DEFAULT_PORTFOLIOS in
+# lib/portfolio-settings.ts. Changing it in one place without the other
+# silently reintroduces the miss.
+#
+# Four, not three, and the reason is that a request for N returns N-1 points
+# over the full index: the maximum-return target is infeasible under the
+# universe-scaled weight cap, so the trace drops it. Measured on Cloud Run
+# against the whole index:
+#
+#   requested  points  tangency Sharpe
+#           3       2           2.8014
+#           4       3           2.9478
+#           6       5           2.9478
+#          22      21           2.9478
+#
+# Three is where the answer converges and the curve stops being a straight
+# line. At two the envelope is a chord between the minimum-volatility anchor
+# and the far end, which is precisely the construction the README's own
+# write-up explains is wrong, and it costs 470bp of Sharpe on the figure this
+# page leads with.
+ENVELOPE_POINTS = 4
 MIN_ENVELOPE_POINTS = 2
 # Every point is a real solve (~0.3s over the full index), so this reflects
 # solver cost. Must stay in step with MAX_PORTFOLIOS in lib/portfolio-settings.ts.
@@ -189,6 +219,14 @@ def cache_key(
         sort_keys=True,
     )
     return hashlib.sha256(payload.encode()).hexdigest()
+
+
+# The default frontier is also stored under this fixed key, so a caller that is
+# not this process can find it. The hash above is fine for Python, which owns
+# the function that builds it; asking the dashboard to reproduce the same
+# canonical JSON and digest in TypeScript would be a contract in two languages
+# that fails silently the first time either side reorders a field.
+DEFAULT_SNAPSHOT_KEY = "default"
 
 
 def clear_solve_cache() -> None:
@@ -800,12 +838,19 @@ def precompute_default() -> dict:
 
     try:
         payload = build(False, ENVELOPE_POINTS, scheduled=True)
+        stamp = datetime.now(timezone.utc).isoformat()
+        # Two rows, one payload. The hashed key is what this service's own
+        # cache probe looks up; the stable key is what the dashboard reads
+        # straight from Postgres when the solver is asleep.
         db.client().table("frontier_snapshot").upsert(
-            {
-                "cache_key": key,
-                "payload": payload,
-                "computed_at": datetime.now(timezone.utc).isoformat(),
-            },
+            [
+                {"cache_key": key, "payload": payload, "computed_at": stamp},
+                {
+                    "cache_key": DEFAULT_SNAPSHOT_KEY,
+                    "payload": payload,
+                    "computed_at": stamp,
+                },
+            ],
             on_conflict="cache_key",
             ignore_duplicates=False,
         ).execute()

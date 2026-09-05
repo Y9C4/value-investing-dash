@@ -68,6 +68,37 @@ def average_risk_free_rate() -> float:
     return _risk_free_rate
 
 
+def expected_market_return() -> float | None:
+    """The index's annualised log return over the same 252-day window.
+
+    A universe-level scalar, like the risk-free rate beside it: every stock page
+    reads the same figure, so it is computed once here rather than derived from
+    a per-ticker response. `ticker_statistics` cannot carry it, because ^GSPC is
+    the benchmark rather than a member of the universe and gets no row.
+
+    None rather than 0.0 when there is no history: a market return of zero is a
+    statement, and an absent one is not.
+    """
+    res = db.read(
+        lambda client: client.table("daily_log_returns")
+        .select("log_return")
+        .eq("ticker", config.SP500_INDEX_TICKER)
+        .order("date", desc=True)
+        .limit(RETURNS_LOOKBACK_DAYS)
+        .execute()
+    )
+
+    returns = [
+        float(row["log_return"])
+        for row in (res.data or [])
+        if row.get("log_return") is not None
+    ]
+    if not returns:
+        return None
+
+    return sum(returns) / len(returns) * RETURNS_LOOKBACK_DAYS
+
+
 def returns_df(ticker: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Daily log returns for `ticker` alongside ^GSPC on the same dates, plus
     their 2x2 variance-covariance matrix.

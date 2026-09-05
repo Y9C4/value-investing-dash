@@ -24,14 +24,12 @@ import {
 } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MarginBar, formatSignedPercent } from "@/components/valuation-scale"
-import { formatMarketCap } from "@/lib/format"
+import { formatMarketCap, formatSharePrice } from "@/lib/format"
 import { useScrollPane } from "@/lib/use-scroll-pane"
 import {
   BAND_LABELS,
-  activeVerdicts,
   consensusMarginOfSafety,
   isRated,
-  selectedModelCount,
   valuationBand,
   BAND_FILL,
   type Stock,
@@ -42,6 +40,7 @@ import { cn } from "@/lib/utils"
 export type SortKey =
   | "margin"
   | "ticker"
+  | "price"
   | "marketCap"
   | "beta"
   | "peRatio"
@@ -72,6 +71,10 @@ const COLUMNS: {
         ],
       },
     },
+    // Between the margin and the market cap on purpose: the margin is a
+    // percentage off this number, so the two read together, and market cap is
+    // the same quantity multiplied by a share count.
+    { key: "price", label: "Price", align: "right", numeric: true },
     { key: "marketCap", label: "Mkt cap", align: "right", numeric: true },
     {
       key: "realisedReturn",
@@ -348,6 +351,9 @@ export function ScreenerTable({
                   </div>
                 </TableCell>
 
+                <TableCell className="text-right font-mono">
+                  {formatSharePrice(stock.price)}
+                </TableCell>
                 <TableCell className="text-right font-mono">
                   {formatMarketCap(stock.marketCap)}
                 </TableCell>

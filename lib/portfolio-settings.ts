@@ -15,20 +15,18 @@ export const MIN_PORTFOLIOS = 2
 // a screened set of a few dozen names the full 200 are solved; over the whole
 // index the budget allows about 24.
 export const MAX_PORTFOLIOS = 200
-// 8 rather than 40, because the default is what most visitors run and it is
-// now run automatically on arrival from the screener. Measured on the full
-// index, warm: 8 points solve in 5.5s against 7.7s for 40, and land on a
-// tangency of Sharpe 2.9900 against 2.9861, the same portfolio to three
-// decimals for 2.2s less CPU. Monotone interpolation draws seven points as a
-// clean curve, so nothing visible is given up either.
+// Must equal ENVELOPE_POINTS in api/frontier.py. The cache key is built from
+// the resolved point count, so a default here that differs from the one the
+// nightly precompute stored means every default visit misses the snapshot and
+// pays a real solve. Measured on Cloud Run before this was aligned: 64.7s for
+// a live 8-point solve, against a snapshot read for the same curve.
 //
-// It does not go lower. At 2 the max-return solve is rejected and the envelope
-// collapses to the single min-volatility point: no curve to draw, no Sharpe
-// panel, and `refine_tangency` bails on `len(points) < 3` so the "max Sharpe"
-// portfolio becomes the min-volatility one: Sharpe 1.20 rather than 2.99, on
-// the figure this page leads with. At 3 it is 2.84. Eight is where the
-// tangency stops moving.
-export const DEFAULT_PORTFOLIOS = 8
+// Four is the floor, because a request for N returns N-1 points over the full
+// index: the maximum-return target is infeasible under the weight cap. At 3
+// the envelope is two points, a straight chord rather than a curve, and the
+// tangency comes back at Sharpe 2.8014 against 2.9478 from 4 upwards. See the
+// measured table beside ENVELOPE_POINTS in api/frontier.py.
+export const DEFAULT_PORTFOLIOS = 4
 export const MAX_GAMMA = 5
 
 export type PortfolioSettings = {

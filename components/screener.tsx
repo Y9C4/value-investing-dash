@@ -284,6 +284,8 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
       switch (sort) {
         case "ticker":
           return a.ticker.localeCompare(b.ticker) * factor
+        case "price":
+          return (a.price - b.price) * factor
         case "marketCap":
           return (a.marketCap - b.marketCap) * factor
         case "beta":

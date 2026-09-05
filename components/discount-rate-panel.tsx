@@ -120,8 +120,9 @@ export function DiscountRatePanel({ rates }: { rates: DiscountRates }) {
         </dl>
 
         <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-          Cost of Equity is derrived from the {" "}
-          {sourceLabel ?? "factor"} regression. WACC uses cost of debt off the company's latest financial statements.
+          Cost of equity is derived from the{" "}
+          {sourceLabel ?? "factor"} regression; WACC uses cost of debt read off
+          the latest statements.
         </p>
       </PanelBody>
     </Panel>

@@ -221,6 +221,10 @@ def scored() -> dict:
         "computed_at": computed_at,
         "count": len(stocks),
         "risk_free_rate": risk_free,
+        # The benchmark's own realised return over the same window. Carried
+        # here rather than derived per stock, because it is the same number on
+        # every page and ^GSPC has no ticker_statistics row to hold it.
+        "expected_market_return": market.expected_market_return(),
         "index": _index_level(),
         # When each feeder table was last filled, as opposed to when the models
         # last ran over it. Carried in the payload so the front end gets it on

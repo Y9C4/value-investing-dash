@@ -10,7 +10,7 @@ export default async function StockPage({
   const { ticker } = await params
   const symbol = decodeURIComponent(ticker).toUpperCase()
 
-  const { stocks, isBaseline } = await loadUniverse()
+  const { stocks, isBaseline, riskFreeRate, marketReturn } = await loadUniverse()
   const stock = stocks.find((item) => item.ticker === symbol)
 
   if (!stock) notFound()
@@ -50,7 +50,11 @@ export default async function StockPage({
         </p>
       )}
 
-      <StockDetail stock={stock} />
+      <StockDetail
+        stock={stock}
+        riskFreeRate={riskFreeRate}
+        marketReturn={marketReturn}
+      />
     </>
   )
 }

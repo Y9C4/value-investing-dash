@@ -87,3 +87,36 @@ export async function selectSnapshotRow<T>(
     return null
   }
 }
+
+/**
+ * Many rows from a table the anon key may read.
+ *
+ * Separate from `selectSnapshotRow` rather than a generalisation of it, because
+ * the empty-result retry there is wrong here. That retry exists because a
+ * snapshot table has exactly one row and an empty read means "not written yet",
+ * which is a transient state worth paying a round trip to escape. An empty
+ * price series means the ticker has no stored history, which is permanent and
+ * costs a second request to learn twice.
+ */
+export async function selectRows<T>(
+  table: string,
+  query: string,
+  next: { revalidate: number; tags?: string[] }
+): Promise<T[] | null> {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return null
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+      headers: headers(SUPABASE_KEY),
+      cache: "force-cache",
+      next,
+    })
+
+    if (!response.ok) return null
+
+    const rows = (await response.json()) as T[]
+    return Array.isArray(rows) ? rows : null
+  } catch {
+    return null
+  }
+}

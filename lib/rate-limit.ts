@@ -17,11 +17,27 @@
  * portfolio project the dependency costs more than the precision is worth.
  */
 
-/** Requests per window, per caller. Overridable so the sweep can run clean. */
+/**
+ * Requests per window, per caller. Overridable so the sweep can run clean.
+ *
+ * `??` is not enough here, and the difference is the whole limiter. A variable
+ * declared in `.env` or on Vercel but left blank arrives as `""`, which is not
+ * null, so `??` passes it through and `Number("")` is 0 — and 0 on both windows
+ * is the documented way to turn the limiter *off*. A key present and empty is
+ * the most likely shape of a deployment mistake, so it has to read as "unset"
+ * rather than as "disabled".
+ */
+function limit(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim()
+  if (!raw) return fallback
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback
+}
+
 function limits(): { perMinute: number; perHour: number } {
   return {
-    perMinute: Number(process.env.RATE_LIMIT_SOLVES_PER_MINUTE ?? 10),
-    perHour: Number(process.env.RATE_LIMIT_SOLVES_PER_HOUR ?? 60),
+    perMinute: limit("RATE_LIMIT_SOLVES_PER_MINUTE", 10),
+    perHour: limit("RATE_LIMIT_SOLVES_PER_HOUR", 60),
   }
 }
 
@@ -93,7 +109,7 @@ export function checkRateLimit(key: string): RateLimitVerdict {
       allowed: false,
       retryAfterSeconds,
       detail:
-        `Too many optimisations — the limit is ${over.limit} per ${over.per}. ` +
+        `Too many optimisations: the limit is ${over.limit} per ${over.per}. ` +
         `Each solve is real convex optimisation on a small free-tier machine. ` +
         `Try again in ${retryAfterSeconds} seconds.`,
     }

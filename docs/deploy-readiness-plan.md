@@ -888,23 +888,89 @@ screener's default screen is unchanged at 32 of 495, no console errors.
 
 ---
 
+
+## Phase 1, re-verified
+
+Run against the two live dev services on 2026-09-05, before starting Phase 2.
+Every item of 1.1 through 1.9 is in the tree and behaves as specified.
+
+| check | result |
+|---|---|
+| `POST /backfill/valuations`, no token / wrong token | **401**, both |
+| `GET /valuations`, gzip vs plain | **66.4 KB** against 388.7 KB, 5.9x |
+| Full index, `n_portfolios=200` | clamped to **22** of 200 requested, `resolution_capped: true`, `point_budget: 12000`, `n_assets: 499` |
+| The same request, served from cache | **0.27s**, `cached: true` |
+| `POST /api/efficient-frontier` x13 from one address | ten 200s, then **429** with `Retry-After: 60` |
+| `next.config.ts`, `.dockerignore`, non-root `USER` in the Dockerfile | present |
+
+**A real bug, found by the limiter refusing to fire.** `limits()` read its
+ceilings as `Number(process.env.RATE_LIMIT_SOLVES_PER_MINUTE ?? 10)`. `??` falls
+back on null and undefined but **not on the empty string**, and a variable that
+is declared and left blank arrives as `""`, which `Number` turns into 0 — and 0
+on both windows is the documented way to switch the limiter *off*. So the most
+likely shape of a deployment mistake, a key present and empty on Vercel, silently
+disabled the entire per-IP layer, and nothing anywhere would have said so.
+
+Blank now reads as unset and falls back to 10 and 60; only an explicit `0`
+disables. The local `.env` carries that explicit `0`, because the optimiser sweep
+fires dozens of solves through the proxy from one address, which is exactly the
+shape the limiter exists to refuse.
+
+**Housekeeping 1.9 was half done.** `supabase_password` was still in both `.env`
+and `.env.example`, `ENABLE_DATA_PAGE` was set twice in `.env`, and
+`MARGIN_ORIGIN_SECRET` was absent from `api/.env` entirely. All corrected. The
+rate-limit ceilings are now written out in `.env.example` as `10` and `60` rather
+than left blank with the numbers buried in the code, with the arithmetic that
+produced 60: a solve costs about 5s of 2 vCPU, so 60 of them is ~600 vCPU-seconds
+— exactly `SOLVE_BUDGET_SECONDS`, the solver's own hourly ceiling. One caller
+running flat out can spend the whole service's budget and no more.
+
+**One unintended write.** Checking that `POST /api/backfill/all` 404s with the
+data page closed was run against the local dashboard, where the flag is `true`,
+so it started a real full ingest against the live database. It ran to completion:
+09:12 wall clock, every stage refreshed, `daily_close_prices` and `valuations`
+partial for the usual reasons (`^IRX`, and models that refuse). Idempotent
+upserts, so the outcome is a database a day fresher than it was. The measurement
+is what set `--timeout 1800` in Phase 2.
+
+---
+
 ## Phase 2 — Deploy
 
 ### 2.1 Cloud Run
+
+**The step-by-step procedure is `docs/deploy-runbook.md`**: API enablement,
+Secret Manager, a least-privilege runtime identity, the two-pass deploy that
+resolves the circular dependency between the Vercel and Cloud Run URLs, the
+Scheduler jobs and the verification block. What follows is the shape and the
+reasoning; the runbook is what gets pasted.
 
 ```bash
 gcloud run deploy margin-solver \
   --source api/ \
   --region us-central1 \
+  --service-account margin-solver@$PROJECT.iam.gserviceaccount.com \
   --cpu 2 --memory 2Gi \
   --min-instances 0 --max-instances 2 \
   --concurrency 4 \
-  --timeout 900 \
+  --timeout 1800 \
   --cpu-boost \
   --allow-unauthenticated \
   --set-env-vars "ALLOWED_ORIGINS=https://<your-app>.vercel.app" \
   --set-secrets "SUPABASE_SERVICE_ROLE_KEY=supabase-key:latest,BACKFILL_TOKEN=backfill-token:latest,MARGIN_ORIGIN_SECRET=margin-origin:latest"
 ```
+
+Two corrections to what this section said when it was written:
+
+- **`--timeout 1800`, not 900.** The full backfill was measured end to end on
+  2026-09-05: prices 30s, factors 4s, quarterly statements ~500s, valuations
+  ~60s, about ten minutes in all. 900 leaves barely 50% headroom on a job that
+  makes several hundred calls to Yahoo, and a Cloud Run timeout kills it
+  mid-ingest.
+- **A dedicated runtime service account.** Omitting `--service-account` runs
+  the solver as the default compute account, which carries project Editor. A
+  service whose whole job is to read three secrets should be able to read
+  three secrets and nothing else.
 
 - **2 vCPU** — the solve is single-threaded in Clarabel, but OpenBLAS threads the
   covariance and KKT assembly, and the second core absorbs the keep-warm ping.
@@ -932,13 +998,25 @@ Each sends `X-Backfill-Token` as a custom header.
 
 | job | cron (America/Toronto) | target | duration |
 |---|---|---|---|
-| `margin-daily` | `30 6 * * 2-6` | `POST /backfill/all?skip_fundamentals=true` | ~2 min |
+| `margin-daily` | `30 18 * * 1-5` | `POST /backfill/all?skip_fundamentals=true` | ~2 min |
 | `margin-weekly` | `0 7 * * 6` | `POST /backfill/all` | ~10 min |
 | `margin-warm` | `*/5 9-20 * * *` | `GET /health` | ~0.1s |
 
-**Tue–Sat** for the daily job, because it refreshes *after* each Mon–Fri close.
+**18:30 the same evening, not 06:30 the next morning**, which is what this table
+said first. The session closes at 16:00 ET and Yahoo's daily bar settles within
+half an hour, so an evening run has two hours of margin and means someone opening
+the link at 9pm on a Tuesday sees Tuesday's close. On a site whose top strip
+states its own freshness, a stamp reading hours old rather than a day old is
+worth the schedule.
+
 The weekly run is the only one that re-pulls quarterly statements, which change
 once a quarter.
+
+**`--attempt-deadline 1800s` on both backfill jobs.** Cloud Scheduler's default
+deadline for an HTTP target is **180 seconds**: the weekly run would be abandoned
+every week while the ingest carried on invisibly at the other end and the job
+reported failure. It has to agree with Cloud Run's own `--timeout`, or the
+shorter of the two quietly defines the behaviour.
 
 **The keep-warm window is 09:00–21:00, not 24/7.** After 1.6 the screener and
 stock pages never touch Cloud Run, so the service only needs to be warm when

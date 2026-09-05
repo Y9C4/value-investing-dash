@@ -29,18 +29,23 @@ import { BAND_FILL, VALUATION_METHODS, disagreementBand, type Stock } from "@/li
 type Candle = {
   date: string
   close: number
-  stock_log_return: number
-  market_log_return: number
-  excess_log_return: number
 }
 
+/**
+ * What the chart is fetched over the wire.
+ *
+ * Closes and nothing else. It used to carry a 2x2 covariance matrix and three
+ * scalars as well, all of which came from the solver and only one of which was
+ * ever read: `deriveCapm` reduced the whole matrix to a single beta and threw
+ * the rest away. That beta is already measured over the same window and stored
+ * in `ticker_statistics`, so it reaches the page as `Stock.beta` on a payload
+ * the route already loads. Deriving it a second time from a second source was
+ * two numbers that could disagree, and the page had no way to say which was
+ * right.
+ */
 type ReturnsResponse = {
   ticker: string
   candles: Candle[]
-  varcov: [[number, number], [number, number]]
-  risk_free_rate: number
-  expected_stock_return: number
-  expected_market_return: number
 }
 
 // A single series, so no legend box — the card title names what is plotted.
@@ -79,8 +84,9 @@ function formatReturn(value: number) {
  * Not a page: `/stocks/[ticker]` composes these into its own grid alongside the
  * valuation table, and `/stocks` is now only the search box that routes here.
  * The CAPM, covariance-matrix and daily-returns cards that used to live below
- * these were removed with the standalone page; `deriveCapm` still computes
- * their inputs, which is where they would come back from.
+ * these were removed with the standalone page, and the covariance matrix they
+ * ran on is no longer fetched. Bringing them back means bringing that read
+ * back, which `GET /returns/{ticker}` on the solver still serves.
  */
 
 /**
@@ -133,29 +139,6 @@ export function useTickerReturns(requested: string) {
   }, [requested])
 
   return { data, loading, error }
-}
-
-/** Beta and the CAPM read derived from one response. */
-export function deriveCapm(data: ReturnsResponse | null) {
-  const [varStock, covStockMarket, , varMarket] = data
-    ? [data.varcov[0][0], data.varcov[0][1], data.varcov[1][0], data.varcov[1][1]]
-    : [null, null, null, null]
-  const beta =
-    varMarket && covStockMarket !== null ? covStockMarket / varMarket : null
-
-  // The return CAPM says this beta ought to have earned, and the gap between
-  // that and what it actually earned.
-  const capmRequired =
-    data && beta !== null
-      ? data.risk_free_rate +
-      beta * (data.expected_market_return - data.risk_free_rate)
-      : null
-  const capmAlpha =
-    data && capmRequired !== null
-      ? data.expected_stock_return - capmRequired
-      : null
-
-  return { varStock, covStockMarket, varMarket, beta, capmRequired, capmAlpha }
 }
 
 /**
@@ -268,13 +251,29 @@ export function PriceChartCard({
   )
 }
 
-/** Beta, the risk-free rate and the two realised returns behind it. */
+/**
+ * Beta, the risk-free rate and the two realised returns behind it.
+ *
+ * Every figure is precomputed and arrives with the page: beta and the stock's
+ * return from `ticker_statistics` by way of the universe snapshot, the two
+ * scalars from that snapshot's own payload. None of it waits on the chart
+ * request, so this card renders with the server response rather than after it.
+ *
+ * Nullable throughout, because a snapshot written before the market return
+ * existed simply does not carry one. The placeholder is the app's convention
+ * for a value that is absent, and it is the honest answer here: a market
+ * return printed as 0.00% would be a claim nobody made.
+ */
 export function KeyStatisticsCard({
-  data,
   beta,
+  riskFreeRate,
+  realisedReturn,
+  marketReturn,
 }: {
-  data: ReturnsResponse
   beta: number | null
+  riskFreeRate: number | null
+  realisedReturn: number | null
+  marketReturn: number | null
 }) {
   return (
     <Panel>
@@ -287,15 +286,15 @@ export function KeyStatisticsCard({
           <Stat label="Beta" value={beta?.toFixed(3) ?? "—"} />
           <Stat
             label="Risk-free"
-            value={formatReturn(data.risk_free_rate)}
+            value={riskFreeRate === null ? "—" : formatReturn(riskFreeRate)}
           />
           <Stat
             label="Realised return"
-            value={formatReturn(data.expected_stock_return)}
+            value={realisedReturn === null ? "—" : formatReturn(realisedReturn)}
           />
           <Stat
             label="Market return"
-            value={formatReturn(data.expected_market_return)}
+            value={marketReturn === null ? "—" : formatReturn(marketReturn)}
           />
         </div>
       </PanelBody>

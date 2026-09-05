@@ -91,6 +91,24 @@ export function formatSignedPercent(value: number) {
  * `$4.52T` and `$743B`, never `4520.31` — a column of raw billions makes the
  * reader do the magnitude arithmetic that the unit exists to do for them.
  */
+/**
+ * A share price, always to two decimals.
+ *
+ * Two decimals even at four figures, unlike market cap above, which switches to
+ * a suffix. A price is quoted to the cent by every venue that trades it, and a
+ * column of prices is read by scanning down it: a $1,204.5 next to a $17.32
+ * breaks the decimal alignment `tabular-nums` exists to keep.
+ */
+export function formatSharePrice(price: number) {
+  if (!Number.isFinite(price) || price <= 0) return "-"
+  return price.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
 export function formatMarketCap(billions: number) {
   if (!billions || billions <= 0) return "—"
   if (billions >= 1000) return `$${(billions / 1000).toFixed(2)}T`

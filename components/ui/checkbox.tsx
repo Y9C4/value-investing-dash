@@ -12,15 +12,24 @@ const Checkbox = React.forwardRef<
   const [isChecked, setIsChecked] = React.useState(props.checked || false)
   const [isIndeterminate, setIsIndeterminate] = React.useState(false)
 
-  React.useImperativeHandle(ref, () => ({
-    get indeterminate() {
-      return isIndeterminate
-    },
-    set indeterminate(value: boolean) {
-      setIsIndeterminate(value)
-    },
-    ...inputRef.current,
-  } as any))
+  // The handle is the DOM input plus a writable `indeterminate`, which is the
+  // one checkbox property with no HTML attribute behind it: it exists only on
+  // the element and has to be set from script. Spread last so the real node's
+  // methods win, and typed as the element itself rather than `any`, since that
+  // is what every caller treats it as.
+  React.useImperativeHandle(
+    ref,
+    () =>
+      ({
+        get indeterminate() {
+          return isIndeterminate
+        },
+        set indeterminate(value: boolean) {
+          setIsIndeterminate(value)
+        },
+        ...inputRef.current,
+      }) as HTMLInputElement
+  )
 
   React.useEffect(() => {
     setIsChecked(props.checked || false)

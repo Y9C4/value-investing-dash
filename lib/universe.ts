@@ -27,7 +27,12 @@ const MARKET_DATA_API_URL =
 
 // The screener is a browsing surface over data that refreshes daily, so an
 // hour-stale render is fine and saves a round trip per visitor.
-const REVALIDATE_SECONDS = 3600
+// An hour in production, where the snapshot changes once a day and the cost of
+// a stale read is one revalidation window. Zero in development, where an
+// hour-long window means a backfill you just ran is invisible until it expires
+// — there is no purge path for a snapshot written by Cloud Scheduler calling
+// the service directly, with no Next in the chain to call `revalidateTag`.
+const REVALIDATE_SECONDS = process.env.NODE_ENV === "development" ? 0 : 3600
 
 /** Cache tag for the scored universe; see `revalidateValuations`. */
 export const VALUATIONS_CACHE_TAG = "valuations"
@@ -36,6 +41,8 @@ type ValuationsResponse = {
   computed_at: string | null
   count: number
   risk_free_rate?: number | null
+  /** Absent on any snapshot written before 2026-09-05. */
+  expected_market_return?: number | null
   index?: IndexLevel | null
   data_freshness?: Record<string, JobRun> | null
   stocks: Stock[]
@@ -97,6 +104,14 @@ export type Universe = {
   gatheredAt: string | null
   /** The annualised 13-week treasury rate every model discounted at. */
   riskFreeRate: number | null
+  /**
+   * The index's own annualised log return over the same 252-day window.
+   *
+   * Null on the sample, and on any snapshot written before this field existed:
+   * the stock page prints the placeholder rather than a zero, because a market
+   * return of zero is a claim and an absent one is not.
+   */
+  marketReturn: number | null
   /** Null on the sample, and whenever the index read failed. */
   index: IndexLevel | null
   /**
@@ -174,6 +189,7 @@ function toUniverse(body: ValuationsResponse | null | undefined): Universe | nul
     freshness,
     gatheredAt,
     riskFreeRate: body.risk_free_rate ?? null,
+    marketReturn: body.expected_market_return ?? null,
     index: body.index ?? null,
     isStale: isStale(gatheredAt ?? body.computed_at),
   }
@@ -230,6 +246,7 @@ export async function loadUniverse(): Promise<Universe> {
       freshness: {},
       gatheredAt: null,
       riskFreeRate: null,
+      marketReturn: null,
       index: null,
       isStale: false,
     }

@@ -1,0 +1,32 @@
+-- Let the browser-safe key read stored closes.
+--
+-- Migration 20260904000000 enabled row-level security on every table and gave
+-- `anon` a policy on the two snapshot tables only. That was right for the
+-- screener, which reads one snapshot row and needs nothing else, and it was
+-- taken as the whole of the read path. It was not: `/stocks/[ticker]` draws a
+-- year of closes, and the only route to them was `GET /returns/{ticker}` on the
+-- Python service.
+--
+-- So the stock page still depended on the solver being awake, which is the
+-- exact dependency the snapshot table existed to remove. On Cloud Run the
+-- solver scales to zero, and a chart that is blank until a container cold
+-- starts is a broken page for the first ten seconds of every visit.
+--
+-- Nothing here is sensitive. `daily_close_prices` is the daily close of 500
+-- public companies plus ^GSPC and ^IRX: end-of-day marks that every quote site
+-- gives away, gathered from a free provider. The reason it was closed was that
+-- no policy had been written, not that a decision had been taken to close it.
+--
+-- The two views over this table are `security_invoker`, so they follow the
+-- reader's own permissions rather than the definer's. A select policy here is
+-- therefore all that `daily_log_returns` and `daily_excess_returns` need too;
+-- they are deliberately left without policies of their own, so there is one
+-- place that decides who may read a price.
+--
+-- Still closed to `anon`: fundamentals, profiles, dividends, factor returns,
+-- valuations and ticker statistics. Those are either derived work or a
+-- provider's data reshaped, and the snapshot already carries the slice of them
+-- the front end needs.
+
+create policy "anon reads close prices"
+  on public.daily_close_prices for select to anon using (true);
