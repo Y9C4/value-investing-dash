@@ -6,7 +6,7 @@ import { proxyBackfill } from "@/lib/market-data-service"
 // Hobby permits. Safe only because this route is disabled in production: the
 // daily and weekly refreshes are Cloud Scheduler jobs calling the service
 // directly, with no serverless function in the middle to time out.
-export const maxDuration = 800
+export const maxDuration = 300
 
 export async function POST(request: Request) {
   const { searchParams } = new URL(request.url)
