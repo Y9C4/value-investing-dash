@@ -38,10 +38,10 @@ yarn-error.log*
 .vercel
 
 # python
-api/.venv
-api/__pycache__
-api/**/__pycache__
-api/notebooks
+python-api/.venv
+python-api/__pycache__
+python-api/**/__pycache__
+python-api/notebooks
 
 # typescript
 *.tsbuildinfo
