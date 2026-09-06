@@ -49,3 +49,5 @@ next-env.d.ts
 
 # Playwright MCP session logs and traces
 .playwright-mcp/
+
+docs/
