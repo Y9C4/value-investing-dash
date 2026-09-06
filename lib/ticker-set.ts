@@ -1,4 +1,4 @@
-import UNIVERSE from "@/api/data/sp500_tickers.json"
+import UNIVERSE from "@/python-api/data/sp500_tickers.json"
 
 /**
  * Compact URL encoding for a screened set of tickers.

@@ -16,7 +16,7 @@ const eslintConfig = defineConfig([
     // ships JupyterLab's minified bundles, and ESLint happily reported 60,000
     // problems in them — which is the same as reporting none, because nobody
     // reads that output.
-    "api/**",
+    "python-api/**",
   ]),
 ]);
 
