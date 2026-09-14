@@ -5,7 +5,7 @@ mean-variance optimiser, and every write to Postgres. The Next.js dashboard
 talks to it over HTTP.
 
 Setup, endpoints, deployment and the reasoning behind the design are in the
-[root readme](../readme.md).
+[root readme](../README.md).
 
 ```bash
 python -m venv .venv

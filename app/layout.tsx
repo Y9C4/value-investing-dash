@@ -31,9 +31,9 @@ const mono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
-const TITLE = "Margin — value investing dashboard";
+const TITLE = "Value-Investing-Dash";
 const DESCRIPTION =
-  "Screen the S&P 500 on margin of safety, value every stock across multiple models, then build an efficient portfolio from what survives.";
+  "Value the stocks in the S&P 500 based off 5 different valuation models, screen them based of their consensus fair value, then build an optimized portfolio out of them.";
 
 export const metadata: Metadata = {
   // Absolute URLs for the share card. Vercel injects the deployment host, so
@@ -44,13 +44,13 @@ export const metadata: Metadata = {
         ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
         : "http://localhost:3000")
   ),
-  title: { default: TITLE, template: "%s — Margin" },
+  title: { default: TITLE, template: "%s - Value-Investing-Dash" },
   description: DESCRIPTION,
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
     type: "website",
-    siteName: "Margin",
+    siteName: "Value-Investing-Dash",
   },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
@@ -71,20 +71,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      suppressHydrationWarning
       className={cn(
-        "h-full antialiased font-sans",
+        "dark h-full antialiased font-sans",
         inter.variable,
         mono.variable
       )}
     >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()`,
-          }}
-        />
-      </head>
       <body className="flex min-h-full flex-col bg-background">
         {/* Read here rather than in the shell: the shell is a client
             component and this is a server-only variable. Evaluated at build,

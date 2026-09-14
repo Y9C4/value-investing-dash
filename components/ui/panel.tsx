@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils"
  * instrument rather than as a stack of separate cards.
  *
  * `Card` is deliberately left in place. It is right for the few surfaces that
- * really are documents: the intro dialog, the backfill cards on `/data`.
+ * really are documents: the backfill cards on `/data`.
  */
 
 function Panel({ className, ...props }: React.ComponentProps<"section">) {

@@ -1,12 +1,10 @@
 <div align="center">
 
-# Margin
+# Value-Investing-Dash
 
-**Value the S&P 500 five ways, screen on the results, and build a mean-variance
-optimal portfolio out of whatever survives.**
+**Value the S&P 500 using 5 valuation models, screen stocks out on their consensus fair value, then build an optimized portfolio on the rest.**
 
-A full-stack quantitative finance dashboard — Next.js front end, FastAPI
-solver service, Postgres warehouse.
+Next.js frontend | FastAPI Data API | Supabase PostgreSQL database
 
 ![Next.js](https://img.shields.io/badge/Next.js_16-000?logo=nextdotjs&logoColor=fff)
 ![React](https://img.shields.io/badge/React_19-149ECA?logo=react&logoColor=fff)
@@ -16,419 +14,211 @@ solver service, Postgres warehouse.
 ![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=fff)
 ![CVXPY](https://img.shields.io/badge/CVXPY_·_Clarabel-6E4AFF)
 
+**Live demo - [https://value-investing-dash.vercel.app](https://value-investing-dash.vercel.app)**
+
 </div>
 
-![The efficient frontier and capital market line, solved live](docs/screenshots/frontier.png)
+![The screener](public/screener.png)
 
----
+## About
 
-## The idea in one paragraph
+Based on Benjamin Graham’s principle of value investing, Value-Investing-Dash (VID) analyses stocks based on their fundamental value rather than just their historical returns. VID values the ~500 stocks in the S&P 500 with 5 different valuation models, combines them into a consensus fair value for each stock, lets the user screen stocks on that consensus, then builds an optimized portfolio out of whatever is left.
 
-A mean-variance optimiser estimates expected return from *past* return, so a
-stock that has already tripled enters the solver looking like an exceptional
-opportunity — at exactly the moment its price embeds the most optimism. Margin
-puts a valuation filter in front of the optimiser. Five models price each
-company off its own fundamentals, the screener cuts the index down to names
-trading below what those models justify, and only then is the frontier drawn.
-The optimiser can allocate anywhere it likes, but only among companies that
-already passed for value.
+The reason for screening first is that a portfolio optimizer estimates expected return from past returns. A stock that has already run up looks like a great opportunity to the optimizer at exactly the point its price is most optimistic. Putting a valuation screen in front of the optimizer removes those stocks before it ever sees them.
 
-## What it does
+## How it works
 
-| | Step | |
+| | Page | What it does |
 |---|---|---|
-| **1** | **Screen** | 5 valuation models score all 493 companies. Filter on consensus margin of safety, sector, beta, and how many models had to agree. Hand the survivors to step 3 with one click. |
-| **2** | **Analyse** | Every model's verdict on one company, with the price history, CAPM statistics, and the exact discount rates each valuation used. |
-| **3** | **Optimise** | Solve the efficient frontier over the screened set. Position bounds, short selling and L2 regularisation are all exposed — every figure on the page is downstream of them. |
+| **1** | **Screener** | Filter the index on consensus margin, valuation band, sector and what models value a stock as "underpriced", "overpriced", etc. Stocks that pass these filters or are selected go to the portfolio page. |
+| **2** | **Analysis** | Each model’s fair value for one stock next to its price history, plus relevant discount rates the valuations used. |
+| **3** | **Portfolio** | Solve the efficient frontier over the screened stocks, setting position bounds, short selling and L2 regularisation. |
 
-<table>
-<tr>
-<td width="50%"><img src="docs/screenshots/screener.png" alt="Screener"></td>
-<td width="50%"><img src="docs/screenshots/stock-detail.png" alt="Stock analysis"></td>
-</tr>
-<tr>
-<td align="center"><em>Step 1 — screen the index on value</em></td>
-<td align="center"><em>Step 2 — every model's verdict on one company</em></td>
-</tr>
-</table>
+![Frontier](public/frontier.png)
 
-## What this project demonstrates
+## Infrastructure
 
-| Area | Where to look |
+![Architecture diagram](public/Infrastructure-diag.svg)
+
+**Frontend:** Next.js 16, React 19, TypeScript and Tailwind, deployed on Vercel. The screener and stock pages read precomputed valuation data from Supabase.
+
+**Data API:** A Python API on Google Cloud Run using FastAPI, cvxpy, Clarabel and NumPy. Every valuation model, portfolio optimization and write to the database goes through it. Valuations and Prices & fundamentals come from yfinance and factor returns from the Ken French data library are backfilled at market close, UTC 18:30 by a task scheduler.
+
+**Database:** Supabase PostgreSQL, storing raw prices, fundamentals and factor returns as well as the precomputed valuations.
+
+The frontend and the Data API talk over HTTP and deploy separately. The browser never learns the Data API address since requests are signed server-side, backfill routes are closed behind a token, and solves are rate limited per caller.
+
+**Scheduled jobs** (Cloud Scheduler, Toronto time):
+
+| Job | When | What |
+|---|---|---|
+| `margin-daily` | 18:30 Mon-Fri | Prices, factor returns and recomputes valuation models for all stocks after market close |
+| `margin-weekly` | 07:00 Sat | Everything above plus quarterly statements, company profiles and dividends |
+| `margin-warm` | Every 5 min, 09:00–20:00 | Pings `/health` so a GCloud Run instance is warm when a user runs an optimization |
+
+## Valuation models
+
+| Model | Why it’s included |
 |---|---|
-| **Convex optimisation** | [`api/frontier.py`](api/frontier.py) — the frontier is traced as N separately solved QPs under a shared constraint set, with the tangency portfolio located by ternary search |
-| **Financial modelling** | [`api/valuation.py`](api/valuation.py) — FCFE, FCFF, DDM, RIM and comparables, each a pure function that returns `None` rather than a wrong number |
-| **Numerical judgement** | Ledoit-Wolf covariance shrinkage, return clipping, feasibility checks that fire before the solver does |
-| **Data engineering** | Incremental backfills over yfinance and the Ken French library into 13 Postgres migrations, with TTM rollups computed in SQL views |
-| **Performance work** | One optimisation went from ~80s to ~2s: parallel paged reads, predicate pushdown, per-ticker caching |
-| **Product thinking** | Every constraint the solver runs under is on the page next to the result, because a frontier with no stated constraints is not a claim about anything |
-| **Testing** | A Playwright + HTTP sweep that drives the real UI across dozens of screened sets and asserts the frontier's structural invariants |
+| **DDM** | The most basic way to value a stock, based on receiving dividends growing into perpetuity. Only used for stocks yielding at least 1.5%. |
+| **FCFE** | Values stocks that don’t pay dividends in a similar way to DDM, using the cash left over for shareholders. |
+| **FCFF** | Uses the total cash from operations available to both debt and equity holders, so it handles firms with complex, changing or heavy debt. |
+| **RIM** | Book value plus the profit a company makes above its cost of equity. Not very accurate, but it uses data the other models already pull so it has great coverage. |
+| **COMPS** | Values a stock against the median EV/EBITDA and P/E of its sector, which captures market sentiment the other models miss. |
 
-## Architecture
+Every model is a pure function that returns nothing rather than a wrong number when its inputs don’t make sense, e.g. FCFE and FCFF skip banks and REITs since capex based cash flow doesn’t mean much for them. Coverage varies by stock, so the screener lets you set how many models have to value a stock before it gets rated (2 by default).
 
-```mermaid
-flowchart LR
-    YF["yfinance"] --> BF
-    KF["Ken French<br/>factor library"] --> BF
-    BF["Backfill jobs<br/>api/backfill.py"] --> DB[("Supabase<br/>Postgres")]
-    DB --> EN["Valuation engine<br/>engine.py · valuation.py"]
-    EN -->|"5 verdicts × 493 stocks"| DB
-    DB --> FR["Frontier solver<br/>api/frontier.py"]
-    DB --> UN["Scored universe<br/>api/universe.py"]
-    UN --> NX["Next.js App Router"]
-    FR --> NX
-    NX --> UI["Screener → Analysis → Portfolio"]
-```
+![COMPS valuation of SanDisk](public/sandisk.png)
 
-Two services. The Next.js app owns rendering and route handlers; the FastAPI
-service owns everything numerical and every write to Postgres. They talk over
-HTTP, so the solver can be deployed and scaled on its own — a 200-point
-frontier is a CPU-bound job that has no business sharing a runtime with page
-rendering.
+*COMPS picks up the market’s bullish view on flash memory demand in its valuation of SanDisk, while the other models call it overvalued.*
 
-Valuations are **precomputed into a table**, not derived on request. The models
-themselves cost ~0.08s for the entire index; the bulk reads that feed them cost
-~35s. Recomputing per request would pay a fixed toll for numbers that change
-once a day.
+### Consensus margin
 
-## Five problems worth reading about
+Each model’s margin is the difference between its fair value and the price. The consensus margin is the weighted average of those margins, where the weights are essentially a confidence in each model:
 
-<details open>
-<summary><b>The max-Sharpe portfolio that kept vanishing</b></summary>
+| Model | Base weight | Adjustments |
+|---|---|---|
+| FCFF | 0.80 | × 0.8 if the tax rate wasn’t available |
+| FCFE | 0.75 | × 0.6 if net borrowing is more than half of FCFE |
+| DDM | 0.60 | × payment stability (0–1), then × 0.6 if the payout ratio is above 0.9 |
+| COMPS | 0.55 | none |
+| RIM | 0.35 | × min(1, quarters used / 4) |
 
-<br>
+When FCFE and FCFF both value a stock, each is scaled by 1/√2, since they discount the same cash flows two different ways and would otherwise get two votes.
 
-`EfficientFrontier.max_sharpe()` re-parameterises the problem so that
-`(μ − r_f)ᵀw = 1`. That has **no solution** whenever the constraints admit no
-portfolio out-earning the risk-free rate — and here that was routine, not an
-edge case: a value screen selects for weak trailing returns, and the per-stock
-cap forces enough of them into the portfolio that its attainable return lands
-under the T-bill rate. The solve failed outright and took the whole response
-with it.
+### Valuation is relative
 
-The fix inverts the order. The frontier is traced as N minimum-variance solves
-at target returns, which is feasible anywhere inside the attainable range, and
-the tangency portfolio is then *found* among the results rather than solved
-for. It can no longer fail to exist: when nothing beats cash, the best Sharpe
-is simply negative — a true statement about the screened set rather than a
-crash. → [`trace_frontier`](api/frontier.py)
+The valuation bands (Deep value, Undervalued, Fair value, Overvalued, Expensive) each cover a fifth of the stocks ranked by consensus margin. So “Deep value” means the cheapest fifth of the index, not that a stock is below its intrinsic value.
 
-</details>
+## Decisions worth explaining
 
-<details>
-<summary><b>A URL is a header</b></summary>
+**Valuations are precomputed.** Calculating valuations for ~500 stocks on every request would make the screener slow to load for no reason, since prices, fundamentals and rates only change once a day. So they’re computed after each market close and stored per stock, model and date.
 
-<br>
+**The max Sharpe portfolio is found, not solved for.** Solving for max Sharpe directly has no solution whenever no allowed portfolio beats the risk-free rate, which happens a lot with value screens since they pick stocks with weak past returns. Instead the frontier is traced as a set of minimum variance solves and the tangency portfolio is found along it with a ternary search. If nothing beats cash, the best Sharpe is just negative instead of an error. See [`python-api/frontier.py`](python-api/frontier.py).
 
-Handing ~500 tickers to the portfolio page as `?tickers=A,AAPL,…` makes a 3KB
-URL. Next echoes that URL into the request line, the `Next-Url` header **and**
-`Referer`, so 3KB of URL spends ~9.2KB of Node's 16KB header budget — and
-ordinary cookies push it over into `431 Request Header Fields Too Large`. The
-page died for some readers and not others depending on what cookies they
-happened to be carrying.
+**Bad constraints get caught before the solver.** A 3% max position means at least 34 stocks are needed for the weights to add up to 100%, but the screener can hand over 5. Bounds are checked before any solve and the error tells you the minimum cap that would work, rather than showing a vague solver failure. By default the cap widens for small sets so a feasible portfolio always exists.
 
-The screened set is a subset of a known, fixed universe, so it encodes as one
-bit per constituent: 503 bits, 84 base64 characters, and selecting the whole
-index costs the same as selecting one stock. The token carries a fingerprint of
-the universe it was built against, so a link that predates an index change is
-refused rather than silently decoded into a different portfolio.
-→ [`lib/ticker-set.ts`](lib/ticker-set.ts)
+**Screened sets fit in a short URL.** Passing ~500 tickers as `?tickers=A,AAPL,…` made a URL big enough to hit `431 Request Header Fields Too Large`. Since every screened set is a subset of the same index, it’s encoded as one bit per stock, which is 84 characters no matter how many stocks are selected. See [`lib/ticker-set.ts`](lib/ticker-set.ts).
 
-The same bug then reappeared one layer down, in the fetch the page makes. The
-durable fix was not a working click but an assertion: the test sweep fails if
-the outgoing solve request exceeds 256 bytes, which catches the regression
-while it still returns HTTP 200.
+**Estimates are kept in check.** Covariance uses Ledoit-Wolf shrinkage, expected returns are clipped to ±50%, and stocks with less than 90% of the price history (e.g. recent spin-offs) are left out rather than guessed.
 
-</details>
+## Running it locally
 
-<details>
-<summary><b>Infeasible before the solver ever sees it</b></summary>
-
-<br>
-
-A 3% per-stock cap sounds like a diversification rule. Combined with
-`Σw = 1` it is also an arithmetic claim: `cap × n ≥ 1`, so a 3% cap silently
-*requires* at least 34 holdings. The screener routinely hands over five. CVXPY
-reports that as an opaque solver failure, which is useless to whoever typed the
-number.
-
-Bounds are now checked before any solve, and the error names the threshold
-rather than the violation:
-
-> A 1.00% maximum position cannot fill a portfolio of 19 stocks — the weights
-> would sum to at most 19%. Raise it to at least 5.26%, or screen for fewer
-> stocks.
-
-→ [`resolve_constraints`](api/frontier.py)
-
-</details>
-
-<details>
-<summary><b>Weight is not risk</b></summary>
-
-<br>
-
-A 3% position in a volatile, everything-correlated name can carry several times
-the risk of a 3% position in a defensive one, and a weight table cannot show
-it. The holdings chart plots each position's weight against its share of
-portfolio variance, via the Euler decomposition `wᵢ(Σw)ᵢ / wᵀΣw` — exact rather
-than approximate, because variance is homogeneous of degree two.
-
-In the screenshot below, INTC is 11% of the capital and **35% of the risk**.
-→ [`risk_contributions`](api/frontier.py)
-
-![Weight against risk contribution](docs/screenshots/holdings.png)
-
-</details>
-
-<details>
-<summary><b>A consensus of one is not a consensus</b></summary>
-
-<br>
-
-Every model refuses on some companies by design — FCFE and FCFF skip banks and
-REITs, DDM skips anything yielding under 1.5%, Comps needs five usable peers.
-Coverage is therefore lopsided: Comps values 474 of the 493 stocks, FCFF only
-240. Averaging whatever happens to be present let a stock ranked by Comps alone
-sit in the same table as one all five models agreed on, and the two are not the
-same claim. Across the index the models disagree on *direction* for 278 of the
-468 stocks two or more of them can value, so the difference is not academic.
-
-The screener now takes an agreement floor — how many of the selected models
-must have valued a stock before its consensus counts — and reports the backing
-on every row as `4/5`. Below the floor a stock is unrated rather than cheap: no
-bar, an em-dash, and no place in the ranking.
-
-| Floor | Stocks that clear it |
-|---|---|
-| 1 | 470 |
-| **2** (default) | **448** |
-| 3 | 362 |
-| 4 | 200 |
-| 5 | 83 |
-
-→ [`isRated`](lib/valuation.ts), [`AgreementControl`](components/screener-filters.tsx)
-
-</details>
-
-## Quickstart
-
-**Prerequisites:** Node 20+, pnpm, Python 3.12, and a free
-[Supabase](https://supabase.com) project.
+**Prerequisites:** Node 20+, pnpm, Python 3.12 and a free [Supabase](https://supabase.com) project.
 
 ```bash
-# 1. Front end
+# 1. Frontend
 pnpm install
-cp .env.example .env.local
+cp .env.example .env.local        # Supabase URL + publishable key, ENABLE_DATA_PAGE=true, BACKFILL_TOKEN
 
-# 2. Solver service
-cd api
-python -m venv .venv && .venv/Scripts/activate   # source .venv/bin/activate on macOS/Linux
+# 2. Data API
+cd python-api
+python -m venv .venv
+source .venv/bin/activate         # .venv\Scripts\activate on Windows
 pip install -r requirements.txt
-cp .env.example .env                             # add your Supabase URL + service role key
+cp .env.example .env              # Supabase URL + service role key, the same BACKFILL_TOKEN
 
 # 3. Database
 supabase link --project-ref <your-ref>
-supabase db push                                 # applies supabase/migrations/
+supabase db push                  # applies supabase/migrations/
 ```
 
-Run both services:
+Run both:
 
 ```bash
-pnpm dev                                          # dashboard  → localhost:3000
-cd api && uvicorn main:app --reload --port 8000   # solver     → localhost:8000
+pnpm dev                                                 # frontend → localhost:3000
+cd python-api && uvicorn main:app --reload --port 8000   # Data API → localhost:8000
 ```
 
-Then open [localhost:3000/data](http://localhost:3000/data) and press **Refresh
-everything**. That runs every ingest stage in dependency order and recomputes
-the valuations last — about 10 minutes cold. The dashboard is usable
-immediately afterwards.
+Open [localhost:3000/data](http://localhost:3000/data) and hit **Refresh everything** to run every backfill in order and recomputes the valuations last, which takes about 10 minutes the first time.
 
-<details>
-<summary>Refreshing from the terminal, and what each flag is for</summary>
-
-<br>
+The same backfills can be run from the terminal:
 
 ```bash
-# Daily shape — prices, factors, valuations. ~2 min.
-curl -X POST "http://127.0.0.1:8000/backfill/all?skip_fundamentals=true"
+#Daily: prices, factors, valuations (~2 min)
+curl -X POST -H "X-Backfill-Token: $BACKFILL_TOKEN" "http://127.0.0.1:8000/backfill/all?skip_fundamentals=true"
 
-# Everything, including quarterly statements. ~10 min.
-curl -X POST "http://127.0.0.1:8000/backfill/all"
-
-# Also re-pull the full 2-year price window.
-curl -X POST "http://127.0.0.1:8000/backfill/all?full=true"
+#Everything including quarterly statements (~10 min)
+curl -X POST -H "X-Backfill-Token: $BACKFILL_TOKEN" "http://127.0.0.1:8000/backfill/all"
 ```
 
-| flag | when |
-|---|---|
-| *(none)* | Full refresh including quarterly statements. Statements change once a quarter, so this is rarely the one you want. |
-| `skip_fundamentals=true` | The daily shape. Prices change every session; statements do not. |
-| `full=true` | Belt and braces after a ticker is added to `api/data/sp500_tickers.json`. |
-
-Every stage is incremental and every write is an upsert, so re-running is safe
-and cheap. The individual cards on `/data` are still there for when only one
-table needs refreshing.
-
-**Why `full=true` exists.** The incremental window comes from a single global
-newest-date across the price table. That is right for a ticker tracked all
-along and wrong for one that is not: a name added later would start from "five
-days ago", land a handful of rows, and from then on *look* up to date — never
-filling in the two years behind it. `/backfill/all` detects this on its own, so
-the flag is a fallback rather than a requirement.
-
-**A short history is not always a bug.** Recent spin-offs genuinely have less
-history than the risk model wants. The optimiser needs 90% coverage of the
-window to estimate a covariance and excludes names below that rather than
-pricing risk they never showed.
-
-</details>
-
-## Shaping the optimisation
-
-Every constraint the solver runs under is exposed on `/portfolio`, because
-every number on that page is downstream of them.
-
-| control | effect |
-|---|---|
-| **Maximum position** | Per-name cap. Blank scales it to the universe (see *Infeasible before the solver* above). |
-| **Minimum position** | Floor on every weight. Positive forces every name in — the direct way to eliminate zero weights. Negative permits shorting to that depth. |
-| **Allow short selling** | Shorthand for a floor at `−cap`. An explicit minimum overrides it, so an asymmetric range (−1% floor against a 5% cap) means what it says. |
-| **L2 penalty (γ)** | Adds `γ‖w‖²` to the objective. |
-| **Portfolios** | How many points are solved along the frontier. Each is its own optimisation, so this decides run time. |
-
-<details>
-<summary>What γ actually does, and where to watch for it</summary>
-
-<br>
-
-A box-constrained mean-variance solve puts its optimum on a **vertex** of the
-feasible set: most weights land at exactly zero and the survivors at exactly
-the cap, and nudging any input reshuffles which names those are. The L2 term is
-strictly convex, so it pulls the solution off that vertex.
-
-Its visible effect is at the **minimum-volatility end** of the frontier, not at
-the tangency — the frontier is traced by minimising variance at a target
-return, and at the max-Sharpe point that return constraint is doing the
-binding. Over one 19-stock set, raising γ from 0 to 5 moved the min-volatility
-portfolio from 10.6 to 19.0 effective holdings while the tangency went 6.8 →
-7.2. The **Eff. names** column in the anchor table is where to watch it.
-
-With γ above zero the plotted curve minimises variance *plus the penalty*, so
-it sits fractionally inside the unregularised frontier. That is the trade being
-made on purpose, and the chart says so.
-
-</details>
+Every backfill is incremental and every write is an upsert, so re-running is safe and only pulls unfilled rows in the last 252 day window.
 
 ## Testing
 
 ```bash
-npx playwright install chromium
-
-node .claude/skills/test-portfolio-optimizer/sweep.mjs --quick   # ~1 min
-node .claude/skills/test-portfolio-optimizer/sweep.mjs           # full matrix
-```
-
-Sweeps the optimiser across many screened-set sizes and tilts, asserts the
-frontier's structural invariants (monotone envelope, tangency at least as good
-as every plotted point, capital market line genuinely tangent), drives the real
-page in headless Chromium, and checks the outgoing request stays inside its
-byte budget.
-
-```bash
-pnpm lint && pnpm build     # front end
+pnpm lint && pnpm build
 ```
 
 ## Project layout
 
 ```
-app/                  Next.js App Router — pages and route handlers
-  api/                server-side proxies to the solver service
-components/           React components (charts, tables, controls)
-lib/                  client logic: valuation types, URL codec, formatting
-api/                  FastAPI solver service
-  main.py             HTTP surface — routes only
-  frontier.py         mean-variance optimisation
-  valuation.py        the five models, as pure functions
-  engine.py           runs every model across the universe
-  backfill.py         ingest jobs, in dependency order
-  market.py           price/return reads, with caching
-  universe.py         the scored universe the screener consumes
-  db.py               Supabase access, retries, paging
-supabase/migrations/  schema, TTM rollups, risk-free-rate views
+app/                    Next.js pages
+  api/                  server-side routes that forward to the Data API
+components/             charts, tables, filters
+lib/                    valuation types, URL encoding, formatting
+python-api/             FastAPI Data API
+  main.py               routes only
+  valuation.py          the 5 models, as pure functions
+  engine.py             runs every model across the index
+  frontier.py           portfolio optimization
+  backfill.py           data ingest, in order
+  market.py             price and return reads
+  universe.py           the scored stocks the screener uses
+  db.py                 Supabase access
+supabase/migrations/    schema and views
+docs/                   deployment runbook and design notes
 ```
 
 <details>
-<summary><b>API reference</b></summary>
+<summary><b>Data API endpoints</b></summary>
 
 <br>
 
-| endpoint | what |
+| Endpoint | What |
 |---|---|
-| `GET /health` | liveness |
-| `GET /quote/{ticker}` | latest price snapshot |
-| `GET /info/{ticker}` | full yfinance info blob |
-| `GET /history/{ticker}?period=1y&interval=1d` | OHLCV candles |
-| `GET /returns/{ticker}` | 252 days of log returns, the 2×2 covariance matrix, and the annualised risk-free rate |
-| `GET /valuations` | every model's verdict for every stock, precomputed |
-| `POST /efficient-frontier` | solve the frontier — see below |
-| `POST /backfill/all?full=&skip_fundamentals=` | **every stage, in order** |
-| `POST /backfill/sp500-daily-close?full=` | daily closes |
-| `POST /backfill/factor-returns` | Fama-French daily factors |
-| `POST /backfill/quarterly-fundamentals` | statements, profile, dividends |
-| `POST /backfill/company-profile` | profile fields only, a cheaper refresh |
-| `POST /backfill/valuations` | recompute every model; run after any of the above |
+| `GET /health` | Liveness check |
+| `GET /quote/{ticker}` | Latest price |
+| `GET /info/{ticker}` | Full yfinance info |
+| `GET /history/{ticker}` | Price history |
+| `GET /returns/{ticker}` | Daily log returns and the risk-free rate |
+| `GET /valuations` | Every model’s valuation of every stock |
+| `POST /efficient-frontier` | Solve the frontier (see below) |
+| `POST /backfill/all` | Every backfill, in order |
+| `POST /backfill/sp500-daily-close` | Daily closes |
+| `POST /backfill/factor-returns` | Fama-French factors |
+| `POST /backfill/quarterly-fundamentals` | Statements, profiles, dividends |
+| `POST /backfill/company-profile` | Profiles only |
+| `POST /backfill/valuations` | Recompute every model |
+
+Backfill routes need an `X-Backfill-Token` header.
 
 ```
 POST /efficient-frontier
-  ?tickers=AAPL,MSFT,…     screened subset; omit for the whole index
+  ?tickers=AAPL,MSFT,…     screened stocks, omit for the whole index
   &short_allowed=false
-  &n_portfolios=100        2–200, each a separate solve
-  &min_weight=-0.05        fraction, not percent; omit for auto
-  &max_weight=0.15         fraction, not percent; omit to scale to the universe
-  &gamma=1                 L2 penalty, 0–5
+  &n_portfolios=100        each point is a separate solve
+  &min_weight=-0.05        fraction not percent, omit for the default
+  &max_weight=0.15         fraction not percent, omit to scale to the set
+  &gamma=1                 L2 penalty
 ```
-
-Returns the solved envelope, both anchor portfolios, the capital market line,
-the risk decomposition of the tangency portfolio, and the constraints that were
-*actually* applied — which is not always what was asked for, since a small
-screened set forces the cap to widen.
 
 </details>
 
 ## Deployment
 
-The two services deploy independently.
+- **Frontend → Vercel.** Set `MARKET_DATA_API_URL`, the Supabase URL and publishable key, and `MARGIN_ORIGIN_SECRET`.
+- **Data API → Google Cloud Run** from [`python-api/Dockerfile`](python-api/Dockerfile). Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ALLOWED_ORIGINS`, `BACKFILL_TOKEN` and `MARGIN_ORIGIN_SECRET`.
+- **Database → Supabase.** `supabase db push` applies the migrations.
 
-- **Dashboard** → Vercel. Set `MARKET_DATA_API_URL` to the deployed solver.
-  A 200-point solve can exceed a serverless function's default limit;
-  `maxDuration` is already set to 300s on the frontier route.
-- **Solver** → any container host. [`api/Dockerfile`](api/Dockerfile) is
-  included; set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and
-  `ALLOWED_ORIGINS` (comma-separated) in the environment.
-- **Database** → Supabase. `supabase db push` applies the migrations.
-
-The service role key bypasses row-level security and must never reach the
-browser. It is read only by the Python service, which is why the backfills live
-there rather than in a Next.js route handler.
+The service role key skips row-level security, so it only ever lives in the Data API and never on Vercel. The full walkthrough including the scheduled jobs is in [`docs/deploy-runbook.md`](docs/deploy-runbook.md).
 
 ## Limitations
 
-Worth stating plainly, since the numbers look authoritative:
-
-- **Expected returns come from a 2-year trailing mean.** That is the standard
-  weakness of mean-variance optimisation and the reason the value screen exists
-  in front of it. Returns are clipped to ±50% so no single estimate can run
-  away with the allocation, but a bull window still reads optimistically.
-- **The screener's bands are relative, not absolute.** "Deep value" means
-  *cheapest fifth of the index*, not *below intrinsic worth*. The UI says so
-  wherever a band is named.
-- **Fundamentals come from yfinance**, which is an unofficial API with real
-  gaps. Models return no verdict rather than a guess when an input is missing,
-  so coverage varies by company and is worth filtering on.
-- **Not investment advice.** This is a portfolio project built to exercise the
-  modelling and engineering, not to allocate money.
+- Prices and fundamentals come from yfinance, an unofficial source with major gaps as evident in the coverage of the FCFF and FCFE models.
+- Expected returns come from past returns, which are not reliable forecasts. The value screen helps, but a strong run still looks good to the optimizer.
+- Nothing on Value-Investing-Dash is investment advice. It’s a demonstrator project.
 
 ## Licence
 
-MIT.
+MIT

@@ -11,7 +11,7 @@ import { ImageResponse } from "next/og"
  */
 
 export const alt =
-  "Margin — screen the S&P 500 on margin of safety, then optimise what survives"
+  "Value-Investing-Dash - value the S&P 500 based off 5 valuation models, then build an optimized portfolio"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
@@ -73,7 +73,7 @@ export default function Image() {
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div style={{ width: 20, height: 20, background: SERIES_1 }} />
             <span style={{ fontSize: 26, letterSpacing: 10, fontWeight: 600 }}>
-              MARGIN
+              VALUE-INVESTING-DASH
             </span>
           </div>
 

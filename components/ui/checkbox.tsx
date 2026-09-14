@@ -57,7 +57,7 @@ const Checkbox = React.forwardRef<
         className={cn(
           "size-4 border transition-all duration-150",
           isChecked || isIndeterminate
-            ? "bg-sidebar-primary border-border"
+            ? "bg-primary border-border"
             : "border-border hover:border-muted-foreground"
         )}
         aria-hidden="true"
