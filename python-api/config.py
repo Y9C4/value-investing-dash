@@ -14,6 +14,9 @@ load_dotenv()
 SP500_TICKERS_PATH = Path(__file__).parent / "data" / "sp500_tickers.json"
 SP500_INDEX_TICKER = "^GSPC"
 RISK_FREE_TICKER = "^IRX"
+# 10-year Treasury yield in percent: the maturity-matched risk-free rate for
+# discounting long-lived cash flows (reverse DCF), where ^IRX is the short rate.
+LONG_RISK_FREE_TICKER = "^TNX"
 
 with open(SP500_TICKERS_PATH, encoding="utf-8") as f:
     SP500_TICKERS: list[str] = json.load(f)

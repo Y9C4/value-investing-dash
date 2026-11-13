@@ -253,7 +253,7 @@ def post_backfill_all(full: bool = False, skip_fundamentals: bool = False):
 
 @app.post("/backfill/sp500-daily-close", dependencies=[Depends(require_backfill_token)])
 def post_backfill_daily_close(full: bool = False):
-    """Daily closes for the index constituents, ^GSPC and ^IRX."""
+    """Daily closes for the index constituents, ^GSPC, ^IRX and ^TNX."""
     return backfill.daily_close(full=full)
 
 

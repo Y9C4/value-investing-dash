@@ -35,8 +35,8 @@ SHARES_START = "2015-01-01"
 
 # Benchmarks and series that are not constituents. ^SP500TR is the total-return
 # index (dividends reinvested), RSP the equal-weight S&P 500 ETF, ^IRX the
-# 13-week T-bill yield in percent.
-EXTRA_PRICE_TICKERS = ["^GSPC", "^SP500TR", "RSP", "^IRX"]
+# 13-week T-bill yield and ^TNX the 10-year Treasury yield, both in percent.
+EXTRA_PRICE_TICKERS = ["^GSPC", "^SP500TR", "RSP", "^IRX", "^TNX"]
 
 # Same worker count the nightly fundamentals job settled on: 8 sustained
 # ~0.4 s/ticker against Yahoo with no throttling.

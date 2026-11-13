@@ -156,6 +156,7 @@ def daily_close(full: bool = False) -> dict:
         *config.SP500_TICKERS,
         config.SP500_INDEX_TICKER,
         config.RISK_FREE_TICKER,
+        config.LONG_RISK_FREE_TICKER,
     ]
     rows: list[dict] = []
     failed: list[str] = []
