@@ -385,6 +385,7 @@ def valuations() -> dict:
     upserted = db.upsert_rows(
         "valuations", rows, "ticker,method", errors, ignore_duplicates=False
     )
+    _archive_valuations(rows, prices.index.max().date().isoformat(), errors)
 
     valued = len({row["ticker"] for row in rows})
     # Recorded before the snapshot is written, not after: the snapshot bakes
@@ -409,6 +410,32 @@ def valuations() -> dict:
         "universe_snapshot": write_universe_snapshot(),
         "frontier_snapshot": frontier.precompute_default(),
     }
+
+
+def _archive_valuations(rows: list[dict], as_of: str, errors: list[str]) -> None:
+    """Append this run to `valuation_history`, keyed by the market date priced.
+
+    `valuations` only ever holds the latest verdicts, which is right for the
+    site and leaves nothing to backtest. This is the dated record that builds a
+    forward track record from here on.
+
+    The day's rows are replaced rather than upserted into, for the same reason
+    `valuations` is cleared: a rerun after a model stopped applying must not
+    leave that model's earlier verdict standing for the same date.
+    """
+    try:
+        db.client().table("valuation_history").delete().eq("as_of", as_of).execute()
+    except Exception as exc:  # noqa: BLE001 - report and continue
+        errors.append(f"clearing valuation_history for {as_of}: {exc}")
+        return
+
+    db.upsert_rows(
+        "valuation_history",
+        [{**row, "as_of": as_of} for row in rows],
+        "as_of,ticker,method",
+        errors,
+        ignore_duplicates=False,
+    )
 
 
 def write_universe_snapshot() -> dict:

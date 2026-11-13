@@ -52,3 +52,6 @@ next-env.d.ts
 .claude/
 
 docs/
+# Local Supabase: data copied from the cloud project (large, contains live data)
+supabase/seed.sql
+supabase/backups/

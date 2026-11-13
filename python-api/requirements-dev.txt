@@ -4,3 +4,8 @@
 # carry a few hundred MB of notebook tooling.
 jupyterlab>=4.2.0
 ipykernel>=6.29.0
+
+# Backtest (python-api/backtest): a direct Postgres connection for bulk loads,
+# and the leak tests.
+psycopg[binary]>=3.2
+pytest>=8

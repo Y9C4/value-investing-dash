@@ -92,7 +92,7 @@ The valuation bands (Deep value, Undervalued, Fair value, Overvalued, Expensive)
 
 ## Decisions worth explaining
 
-**Valuations are precomputed.** Calculating valuations for ~500 stocks on every request would make the screener slow to load for no reason, since prices, fundamentals and rates only change once a day. So they’re computed after each market close and stored per stock, model and date.
+**Valuations are precomputed.** Calculating valuations for ~500 stocks on every request would make the screener slow to load for no reason, since prices, fundamentals and rates only change once a day. So they’re computed after each market close and stored per stock and model, and every run is also archived by market date in `valuation_history`, which builds a forward track record.
 
 **The max Sharpe portfolio is found, not solved for.** Solving for max Sharpe directly has no solution whenever no allowed portfolio beats the risk-free rate, which happens a lot with value screens since they pick stocks with weak past returns. Instead the frontier is traced as a set of minimum variance solves and the tangency portfolio is found along it with a ternary search. If nothing beats cash, the best Sharpe is just negative instead of an error. See [`python-api/frontier.py`](python-api/frontier.py).
 

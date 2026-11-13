@@ -9,3 +9,7 @@ notebooks
 .env.example
 README.md
 requirements-dev.txt
+
+# Research code: needs psycopg and a local database, neither of which the
+# service has.
+backtest
