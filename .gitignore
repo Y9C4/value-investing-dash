@@ -41,7 +41,6 @@ yarn-error.log*
 python-api/.venv
 python-api/__pycache__
 python-api/**/__pycache__
-python-api/notebooks
 
 # typescript
 *.tsbuildinfo
