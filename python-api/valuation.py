@@ -1,5 +1,9 @@
 """The valuation models.
 
+No longer imported by the service. These forward models were ported to SQL
+(warehouse.forward_valuations); the notebook still imports fcff_verdict for
+the test-2 comparison against the dashboard's old forward DCF.
+
 Each model is a pure function over plain inputs, returning a verdict dict or
 None. Returning None is a first-class outcome and the reason the models are
 trustworthy: a bank has no meaningful free cash flow, a non-payer has no

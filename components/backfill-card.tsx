@@ -28,7 +28,6 @@ type BackfillResult = {
   errors: string[]
   /** Only the valuations endpoint reports these. */
   tickers_valued?: number
-  verdicts_per_ticker?: number
 }
 
 export function BackfillCard({
@@ -116,12 +115,6 @@ export function BackfillCard({
               <dt className="text-muted-foreground">Took</dt>
               <dd className="font-mono">{result.duration_seconds}s</dd>
             </div>
-            {result.verdicts_per_ticker !== undefined && (
-              <div className="flex gap-2">
-                <dt className="text-muted-foreground">Models per stock</dt>
-                <dd className="font-mono">{result.verdicts_per_ticker}</dd>
-              </div>
-            )}
             {result.tickers_failed.length > 0 && (
               <div className="flex gap-2">
                 <dt className="text-muted-foreground">Skipped</dt>

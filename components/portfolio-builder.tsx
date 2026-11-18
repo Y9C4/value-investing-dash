@@ -40,10 +40,10 @@ import {
   formatSharpeDelta,
 } from "@/lib/format"
 import {
-  activeVerdicts,
+  methodAlpha,
   portfolioConsensus,
   VALUATION_METHODS,
-  disagreementBand,
+  valuationBand,
   BAND_TEXT_CLASS,
   type MethodId,
   type Stock,
@@ -234,13 +234,13 @@ export function PortfolioBuilder({
    */
   const [selected, setSelected] = useState<SelectedPortfolio>(MAX_SHARPE)
   /**
-   * Which models the consensus is taken over. Empty means all of them, the
+   * Which models the implied excess return averages. Empty means all of them, the
    * same reading the screener's rail uses.
    *
    * Not part of `PortfolioSettings`: those are solver inputs and changing one
    * makes the curve on screen stale, which is what the "settings changed"
    * warning is about. This changes nothing the solver did — it re-reads the
-   * verdicts already in the payload — so it must not mark anything dirty.
+   * implied returns already in the payload — so it must not mark anything dirty.
    */
   const [methods, setMethods] = useState<MethodId[]>([])
 
@@ -436,14 +436,14 @@ export function PortfolioBuilder({
   )
 
   // A weighted sum over at most a few hundred holdings — microseconds, and no
-  // network call: every model's verdict is already in the payload above. The
+  // network call: every model's implied return is already in the payload. The
   // memo keeps it off the render path when only the rail moved.
   const consensus = useMemo(
     () => portfolioConsensus(active.weights, stocksByTicker, methods),
     [active.weights, stocksByTicker, methods]
   )
 
-  // How many of *these* holdings each model could value — the screener counts
+  // How many of *these* holdings each model could solve for — the screener counts
   // the same thing over the whole index, but the question here is what the
   // portfolio on screen rests on.
   const methodCoverage = useMemo(() => {
@@ -454,8 +454,8 @@ export function PortfolioBuilder({
     for (const ticker of Object.keys(active.weights)) {
       const stock = stocksByTicker.get(ticker)
       if (!stock) continue
-      for (const verdict of activeVerdicts(stock)) {
-        counts[verdict.method] += 1
+      for (const method of VALUATION_METHODS) {
+        if (methodAlpha(stock, method.id) !== null) counts[method.id] += 1
       }
     }
     return counts
@@ -733,19 +733,23 @@ export function PortfolioBuilder({
             />
             {/* The one figure here that is not a property of the solve. The
               optimiser reads risk and return off past prices and knows nothing
-              about what a company is worth; this is what the valuation models
+              about what a company is worth; this is what the reverse-DCF models
               say about the book it picked, weighted by position size. */}
             <Stat
-              className={BAND_TEXT_CLASS[disagreementBand(consensus.marginOfSafety)]}
-              label="Consensus margin"
+              className={
+                consensus.ratedHoldings > 0
+                  ? BAND_TEXT_CLASS[valuationBand(consensus.impliedAlpha)]
+                  : undefined
+              }
+              label="Price implies"
               value={
-                consensus.totalHoldings > 0
-                  ? formatMargin(consensus.marginOfSafety)
+                consensus.ratedHoldings > 0
+                  ? `${formatMargin(consensus.impliedAlpha)}/yr`
                   : "—"
               }
               hint={
-                consensus.totalHoldings > 0
-                  ? `${formatAxisPercent(consensus.coverage)} coverage with selected models`
+                consensus.ratedHoldings > 0
+                  ? `over required return · ${formatAxisPercent(consensus.coverage)} of weight covered`
                   : undefined
               }
             />

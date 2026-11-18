@@ -1,5 +1,9 @@
 """Runs every valuation model across the whole universe.
 
+No longer imported. The forward models now run in SQL as
+warehouse.forward_valuations (TTM, dividend stats, sector multiples and
+discount rates included); see backtests.md §17 for what changed in the port.
+
 The shape of this module is dictated by one measurement: the models take
 ~0.08s for all 500 stocks, while reading the data they need takes ~35s. So
 everything is bulk-loaded once into in-memory frames and the per-ticker loop

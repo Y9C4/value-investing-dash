@@ -54,3 +54,6 @@ docs/
 # Local Supabase: data copied from the cloud project (large, contains live data)
 supabase/seed.sql
 supabase/backups/
+
+# Backtest notebook export (derived from the local database, re-made by the notebook's last cell)
+python-api/backtest/output/

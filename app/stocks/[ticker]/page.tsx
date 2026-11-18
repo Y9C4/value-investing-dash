@@ -37,16 +37,15 @@ export default async function StockPage({
       </div>
 
       {/* The screener says which data it is showing; this page renders the same
-          fallback and has to say so too. Fair values from the sample are
-          invented, and a page of invented valuations is indistinguishable from
-          a live one unless it is labelled. */}
+          fallback and has to say so too. A dated snapshot is
+          indistinguishable from a live one unless it is labelled. */}
       {isBaseline && (
         <p
           role="status"
           className="border-b border-border bg-card px-6 py-3 text-xs text-muted-foreground lg:px-10"
         >
-          Illustrative sample — market data service unreachable. The fair values
-          below are invented, not market data.
+          Illustrative sample — the database is unreachable. These figures are
+          a fixed snapshot, not current market data.
         </p>
       )}
 

@@ -1,5 +1,8 @@
 """Assembling the scored universe the screener reads.
 
+No longer imported. The screener payload it assembled is now the
+public.screener view over warehouse.stock_snapshot, read by the site directly.
+
 Everything here comes out of the precomputed `valuations` table, so this stays
 fast enough to serve on a page load: ~500 stocks with every model's verdict
 attached.

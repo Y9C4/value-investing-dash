@@ -254,7 +254,7 @@ export function PortfolioControls({
   universeSize: number
   /** These settings have not been solved yet. */
   dirty: boolean
-  /** Models the consensus is taken over. Empty means all of them. */
+  /** Models the implied excess return averages. Empty means all of them. */
   methods: MethodId[]
   onMethodsChange: (next: MethodId[]) => void
   /** How many of the held names each model could value. */
@@ -377,10 +377,11 @@ export function PortfolioControls({
           this changes what the models say about the one on screen, and lands
           immediately — which is why it says so, and why it sits at the bottom
           rather than among the dials that do need the button. */}
-      <ControlGroup label="Consensus models">
+      <ControlGroup label="Valuation models">
         <span className="text-xs leading-snug text-muted-foreground">
-          Which models the consensus margin is averaged over: what each says
-          the portfolio&apos;s holdings are worth, against what they cost.
+          Which reverse-DCF models the &ldquo;Price implies&rdquo; reading
+          averages: the return each says the holdings&apos; prices imply,
+          against the return their risk requires.
         </span>
         <div className="flex flex-col gap-1.5">
           {VALUATION_METHODS.map((method) => (

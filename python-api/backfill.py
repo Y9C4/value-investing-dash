@@ -1,5 +1,10 @@
 """The backfill jobs, in the order they depend on each other.
 
+No longer imported. Superseded by pipeline.py (stage order and job_runs) and
+ingest.py (extract and load into `raw`); every derived number is now computed by
+warehouse.refresh() in SQL. Kept for reference: it reads tables that migration
+20261117000002 dropped.
+
 Every stage is incremental — it asks what it already has and fetches only the
 gap — and every write is an upsert, so re-running is safe and cheap. Valuations
 read the three tables above them, so they always run last.

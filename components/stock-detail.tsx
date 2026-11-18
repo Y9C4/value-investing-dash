@@ -1,13 +1,13 @@
 "use client"
 
 import { DiscountRatePanel } from "@/components/discount-rate-panel"
-import { ModelDisagreement } from "@/components/model-disagreement"
+import { ImpliedReturnPanel } from "@/components/implied-return-panel"
+import { SignalPanel } from "@/components/signal-panel"
 import {
   KeyStatisticsCard,
   PriceChartCard,
   useTickerReturns,
 } from "@/components/ticker-history"
-import { ValuationBreakdown } from "@/components/valuation-breakdown"
 import type { Stock } from "@/lib/valuation"
 
 /**
@@ -19,7 +19,7 @@ import type { Stock } from "@/lib/valuation"
  * used to end at wildly different heights — the left ran out after two cards
  * and left a quarter of the page empty on a wide screen. Grouping the measured
  * quantities (price, beta, the rates derived from them) against the estimated
- * ones (fair values, the spread between them) is also the more honest split.
+ * ones (the signal, what the price implies) is also the more honest split.
  */
 export function StockDetail({
   stock,
@@ -54,9 +54,7 @@ export function StockDetail({
           <div className="h-[21rem] animate-pulse border border-border bg-card" />
         )}
 
-        {/* The verdicts ride along so the chart can draw each fair value on
-            the same axis as the price it is a claim about. */}
-        {data && <PriceChartCard data={data} stock={stock} />}
+        {data && <PriceChartCard data={data} />}
 
         <KeyStatisticsCard
           beta={stock.beta}
@@ -72,10 +70,11 @@ export function StockDetail({
       </div>
 
       <div className="flex min-w-0 flex-col gap-4">
-        <ValuationBreakdown stock={stock} />
-        {/* Directly under the table it reads: the table states each number and
-            this states what the set of them amounts to. */}
-        <ModelDisagreement stock={stock} />
+        {/* The signal leads the estimated side of the page, as it leads the
+            screener; what the price implies is its value component broken
+            down by model. */}
+        <SignalPanel stock={stock} />
+        <ImpliedReturnPanel stock={stock} />
       </div>
     </div>
   )

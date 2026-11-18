@@ -6,10 +6,10 @@ seconds over whatever the feeder tables happen to hold, so a fresh
 `computed_at` on the universe snapshot is compatible with prices a fortnight
 old — precisely the state a freshness indicator exists to reveal.
 
-Only the ingest stages are recorded. The default-frontier precompute at the
-tail of a valuations run is a derived solve over data these rows already
-cover, so recording it would put the newest timestamp in the table on the one
-job that fetched nothing.
+The three ingest stages and the warehouse refresh are recorded. The site
+treats the newest ingest as "when data was gathered" and leaves the refresh
+out of that, since it fetches nothing. The default-frontier precompute at the
+end of a refresh is not recorded at all.
 """
 
 from __future__ import annotations
@@ -18,12 +18,13 @@ from datetime import datetime, timedelta, timezone
 
 import db
 
-# The stages, matching the check constraint in migration 20260904010000.
-PRICES = "daily_close_prices"
+# The pipeline's stages, matching the check constraint in migration
+# 20261117000002. The refresh is recorded even though it fetches nothing: it is
+# what turns the fetched rows into the numbers the site shows.
+PRICES = "prices"
 FACTORS = "factor_returns"
-FUNDAMENTALS = "quarterly_fundamentals"
-PROFILE = "company_profile"
-VALUATIONS = "valuations"
+FUNDAMENTALS = "fundamentals"
+REFRESH = "refresh"
 
 # Anything longer than this in `errors` is a stack trace's worth of noise in a
 # column meant to be read at a glance.

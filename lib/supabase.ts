@@ -1,5 +1,5 @@
 /**
- * Server-side reads of the Supabase snapshot tables.
+ * Server-side reads of the warehouse's serving layer.
  *
  * Plain PostgREST over `fetch` rather than `@supabase/supabase-js`, for one
  * reason: Next's persistent cache and `revalidateTag` are properties of
@@ -8,11 +8,11 @@
  * Python service.
  *
  * The key here is the publishable (anon) key, which is safe to hold but is not
- * what makes this safe — row-level security is. Migration
- * `20260904000000_deploy_readiness` grants `anon` SELECT on the two snapshot
- * tables and nothing else, so this credential can render the site and cannot
- * reach a price, a statement or a verdict row directly. The service role key
- * never leaves the Python service.
+ * what makes this safe — the grants are. Migration
+ * `20261117000002_public_serving_layer` lets `anon` read three views
+ * (`screener`, `market_summary`, `stock_prices`) plus `job_runs` and
+ * `frontier_snapshot`, and nothing in `raw` or `warehouse` directly. The
+ * service role key never leaves the Python service.
  */
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL

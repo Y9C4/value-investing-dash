@@ -8,12 +8,12 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from threading import Lock
 
+import numpy as np
 import pandas as pd
 from fastapi import HTTPException
 
 import config
 import db
-import engine
 
 # How much history to hold. Every return calculation asks for 252 trading days
 # and `period="1y"` yields only ~250 rows; two years leaves headroom for the
@@ -38,8 +38,10 @@ _risk_free_lock = Lock()
 
 
 def average_risk_free_rate() -> float:
-    """The stored annualised 13-week treasury rate, cached.
+    """The annualised 13-week treasury rate (252-day average), cached.
 
+    The optimiser's cash rate, for its Sharpe ratios. The valuation models
+    discount at the 10-year yield instead; both come off `market_summary`.
     Every frontier solve needs this one number and it was re-read each time,
     putting an extra round trip on the busiest endpoint in the app.
     """
@@ -53,23 +55,24 @@ def average_risk_free_rate() -> float:
             return _risk_free_rate
 
     rows = db.read(
-        lambda client: client.table("average_risk_free_rate")
-        .select("annual_risk_free_rate")
-        .execute()
+        lambda client: client.table("market_summary").select("short_rate").execute()
     ).data
 
-    if not rows or rows[0]["annual_risk_free_rate"] is None:
+    if not rows or rows[0]["short_rate"] is None:
         raise HTTPException(status_code=404, detail="No risk-free rate data")
 
     with _risk_free_lock:
-        _risk_free_rate = rows[0]["annual_risk_free_rate"]
+        _risk_free_rate = float(rows[0]["short_rate"])
         _risk_free_stamp = time.time()
 
     return _risk_free_rate
 
 
 def expected_market_return() -> float | None:
-    """The index's annualised log return over the same 252-day window.
+    """No longer called: the warehouse computes this as market_summary.market_return,
+    and the view it reads (daily_log_returns) was dropped by migration 20261117000002.
+
+    The index's annualised log return over the same 252-day window.
 
     A universe-level scalar, like the risk-free rate beside it: every stock page
     reads the same figure, so it is computed once here rather than derived from
@@ -107,21 +110,22 @@ def returns_df(ticker: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     no prior close to diff against.
     """
     symbol = ticker.upper()
-
-    res = db.read(
-        lambda client: client.table("daily_excess_returns")
-        .select("date, close, stock_log_return, market_log_return, excess_log_return")
-        .eq("ticker", symbol)
-        .order("date")
-        .execute()
-    )
-
-    if not res.data:
+    closes = prices_df([symbol, config.SP500_INDEX_TICKER])
+    if symbol not in closes.columns or config.SP500_INDEX_TICKER not in closes.columns:
         raise HTTPException(status_code=404, detail=f"No return data for '{symbol}'")
 
-    frame = pd.DataFrame(res.data)
-    frame["date"] = pd.to_datetime(frame["date"])
-    frame = frame.set_index("date").dropna()
+    closes = closes[[symbol, config.SP500_INDEX_TICKER]].dropna()
+    logs = np.log(closes / closes.shift(1))
+    frame = pd.DataFrame(
+        {
+            "close": closes[symbol],
+            "stock_log_return": logs[symbol],
+            "market_log_return": logs[config.SP500_INDEX_TICKER],
+        }
+    )
+    frame["excess_log_return"] = frame["stock_log_return"] - frame["market_log_return"]
+    frame.index.name = "date"
+    frame = frame.dropna()
 
     returns = frame[["stock_log_return", "market_log_return"]]
     centered = returns - returns.mean()
@@ -130,14 +134,18 @@ def returns_df(ticker: str) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def clear_price_cache() -> None:
-    """Called after a price backfill, so the frontier cannot serve stale closes."""
+    """Called after a warehouse refresh, so the frontier cannot serve stale
+    closes or a stale cash rate (both change with the same ingest)."""
+    global _risk_free_rate
     with _price_cache_lock:
         _price_column_cache.clear()
+    with _risk_free_lock:
+        _risk_free_rate = None
 
 
 def _fetch_price_page(chunk: list[str], start: int) -> list[dict]:
     return db.read(
-        lambda client: client.table("daily_close_prices")
+        lambda client: client.table("stock_prices")
         .select("date, ticker, close")
         .in_("ticker", chunk)
         .order("date")
@@ -183,7 +191,7 @@ def prices_df(tickers: list[str]) -> pd.DataFrame:
         # Build the client's lazy internals on this thread first. Letting six
         # workers race that construction produced rare errors from inside the
         # library on the first wide read after the cache emptied.
-        db.client().table("daily_close_prices")
+        db.client().table("stock_prices")
 
         chunks = list(db.chunk(missing, config.FETCH_CHUNK_SIZE))
         with ThreadPoolExecutor(max_workers=PRICE_FETCH_MAX_WORKERS) as executor:
@@ -218,20 +226,23 @@ def prices_df(tickers: list[str]) -> pd.DataFrame:
     if not columns:
         raise HTTPException(
             status_code=404,
-            detail="No close price data. Run /backfill/sp500-daily-close first.",
+            detail="No close price data. Run /backfill/prices first.",
         )
 
     return pd.DataFrame(columns).sort_index()
 
 
 def recent_prices_df() -> pd.DataFrame:
-    """Closes inside the valuation window, pivoted wide.
+    """No longer called: it fed the Python valuations run (backfill.valuations),
+    which warehouse.refresh() replaced, and it reads a dropped table.
+
+    Closes inside the valuation window, pivoted wide.
 
     Bounded rather than reading the whole table: the models only look at 252
     trading days, so an unbounded read would grow the egress bill as history
     accumulates, for rows that get discarded.
     """
-    cutoff = (date.today() - timedelta(days=engine.PRICE_WINDOW_DAYS)).isoformat()
+    cutoff = (date.today() - timedelta(days=400)).isoformat()
 
     rows: list[dict] = []
     start = 0

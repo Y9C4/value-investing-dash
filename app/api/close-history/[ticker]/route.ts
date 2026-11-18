@@ -27,7 +27,7 @@ type Candle = { date: string; close: number }
  *
  * The response carries closes and nothing else. Everything else the panel used
  * to take from `/returns` — beta, the realised return, the risk-free rate — is
- * already precomputed and already on the page: `ticker_statistics` feeds
+ * already precomputed and already on the page: `public.screener` feeds
  * `Stock.beta` and `Stock.realisedReturn` through the universe snapshot, and
  * the two scalars ride on the snapshot's own payload. Fetching them a second
  * time here would have been the same numbers by a longer road, and the two
@@ -61,7 +61,7 @@ export async function GET(
  */
 async function readStoredCloses(symbol: string): Promise<Candle[] | null> {
   const rows = await selectRows<{ date: string; close: number | string }>(
-    "daily_close_prices",
+    "stock_prices",
     `select=date,close&ticker=eq.${encodeURIComponent(symbol)}` +
       `&order=date.desc&limit=${LOOKBACK_DAYS}`,
     { revalidate: REVALIDATE_SECONDS }

@@ -7,26 +7,16 @@ import {
 import type { DiscountRates } from "@/lib/valuation"
 
 /**
- * The rates every valuation on this page was discounted at.
+ * The required returns each implied return on this page is measured against.
  *
- * CAPM and WACC sit here rather than in the model table because they produce
- * a rate, not a value per share. Listing CAPM beside FCFE left a permanently
- * empty row on every stock page.
- *
- * The numbers come from `ticker_statistics`, written by the pass that produced
- * the verdicts, so the panel cannot drift from the rate the models used.
- * Computing a WACC here for display would reintroduce that bug.
+ * The numbers come from `warehouse.discount_rates`, which reads the same
+ * `warehouse.inputs` row the signal solves from, so the panel cannot drift
+ * from the rates the comparison used.
  */
 
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined) return "—"
   return `${(value * 100).toFixed(2)}%`
-}
-
-const SOURCE_LABEL: Record<string, string> = {
-  ff5: "Fama-French 5-factor",
-  ff3: "Fama-French 3-factor",
-  capm: "CAPM",
 }
 
 function Figure({
@@ -63,66 +53,52 @@ function Figure({
 }
 
 export function DiscountRatePanel({ rates }: { rates: DiscountRates }) {
-  const source = rates.costOfEquitySource
-  const sourceLabel = source ? SOURCE_LABEL[source] : null
-
   return (
     <Panel>
       <PanelHeader>
-        <PanelTitle>Discount rates</PanelTitle>
+        <PanelTitle>Required returns</PanelTitle>
       </PanelHeader>
       <PanelBody className="flex flex-col gap-3">
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
           <Figure
             label="Cost of equity"
             value={formatPercent(rates.costOfEquity)}
-            note={
-              sourceLabel
-                ? `derrived from ${sourceLabel} regression. discounts FCFE, DDM and RIM`
-                : "discounts FCFE, DDM and RIM"
-            }
+            formula="rf + β × market premium"
+            note="CAPM. what RIM and shareholder yield must beat"
           />
           <Figure
             label="WACC"
             value={formatPercent(rates.wacc)}
-            formula="ke(E/V) + (kd(D/V))(1-t)"
-            note="blends cost of equity and cost of debt. discounts FCFF"
-          />
-          <Figure
-            label="CAPM cost of equity"
-            value={formatPercent(rates.capmCostOfEquity)}
-            formula="rf + β(E[rm] - rf)"
-            note={
-              source && source !== "capm"
-                ? "required return on asset value, unused"
-                : "required return on asset value (WACC)"
-            }
-          />
-          <Figure
-            label="Cost of debt"
-            value={formatPercent(rates.costOfDebt)}
-            note="As reported in latest income statement"
-          />
-          <Figure
-            label="Equity weight (E/V)"
-            value={formatPercent(rates.equityWeight)}
-            note={
-              rates.equityWeight !== null && rates.equityWeight <= 0.4
-                ? "at the 60% debt-weight cap"
-                : "% of stock value derrived from equity"
-            }
+            formula="ke(E/V) + kd(D/V)(1 − t)"
+            note="what FCFF and revenue must beat"
           />
           <Figure
             label="Risk-free rate"
             value={formatPercent(rates.riskFree)}
-            note="13-week T-bill (^IRX), 252-day average"
+            note="10-year Treasury (^TNX), spot"
+          />
+          <Figure
+            label="Cost of debt"
+            value={formatPercent(rates.costOfDebt)}
+            note="interest over debt ex leases, clamped to 2-15%"
+          />
+          <Figure
+            label="Equity weight (E/V)"
+            value={formatPercent(rates.equityWeight)}
+            note="market cap over market cap plus debt"
+          />
+          <Figure
+            label="Tax rate"
+            value={formatPercent(rates.taxRate)}
+            note="from the latest annual statement"
           />
         </dl>
 
         <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-          Cost of equity is derived from the{" "}
-          {sourceLabel ?? "factor"} regression; WACC uses cost of debt read off
-          the latest statements.
+          Beta is the 252-day CAPM regression on Fama-French market excess
+          returns, and the premium is the long-run average of that series. CAPM
+          replaced the Fama-French regression after the backtest found it the
+          better required return.
         </p>
       </PanelBody>
     </Panel>

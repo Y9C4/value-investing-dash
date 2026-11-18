@@ -23,22 +23,30 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
-import { MarginBar, formatSignedPercent } from "@/components/valuation-scale"
+import { ImpliedReturnBar, formatSignedPercent } from "@/components/valuation-scale"
+import { SignalBar } from "@/components/signal-scale"
 import { formatMarketCap, formatSharePrice } from "@/lib/format"
 import { useScrollPane } from "@/lib/use-scroll-pane"
 import {
   BAND_LABELS,
   BAND_TEXT_CLASS,
-  consensusMarginOfSafety,
-  isRated,
+  impliedAlpha,
   valuationBand,
   type Stock,
   type MethodId,
 } from "@/lib/valuation"
+import {
+  SIGNAL_BAND_LABELS,
+  formatScore,
+  signalBand,
+  signalScore,
+  type SignalId,
+} from "@/lib/signals"
 import { cn } from "@/lib/utils"
 
 export type SortKey =
-  | "margin"
+  | "signal"
+  | "implied"
   | "ticker"
   | "price"
   | "marketCap"
@@ -56,23 +64,37 @@ const COLUMNS: {
   help?: { title: string; body: string; points?: string[] }
 }[] = [
     { key: "ticker", label: "Stock", align: "left", numeric: false },
+    // First after the name and the default sort: the backtest ranks the blend
+    // above value alone (backtests.md §13).
     {
-      key: "margin",
-      label: "Consensus Margin",
-      align: "right",
+      key: "signal",
+      label: "Signal",
+      align: "left",
       numeric: false,
       help: {
-        title: "Consensus Margin",
-        body: "The discount between what a company is worth and what it currently costs. (fair value - price) ÷ price, where fair value is the weighted consensus of the toggled valuation models.",
+        title: "Signal score",
+        body: "The mean percentile, 0-100, of the signal components switched on in the filters: where the stock ranks against today's universe. A rank, not a forecast return.",
         points: [
-          "+20% means the models put the company's fair value 20% more than its current market value.",
-          "-20% means the models put the company's fair value 20% more than its current market value.",
+          "100 means top of the universe on every selected component.",
+          "Blank means at least one selected component could not be measured for this stock.",
         ],
       },
     },
-    // Between the margin and the market cap on purpose: the margin is a
-    // percentage off this number, so the two read together, and market cap is
-    // the same quantity multiplied by a share count.
+    {
+      key: "implied",
+      label: "Price implies",
+      align: "right",
+      numeric: false,
+      help: {
+        title: "Implied excess return",
+        body: "The annual return today's price implies, minus the return the stock's risk requires (WACC or CAPM cost of equity), averaged over the toggled reverse-DCF models.",
+        points: [
+          "+2% means the price implies 2 points a year more than the stock needs to earn: cheap.",
+          "−2% means it implies 2 points less: the price already assumes more than the risk pays for.",
+          "The backtest found the rank of this number useful and its size not, so read it as a ranking rather than a forecast.",
+        ],
+      },
+    },
     { key: "price", label: "Price", align: "right", numeric: true },
     { key: "marketCap", label: "Mkt cap", align: "right", numeric: true },
     {
@@ -169,6 +191,7 @@ function ColumnHelp({
 export function ScreenerTable({
   stocks,
   methods = [],
+  signals,
   sort,
   direction,
   onSort,
@@ -179,6 +202,8 @@ export function ScreenerTable({
   stocks: Stock[]
   /** The models currently switched on; empty means all of them. */
   methods?: MethodId[]
+  /** The signal components the score averages. */
+  signals: SignalId[]
   sort: SortKey
   direction: "asc" | "desc"
   onSort: (key: SortKey) => void
@@ -242,7 +267,8 @@ export function ScreenerTable({
                   key={column.key}
                   className={cn(
                     column.align === "right" && "text-right",
-                    column.key === "margin" && "w-[19rem]"
+                    column.key === "implied" && "w-[19rem]",
+                    column.key === "signal" && "w-[12rem]"
                   )}
                   aria-sort={
                     active
@@ -282,10 +308,10 @@ export function ScreenerTable({
         </TableHeader>
         <TableBody>
           {stocks.map((stock) => {
-            const rated = isRated(stock, methods)
-            const margin = consensusMarginOfSafety(stock, methods)
-            const band = rated ? valuationBand(margin) : "unrated"
+            const alpha = impliedAlpha(stock, methods)
+            const band = valuationBand(alpha)
             const isSelected = selected.includes(stock.ticker)
+            const score = signalScore(stock, signals)
 
             return (
               <TableRow
@@ -324,24 +350,36 @@ export function ScreenerTable({
                 </TableCell>
 
                 <TableCell>
-                  <div className="flex items-center gap-3 text">
+                  <div className="flex items-center gap-3">
+                    <SignalBar score={score} className="w-20 shrink-0" />
+                    <span className="w-7 shrink-0 text-right font-mono text-sm">
+                      {formatScore(score)}
+                    </span>
+                    <span className="hidden text-xs whitespace-nowrap text-muted-foreground 2xl:inline">
+                      {score === null ? "" : SIGNAL_BAND_LABELS[signalBand(score)]}
+                    </span>
+                  </div>
+                </TableCell>
 
-                    {/* An unrated row has no consensus to draw. Blank beats a
-                        bar sitting at zero, which reads as "fairly priced". */}
-                    {rated ? (
-                      <MarginBar margin={margin} className="w-32 shrink-0" />
+                <TableCell>
+                  <div className="flex items-center gap-3">
+
+                    {/* An unrated row has nothing to draw. Blank beats a bar
+                        sitting at zero, which reads as "fairly priced". */}
+                    {alpha !== null ? (
+                      <ImpliedReturnBar alpha={alpha} className="w-32 shrink-0" />
                     ) : (
                       <span className="w-32 shrink-0" />
                     )}
 
                     <span
-                      className={`w-16 shrink-0 text-right font-mono text-sm ${BAND_TEXT_CLASS[valuationBand(margin)]}`}
+                      className={`w-16 shrink-0 text-right font-mono text-sm ${BAND_TEXT_CLASS[band]}`}
                     >
-                      {rated ? formatSignedPercent(margin) : "-"}
+                      {alpha !== null ? formatSignedPercent(alpha) : "-"}
                     </span>
 
                     <span
-                      className={`hidden text-xs whitespace-nowrap 2xl:inline ${BAND_TEXT_CLASS[valuationBand(margin)]}`}
+                      className={`hidden text-xs whitespace-nowrap 2xl:inline ${BAND_TEXT_CLASS[band]}`}
                     >
                       {BAND_LABELS[band]}
                     </span>

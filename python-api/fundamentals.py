@@ -1,5 +1,9 @@
 """Quarterly fundamentals, company profile and dividends, from yfinance.
 
+No longer imported. The statement pivot it did in Python is now
+warehouse.fundamentals_quarterly / fundamentals_ttm in SQL, over the long
+line items ingest.py loads into raw.statement_items.
+
 Two hazards drive the design:
 
 - **Row names vary by ticker.** `Interest Expense` is missing for companies

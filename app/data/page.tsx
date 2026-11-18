@@ -4,17 +4,16 @@ import { connection } from "next/server"
 import { BackfillCard } from "@/components/backfill-card"
 import { RefreshAllCard } from "@/components/refresh-all-card"
 import { isDataPageEnabled } from "@/lib/market-data-service"
-import { VALUATION_METHODS } from "@/lib/valuation"
 
 export const metadata = {
   title: "Data",
 }
 
 /**
- * The stages run top to bottom: valuations read the three tables above them,
- * so a full cold start works down the page. Each stage is incremental — it
- * asks what it already has and fetches only the gap — so a daily run costs a
- * fraction of a cold one, and a run after a five-day gap catches up on its own.
+ * The stages run top to bottom: the three loads fill the `raw` schema and the
+ * refresh rebuilds every derived number from it in SQL, so a full cold start
+ * works down the page. Prices are incremental per ticker, so a daily run costs
+ * a fraction of a cold one and a run after a five-day gap catches up on its own.
  *
  * Local-only. There are no accounts, so on a public deployment these buttons
  * would let any visitor start a ten-minute ingest; `ENABLE_DATA_PAGE` gates
@@ -33,39 +32,39 @@ export default async function DataPage() {
   return (
     <>
       <p className="border-b border-border bg-card px-6 py-4 text-sm leading-relaxed text-muted-foreground lg:px-10">
-        Everything downstream — the screener, the valuations, the frontier —
-        reads from these tables. Each stage only fetches what it is missing, so
-        a daily refresh is cheap and a cold start is the expensive one.
+        Extract and load into the raw schema, then transform in the warehouse.
+        The screener, the valuations, the signal and the frontier are all
+        rebuilt from these rows by the refresh at the end.
       </p>
       <div className="grid gap-6 px-6 py-8 lg:grid-cols-2 lg:px-10">
         <RefreshAllCard />
         <BackfillCard
-          title="Daily close prices"
-          description="Closes for the S&P 500 plus the index and the 13-week T-bill. Fetches only the span since the newest stored date; a cold table pulls two years so a full 252-trading-day window is always available."
-          endpoint="/api/backfill/sp500"
-          buttonLabel="Backfill prices"
+          title="Prices"
+          description="Daily bars (split-adjusted and dividend-adjusted closes), dividends and splits for the S&P 500, the index, the 10-year yield and the 13-week T-bill. Each ticker fetches from its own newest stored date; a ticker with a new dividend or split is re-pulled in full, because Yahoo restates its whole adjusted history."
+          endpoint="/api/backfill/prices"
+          buttonLabel="Load prices"
           estimate="~25s incremental"
         />
         <BackfillCard
           title="Factor returns"
-          description="Fama-French daily factors from the Ken French library — market, size, value, profitability, investment and momentum. Feeds FF3, FF5 and the cost of equity every cash-flow model discounts at."
+          description="Fama-French daily factors from the Ken French library — market, size, value, profitability, investment and momentum. Feed the CAPM betas, the market premium and the factor-adjusted backtest target."
           endpoint="/api/backfill/factor-returns"
-          buttonLabel="Backfill factors"
+          buttonLabel="Load factors"
           estimate="~20s"
         />
         <BackfillCard
-          title="Quarterly fundamentals"
-          description="Income statement, balance sheet, cash flow, company profile and dividend history. Stored at quarterly grain and rolled to trailing-twelve-month in SQL, never expanded into daily rows."
-          endpoint="/api/backfill/quarterly-fundamentals"
-          buttonLabel="Backfill fundamentals"
+          title="Fundamentals"
+          description="Annual and quarterly statements as long line items, share-count history, earnings dates with the analyst estimate, and company profiles. Upserted, never deleted, so history accumulates past the four years Yahoo returns."
+          endpoint="/api/backfill/fundamentals"
+          buttonLabel="Load fundamentals"
           estimate="~8 min"
         />
         <BackfillCard
-          title="Valuations"
-          description={`Runs all ${VALUATION_METHODS.length} models over every stock and replaces the valuations table. The models themselves take under a second; the time is the bulk read that feeds them. Run this after any of the three above.`}
-          endpoint="/api/backfill/valuations"
-          buttonLabel="Recompute valuations"
-          estimate="~70s"
+          title="Warehouse refresh"
+          description="Rebuilds every derived number in SQL — statements, betas, the reverse-DCF implied returns, the signal — archives the day, then re-solves the default frontier. Run this after any of the three above."
+          endpoint="/api/backfill/refresh"
+          buttonLabel="Refresh warehouse"
+          estimate="~60s"
         />
       </div>
     </>

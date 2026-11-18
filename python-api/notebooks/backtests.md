@@ -1,6 +1,8 @@
 # Proposal: Backtesting Valuation Signals with Reverse DCF
 
-**Status:** draft plan · **Last revised:** 2026-11-14
+**Status:** development tests done, holdout not yet run · live warehouse phase 1 in progress (§17) · **Last revised:** 2026-11-17
+
+§1–§12 are the original plan. §13–§17 record what development found and what comes next: the signals added to the product, further models graded by feasibility, how each is tested, how the signal is shown on the screener, and the live data warehouse that computes it.
 
 ---
 
@@ -185,7 +187,7 @@ Report negative results as they come out (for example, "the reverse revenue mode
 | Sector breakdown for every variant | Cut | One sector table for the final signal only |
 | 2015–2026 optimiser backtest with historical-mean returns | Optional | The real comparison is now historical mean vs expected alpha, and that only exists inside the signal window |
 | Long-short portfolios, transaction-cost grid, L2 grid | Deferred | Not needed to answer the core question |
-| Learned or forest-based model weights | Phase 2 | Only if a characteristics-bucket analysis (model IC by sector, P/E, momentum, leverage, capex intensity) shows a pattern that holds across dates. Needs a characteristics-only control to rule out hidden momentum or sector bets |
+| Learned or forest-based model weights | Phase 2, see §14 | A first regression tree failed out of sample (§13). Forests, linear combinations and regime models are graded in §14 and tested under §15 |
 | Deflated Sharpe ratio | Conditional | Only if many portfolio configurations end up being compared |
 
 ---
@@ -257,3 +259,165 @@ All portfolios are long-only, drawn from the top fifth by expected alpha, and us
 2. What happens to a model that fails test 2: hidden from the dashboard, or kept visible with zero weight in the consensus?
 3. Should the dashboard switch to expected alpha as the screening metric once the holdout passes?
 4. Is WRDS/Compustat available through the university? Longer point-in-time fundamentals would extend the window to many years.
+
+---
+
+## 13. What development found, and what the product adds
+
+Development dates only (Mar 2023 – Jan 2025, 23 months), target = 1-month factor-adjusted return, CAPM benchmark. Run of 2026-11-17.
+
+| Signal | Mean IC | IC t-stat | IC > 0 | Q5 − Q1 / month | FF5 alpha / yr (t) | Coverage, dev | Coverage, Oct 2026 |
+|---|---|---|---|---|---|---|---|
+| **Value + momentum** (mean percentile of combined alpha and momentum) | **0.056** | 1.91 | 70% | 0.8% | +1.0% (0.08) | 97.7% | 86.5% |
+| Combined alpha (value) | 0.036 | 1.17 | 61% | 0.4% | −5.3% (−0.86) | 97.9% | 86.5% |
+| **Momentum + surprise** (mean percentile of momentum and earnings surprise) | 0.035 | 1.45 | 70% | **0.8%** (t 1.58) | **+3.0%** (0.33) | 98.5% | 96.0% |
+| Momentum 12-1 | 0.029 | 1.17 | 65% | 0.5% | −0.6% (−0.05) | 99.8% | 99.4% |
+| Earnings surprise (SUE against the analyst forecast, scaled by price) | 0.025 | 1.49 | 65% | 0.3% | −5.2% (−0.90) | 98.9% | 96.4% |
+
+Coverage is the share of stock-months with a value; about 466–476 stocks per date in development. Value's lower coverage in Oct 2026 is the holdout rows' missing CAPM betas where the Fama-French library ends (Sep 2026), not missing statements.
+
+- The two blends are the strongest results in the study and neither is significant on 23 months. Momentum + surprise has the best spread and the only positive factor-adjusted alpha; value + momentum has the best ranking.
+- **Regression tree** (`backtest/ml/tree.py`, 33 percentile-ranked predictors, 200-round date-block bootstrap): negative out-of-bag R² at every depth (−1% to −6%) and an out-of-bag IC of about zero. It loses to both blends on most rounds. The fitted tree splits mostly on statement staleness, which is the earnings calendar, not value.
+
+**Decision.** The product shows three signal components (value, momentum, earnings surprise) and their blends, as percentiles (§16). The forward-DCF consensus stays on the site as context. The holdout has not been run, so everything the screener says about these signals is development-period evidence, and the page says so.
+
+---
+
+## 14. Further models, graded by feasibility
+
+Graded on four things: whether the data is already loaded, how many parameters the model has to fit on 23 development months, whether it can be computed live in SQL (§17), and whether a screener reader can be told what it means in one line.
+
+| Grade | Meaning |
+|---|---|
+| **A** | Data in hand, nothing or one parameter to fit, live in SQL. Do next |
+| **B** | Feasible, but fits enough parameters that 23 months is thin, or needs a Python step in the live pipeline |
+| **C** | Needs data yfinance does not provide, or a longer window than exists. Deferred |
+
+| Model | What it is | Data | Fit | Live | Grade |
+|---|---|---|---|---|---|
+| 52-week-high momentum | Price ÷ its 252-day high (George & Hwang 2004). Less crash-prone than 12-1 momentum | Prices | None | SQL | **A** |
+| Standardised surprise (SUE) | Surprise ÷ the std of the firm's last 8 surprises, rather than ÷ price | `earnings` holds ~40 reports a ticker | None | SQL | **A** |
+| Net share issuance | Minus the 1-year change in split-adjusted shares (Pontiff & Woodgate 2008) | Share-count history | None | SQL | **A** |
+| IC-weighted blend | Weight each component by its trailing mean IC instead of equally | The study's own IC series | One weight per component, re-estimated monthly | SQL | **A** |
+| Residual momentum | 12-1 momentum on CAPM residual returns (Blitz, Huij & Martens 2011) | Prices, factors | None | SQL (one-factor residuals) | **A−** |
+| Sector-neutral momentum and surprise | Percentile within sector instead of within the index | Sector | None | SQL | **A−** |
+| Ridge or lasso on ranked characteristics | Linear map from the 33 percentile ranks to the target, fitted walk-forward | `model_data.parquet` | 33 coefficients plus a penalty | Coefficients exported to a table, scored in SQL | **B** |
+| Random forest / gradient boosting | Bagged or boosted trees on the same ranks | Same | Hundreds of splits; the single tree already failed | Python scoring job | **B−** |
+| HMM regime switching | Two- or three-state hidden Markov model on daily HML and UMD factor returns since 1963; the regime decides the value/momentum weights | `factor_returns` covers 60 years, so the regime model is not limited to 23 months, though its effect on the blend is | ~10 parameters, fitted on factor history only | Python job writes one regime probability a day | **B** |
+| Industry momentum | Momentum of the stock's industry (Moskowitz & Grinblatt 1999) | Industry from the profile; 20–40 names per industry | None | SQL | **B** |
+| Analyst estimate revisions | Change in consensus EPS over 1–3 months | yfinance has the final estimate only | – | – | **C** |
+| Short interest | Days-to-cover | Not in yfinance history | – | – | **C** |
+| Longer point-in-time window | Compustat via WRDS (open question 4) | Not available | – | – | **C** |
+
+Already tested and not pursued: quality (ROIC), gross profitability, low accruals, low volatility, magic formula, 1-month reversal, sector-neutral value (all ≤ the value baseline in §13); COMPS (dropped by the keep rule); the forward-DCF margin (beaten by reverse FCFF in test 2).
+
+**Order:** the five A-grade signals first, each as a single component. Then the IC-weighted blend over whatever survives. Then ridge, as the only fitted model whose weights can be read off and checked. Forest and HMM only if ridge beats the equal-weight blend. A model the equal-weight blend cannot be shown to lose to adds a parameter and nothing else.
+
+---
+
+## 15. How each is tested
+
+Every candidate goes through the same bench as §7, on the same development dates and the same 1-month factor-adjusted target, so results compare directly.
+
+**Every candidate:**
+
+1. **Test 1** (rank IC, IC t-stat, share of months positive, Q5 − Q1 spread, coverage) on its own.
+2. **Head-to-head:** against the best current blend (value + momentum) on the **same stocks**, with a t-stat on the monthly IC difference (test 2's method). A new component joins the blend only if adding it raises the blend's IC on the same stocks.
+3. **Test 5 attribution**, so a "new" signal that is a known factor in disguise is caught.
+4. **Robustness:** 3-month target with Newey-West errors, and total returns, as in cell 16.
+
+**Fitted models** (IC weights, ridge, forest, HMM) add three rules, because a fitted model can memorise development:
+
+- **Walk-forward is the score that counts.** Fit on the dates before t, predict t, and step forward a month. The IC of those predictions is the model's IC. Nothing fitted is ever scored on a date it was trained on.
+- **The date-block bootstrap (`tree.py`) is for choosing settings**, such as depth, penalty or number of states, and for the spread of the score. Whole months are resampled, never rows, because stocks in the same month share that month's shock. It ignores time order, so it chooses settings; it is not the reported number.
+- **Baselines on the same rounds:** each round also scores value + momentum and momentum + surprise on the same out-of-bag dates, and the result is reported as the share of rounds the model beats them.
+
+**Specific checks:**
+
+| Model | Extra check |
+|---|---|
+| IC-weighted blend | The weights at each date use only ICs from earlier months, with a 1-month gap, since a 1-month target is not known until a month after the date |
+| Ridge / lasso | The penalty is chosen by bootstrap inside each walk-forward window; report how much the coefficients move from one window to the next |
+| Forest / boosting | Same, plus permutation importance on walk-forward predictions, to check it is not splitting on the earnings calendar again |
+| HMM | Fitted on factor returns before each date only; the test is whether the regime-weighted blend's IC beats the fixed 50/50 blend; report how many regime switches fall inside development (probably one or two) |
+| 52-week high, SUE, issuance | Check correlation with existing components; above about 0.7 it is the same signal again |
+
+**Against overfitting:**
+
+- Every variant tried goes in the variant log, as §4 already requires.
+- With more than ten variants, promote only on an IC t-stat above 3 (Harvey, Liu & Zhu 2016), not 2.
+- The holdout is run once, after the specification is frozen and committed.
+
+---
+
+## 16. Showing the signal on the screener
+
+**Ranks, not magnitudes.** Test 4 found the size of expected alpha meaningless (calibration slope 0.14), so no component is shown as a forecast return. Each is a **percentile within today's universe**, 0–100, the same arithmetic the blends were tested with.
+
+| Component | Raw value | Shown as |
+|---|---|---|
+| Value | Combined expected alpha: the average of reverse FCFF, RIM, revenue and shareholder-yield alphas against CAPM | Percentile, with the four implied returns on the stock page |
+| Momentum | Return from 12 months to 1 month ago | Percentile, with the raw return |
+| Earnings surprise | (Reported − estimated EPS) ÷ price, latest report within 100 days | Percentile, with the raw surprise |
+
+**One score, chosen components.**
+
+- The screener's signal score is the mean percentile of the components switched on: value + momentum by default, the best tested blend.
+- Momentum + surprise, a single component, or all three are one click away. All three together is untested and says so.
+- A stock missing any selected component is unscored rather than averaged over fewer, so the rule is the same as the valuation models' "rated only when all selected models speak".
+
+**How it reads:**
+
+- A **Signal** column, the default sort, with the score and a bar. It is coloured by quintile from the existing **sequential palette** (magnitude), not the valuation bands' diverging cheap/expensive palette, because a percentile has no fair-value midpoint.
+- Quintile chips in the filter rail, beside the existing valuation bands.
+- Each component toggle carries its coverage and its development IC, and the rail states that the evidence comes from 23 development months with the holdout not yet run.
+- The stock page gets a signals panel: each component's raw value and percentile, the score, and the four implied returns against the required return.
+
+**What stays:** the valuation bands and the model toggles remain as filters. They stop being the default ordering, because the backtest ranks them below the signal.
+
+**Revised 2026-11-17: forward fair values removed.** Live, the forward models gave margins from −90% to +742% (RIM's median −66%), which read as nonsense on a screener. The "Price implies" column, the bands and the model toggles now use the reverse-DCF implied excess return instead: the four kept models, averaged over whichever solve (test 3's rule), banded at today's quintiles (−7.0 / −2.9 / +0.1 / +2.2%). DDM, FCFE, FCFF, RIM and comps are dropped from the warehouse (`20261117000003_drop_forward_models.sql`) along with `valuation_history`.
+
+---
+
+## 17. The live data warehouse
+
+**Shape: ELT.** Python extracts from yfinance and Ken French and loads the rows untouched. Postgres does every transformation. The site reads a small serving layer.
+
+| Schema | Holds | Written by | Read by |
+|---|---|---|---|
+| `raw` | Provider rows as fetched: `company_profile`, `daily_prices` (close and adjusted close), `dividends`, `splits`, `statement_items` (long format, annual and quarterly), `shares_outstanding`, `earnings`, `factor_returns`. Upserted, never deleted, so history accumulates past yfinance's 4-year window | `python-api/ingest.py` over a direct Postgres connection | `warehouse` only |
+| `warehouse` | Every transform, in SQL: statement pivots (annual, point-in-time, and TTM), split-adjusted shares, rates, CAPM betas, return statistics, the reverse-DCF implied returns (a PL/pgSQL root solver), momentum, surprise, percentiles; materialised views refreshed by `warehouse.refresh()`, plus the dated archive `signal_history` (the five forward models and `valuation_history` were dropped in 20261117000003) | `warehouse.refresh()` after each ingest | `public` |
+| `public` | The API: `screener` (one row per stock), `stock_prices`, `market_summary`, `job_runs`, `frontier_snapshot` | Views over `warehouse`; `job_runs` and `frontier_snapshot` by the service | The site (anon key, read only), the optimiser |
+
+**Same specification as the backtest.**
+
+- An annual statement is usable from period end + 60 days, and is stale after 440.
+- N = 5, g_L = min(2.5%, rf), and the CAPM benchmark against rf = the spot 10-year yield (^TNX).
+- Shares are the 90-day median of split-adjusted share counts.
+- The SQL is ported from `DWimplementation_v2.sql` and the notebook. The one live difference is the as-of date: the latest close instead of a month end.
+
+**Forward models move to SQL too, with three changes:**
+
+- **Cost of equity:** CAPM instead of FF5, the benchmark §7's diagnostic chose, and the only one that does not need a multi-factor regression per stock.
+- **Risk-free rate:** ^TNX instead of the 252-day average ^IRX. The 13-week rate stays on the optimiser's Sharpe ratio.
+- **Growth, payout, EPS and book value:** taken from the statements instead of yfinance's `.info` snapshot.
+
+The FCFF working-capital term is added rather than subtracted. yfinance reports it with its cash-flow sign, as the backtest SQL already assumes.
+
+**What Python stopped doing.** The modules below are kept in the repo and no longer imported:
+
+| Module | Replaced by |
+|---|---|
+| `fundamentals.py` (statement pivot in Python) | `warehouse.fundamentals_*` |
+| `engine.py` and the forward models in `valuation.py` | nothing: retired in 20261117000003 |
+| `universe.py` (screener payload assembly) | `public.screener` |
+| `backfill.py` | `pipeline.py` + `ingest.py` |
+
+Python keeps extraction, loading and the optimiser.
+
+**Phases:**
+
+1. **Warehouse and signal on the site** (this change): raw / warehouse / public schemas, ingest, `refresh()`, the screener signal and the stock-page panel.
+2. **Holdout:** freeze the specification in a committed config, run tests 1–5 once on May 2025 – Oct 2026, and report the result on the about page whatever it is.
+3. **A-grade models** (§14), through §15, then the IC-weighted blend.
+4. **Portfolio stage** (§9) with the frozen signal, ranked rather than scaled, as the optimiser's expected-return input.

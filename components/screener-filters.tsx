@@ -20,13 +20,21 @@ import {
   BAND_BASIS,
   BAND_FILL,
   BAND_LABELS,
-  MARGIN_BASIS,
   VALUATION_METHODS,
-  selectedModelCount,
   type MethodId,
   type ScreenerFilters,
 } from "@/lib/valuation"
 import type { ValuationBand } from "@/lib/valuation"
+import {
+  SIGNAL_BANDS,
+  SIGNAL_BAND_FILL,
+  SIGNAL_BAND_LABELS,
+  SIGNAL_COMPONENTS,
+  SIGNAL_EVIDENCE,
+  blendEvidence,
+  type SignalComponent,
+  type SignalId,
+} from "@/lib/signals"
 import { cn } from "@/lib/utils"
 
 const BANDS: ValuationBand[] = [
@@ -155,7 +163,7 @@ function MethodInfo({
         </div>
 
         <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-          Values <span className="font-mono">{coverage}</span> of the{" "}
+          Solves for <span className="font-mono">{coverage}</span> of the{" "}
           <span className="font-mono">{total}</span> stocks
           {total > 0 && <> ({((coverage / total) * 100).toFixed(0)}%)</>}.
         </p>
@@ -168,7 +176,7 @@ function MethodInfo({
  * One model as its own switch, carrying its full name and its coverage.
  *
  * Exported because the portfolio page offers the same choice over the same
- * five models: which ones the consensus is taken over. One control, so the
+ * four models: which ones the implied excess return is averaged over. One control, so the
  * two pages cannot drift into disagreeing about what a model is called or
  * what switching it off looks like.
  */
@@ -244,12 +252,119 @@ export function MethodToggle({
   )
 }
 
+/**
+ * One signal component as a switch: its name, its development IC and how much
+ * of the universe it can score. The same shape as `MethodToggle`, so the two
+ * kinds of switch on the rail read as one control language.
+ */
+function SignalToggle({
+  component,
+  active,
+  coverage,
+  total,
+  onClick,
+}: {
+  component: SignalComponent
+  active: boolean
+  coverage: number
+  total: number
+  onClick: () => void
+}) {
+  const share = total === 0 ? 0 : coverage / total
+
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-1 border pr-1 transition-colors",
+        active ? "border-primary bg-primary/10" : "border-border"
+      )}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={active}
+        className="flex min-w-0 flex-1 flex-col gap-1.5 px-3 py-2.5 text-left"
+      >
+        <span className="flex items-baseline justify-between gap-2">
+          <span className="flex items-baseline gap-2">
+            <span
+              className={cn(
+                "size-2 shrink-0 border",
+                active
+                  ? "border-primary bg-primary"
+                  : "border-muted-foreground/50 bg-transparent"
+              )}
+              aria-hidden="true"
+            />
+            <span
+              className={cn(
+                "text-xs font-semibold tracking-wider uppercase",
+                active ? "text-foreground" : "text-muted-foreground"
+              )}
+            >
+              {component.label}
+            </span>
+          </span>
+          <span className="font-mono text-xs text-muted-foreground tabular-nums">
+            IC {component.ic.toFixed(3)} · {coverage}/{total}
+          </span>
+        </span>
+
+        <span className="h-0.5 w-full bg-muted" aria-hidden="true">
+          <span
+            className="block h-full bg-muted-foreground/50"
+            style={{ width: `${(share * 100).toFixed(1)}%` }}
+          />
+        </span>
+      </button>
+
+      <div className="py-2.5">
+        <Popover>
+          <PopoverTrigger
+            openOnHover
+            delay={200}
+            aria-label={`How ${component.full} is calculated`}
+            className="size-6 shrink-0"
+          >
+            <RiInformationLine className="size-4" aria-hidden="true" />
+          </PopoverTrigger>
+          <PopoverContent side="right" className="max-w-sm gap-3">
+            <div className="flex flex-col gap-1">
+              <PopoverTitle>{component.label}</PopoverTitle>
+              <p className="text-sm font-medium">{component.full}</p>
+            </div>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {component.blurb}
+            </p>
+            <div className="flex flex-col gap-1 border border-border px-3 py-2">
+              <span className="text-xs tracking-wider text-muted-foreground uppercase">
+                formula
+              </span>
+              <div className="text-xs leading-relaxed break-words">
+                {component.formula}
+              </div>
+            </div>
+            <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
+              Development rank IC{" "}
+              <span className="font-mono">{component.ic.toFixed(3)}</span> (t ={" "}
+              <span className="font-mono">{component.icTStat.toFixed(2)}</span>).
+              Scores <span className="font-mono">{coverage}</span> of the{" "}
+              <span className="font-mono">{total}</span> stocks.
+            </p>
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
+  )
+}
+
 export function ScreenerFilterRail({
   filters,
   sectors,
   matches,
   total,
   methodCoverage,
+  signalCoverage,
   onChange,
   onReset,
 }: {
@@ -257,12 +372,14 @@ export function ScreenerFilterRail({
   sectors: string[]
   matches: number
   total: number
-  /** How many stocks in the full universe each model produced a verdict for. */
+  /** How many stocks in the full universe each model could solve for. */
   methodCoverage: Record<MethodId, number>
+  /** How many stocks in the full universe each signal component can score. */
+  signalCoverage: Record<SignalId, number>
   onChange: (next: ScreenerFilters) => void
   onReset: () => void
 }) {
-  const modelCount = selectedModelCount(filters.methods)
+  const evidence = blendEvidence(filters.signals)
 
   function toggle<T>(list: T[], value: T): T[] {
     return list.includes(value)
@@ -305,19 +422,87 @@ export function ScreenerFilterRail({
         </div>
       </FilterGroup>
 
+      {/* The signal first: the backtest ranks the blend above value alone,
+          and it is what the table is sorted on by default. */}
+      <FilterGroup
+        label="Rank each stock on"
+        info={<Info title="Signal">{SIGNAL_EVIDENCE}</Info>}
+      >
+        <div className="flex flex-col gap-1.5">
+          {SIGNAL_COMPONENTS.map((component) => (
+            <SignalToggle
+              key={component.id}
+              component={component}
+              active={filters.signals.includes(component.id)}
+              coverage={signalCoverage[component.id] ?? 0}
+              total={total}
+              onClick={() => {
+                const next = toggle(filters.signals, component.id)
+                // A score of nothing would blank the column with no reason given.
+                if (next.length === 0) return
+                // Kept in registry order, so the tested-blend lookup is stable.
+                onChange({
+                  ...filters,
+                  signals: SIGNAL_COMPONENTS.map((c) => c.id).filter((id) =>
+                    next.includes(id)
+                  ),
+                })
+              }}
+            />
+          ))}
+        </div>
+
+        {/* What the switches add up to, and whether that blend was tested. */}
+        <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
+          {evidence ? (
+            <>
+              Score = mean percentile.{" "}
+              <span className="text-foreground">{evidence.label}</span> had a
+              development IC of{" "}
+              <span className="font-mono">{evidence.ic.toFixed(3)}</span> (t ={" "}
+              <span className="font-mono">{evidence.icTStat.toFixed(2)}</span>).
+            </>
+          ) : (
+            <>
+              Score = mean percentile. This combination was not tested in the
+              backtest.
+            </>
+          )}
+        </p>
+      </FilterGroup>
+
+      <FilterGroup label="Signal strength">
+        <div className="flex flex-wrap gap-2">
+          {SIGNAL_BANDS.map((band) => (
+            <Chip
+              key={band}
+              active={filters.signalBands.includes(band)}
+              swatch={SIGNAL_BAND_FILL[band]}
+              onClick={() =>
+                onChange({
+                  ...filters,
+                  signalBands: toggle(filters.signalBands, band),
+                })
+              }
+            >
+              {SIGNAL_BAND_LABELS[band]}
+            </Chip>
+          ))}
+        </div>
+      </FilterGroup>
+
       {/* The rail reads top to bottom as one sentence: value each stock with
-          these models, then keep only these bands, at this margin. The labels
-          carry the causal order so no paragraph has to explain it. */}
+          these models, then keep only these bands. */}
       <FilterGroup
         label="Value each stock with"
         info={
-          <Info title="Valuation models">
-            Each model prices a company off its own fundamentals and reports a
-            fair value. The consensus margin of safety is the
-            confidence-weighted average of the ones switched on here, so turning
-            some off re-answers every margin, band and ranking on screen. The
-            number beside a model is how many of the {total} stocks it can
-            value.
+          <Info title="Reverse-DCF models">
+            Each model solves for the annual return today&rsquo;s price implies
+            and subtracts the return the stock&rsquo;s risk requires. The
+            &ldquo;Price implies&rdquo; column averages the ones switched on
+            here, so turning some off re-answers every reading and band on
+            screen. The number beside a model is how many of the {total} stocks
+            it can solve for.
           </Info>
         }
       >
@@ -341,8 +526,8 @@ export function ScreenerFilterRail({
                     ? VALUATION_METHODS.map((m) => m.id)
                     : filters.methods
                 const next = toggle(current, method.id)
-                // Switching the last model off would leave no verdicts to
-                // average and empty the screen with no stated reason.
+                // Switching the last model off would leave nothing to average
+                // and empty the screen with no stated reason.
                 if (next.length === 0) return
                 onChange({
                   ...filters,
@@ -353,13 +538,10 @@ export function ScreenerFilterRail({
           ))}
         </div>
 
-        {/* What the switches above add up to. The per-model coverage bars say
-            what each model can reach; this says what the consensus on screen
-            is actually made of. */}
+        {/* What the switches above add up to. */}
         <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
-          A stock is rated only when all
-          <span className="font-mono">{modelCount}</span>
-          selected models value it.
+          Each stock averages whichever selected models solved for it, the rule
+          the backtest used. Unrated means none did.
         </p>
       </FilterGroup>
 
@@ -400,39 +582,6 @@ export function ScreenerFilterRail({
             </Chip>
           ))}
         </div>
-      </FilterGroup>
-
-      <FilterGroup
-        label="Min Consensus Margin"
-        info={<Info title="Minimum Consensus Margin">{MARGIN_BASIS}</Info>}
-      >
-        <Label
-          htmlFor="min-margin"
-          className="flex items-center justify-between text-sm font-normal"
-        >
-          <span className="text-muted-foreground">At least</span>
-          <span className="font-mono tabular-nums">
-            {(filters.marginRange[0] * 100).toFixed(0)}%
-          </span>
-        </Label>
-        <input
-          id="min-margin"
-          type="range"
-          min={-100}
-          max={100}
-          step={5}
-          value={filters.marginRange[0] * 100}
-          onChange={(e) =>
-            onChange({
-              ...filters,
-              marginRange: [
-                Number(e.target.value) / 100,
-                filters.marginRange[1],
-              ],
-            })
-          }
-          className="w-full accent-primary"
-        />
       </FilterGroup>
 
       <FilterGroup

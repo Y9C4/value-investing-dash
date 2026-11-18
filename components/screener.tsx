@@ -17,15 +17,22 @@ import {
   DEFAULT_FILTERS,
   VALUATION_METHODS,
   applyFilters,
-  consensusMarginOfSafety,
+  impliedAlpha,
   isDefaultBandSelection,
-  isRated,
+  methodAlpha,
   valuationBand,
   type MethodId,
   type ScreenerFilters,
   type Stock,
   type ValuationBand,
 } from "@/lib/valuation"
+import {
+  DEFAULT_SIGNALS,
+  SIGNAL_COMPONENTS,
+  componentRank,
+  signalScore,
+  type SignalId,
+} from "@/lib/signals"
 import { portfolioHref } from "@/lib/ticker-set"
 import { useScrollPane } from "@/lib/use-scroll-pane"
 import { cn } from "@/lib/utils"
@@ -59,15 +66,16 @@ const RAIL_BREAKPOINT = 1700
 function activeFilterCount(filters: ScreenerFilters): number {
   let count = 0
   if (filters.search.trim()) count += 1
-  count += filters.sectors.length
-  if (!isDefaultBandSelection(filters.bands)) count += 1
-  count += filters.methods.length
   if (
-    filters.marginRange[0] !== DEFAULT_FILTERS.marginRange[0] ||
-    filters.marginRange[1] !== DEFAULT_FILTERS.marginRange[1]
+    filters.signals.length !== DEFAULT_SIGNALS.length ||
+    !filters.signals.every((id) => DEFAULT_SIGNALS.includes(id))
   ) {
     count += 1
   }
+  if (filters.signalBands.length > 0) count += 1
+  count += filters.sectors.length
+  if (!isDefaultBandSelection(filters.bands)) count += 1
+  count += filters.methods.length
   if (filters.maxBeta !== DEFAULT_FILTERS.maxBeta) count += 1
   return count
 }
@@ -79,15 +87,19 @@ function activeFilterCount(filters: ScreenerFilters): number {
  * screener, and the whole result set is already in memory — this is a `Blob`
  * and an anchor, not a feature.
  */
-function downloadCsv(stocks: Stock[], methods: MethodId[]) {
+function downloadCsv(stocks: Stock[], methods: MethodId[], signals: SignalId[]) {
   const header = [
     "ticker",
     "name",
     "sector",
     "price",
     "market_cap_usd_bn",
-    "consensus_margin_of_safety",
-    "models_agreeing",
+    `signal_score_${signals.join("_")}`,
+    "value_expected_alpha",
+    "momentum_12_1",
+    "earnings_surprise",
+    "implied_excess_return",
+    ...VALUATION_METHODS.map((m) => `implied_excess_${m.id}`),
     "realised_return_1y",
     "volatility_1y",
     "beta",
@@ -95,7 +107,10 @@ function downloadCsv(stocks: Stock[], methods: MethodId[]) {
   ]
 
   const rows = stocks.map((stock) => {
-    const rated = isRated(stock, methods)
+    const score = signalScore(stock, signals)
+    // Blank, not 0, for anything not measured: a zero is a reading.
+    const figure = (value: number | null | undefined) =>
+      value === null || value === undefined ? "" : value.toFixed(4)
     return [
       stock.ticker,
       // Company names carry commas. Quote everything free-text and double any
@@ -104,10 +119,12 @@ function downloadCsv(stocks: Stock[], methods: MethodId[]) {
       `"${stock.sector.replace(/"/g, '""')}"`,
       stock.price.toFixed(2),
       stock.marketCap.toFixed(2),
-      // Blank, not 0, where the models declined to reach a consensus: a zero
-      // in a spreadsheet is a claim that the company is fairly priced.
-      rated ? consensusMarginOfSafety(stock, methods).toFixed(4) : "",
-      stock.verdicts.length,
+      figure(score),
+      figure(stock.signals?.value),
+      figure(stock.signals?.momentum),
+      figure(stock.signals?.surprise),
+      figure(impliedAlpha(stock, methods)),
+      ...VALUATION_METHODS.map((m) => figure(methodAlpha(stock, m.id))),
       stock.realisedReturn.toFixed(4),
       stock.volatility.toFixed(4),
       stock.beta.toFixed(3),
@@ -141,11 +158,7 @@ function countBands(
   } as Record<ValuationBand, number>
 
   for (const stock of stocks) {
-    base[
-      isRated(stock, methods)
-        ? valuationBand(consensusMarginOfSafety(stock, methods))
-        : "unrated"
-    ] += 1
+    base[valuationBand(impliedAlpha(stock, methods))] += 1
   }
 
   return base
@@ -230,7 +243,9 @@ function BandDistribution({
 
 export function Screener({ stocks }: { stocks: Stock[] }) {
   const [filters, setFilters] = useState<ScreenerFilters>(DEFAULT_FILTERS)
-  const [sort, setSort] = useState<SortKey>("marketCap")
+  // The signal is the default ordering: the backtest ranks the blend above
+  // value alone (backtests.md §13, §16).
+  const [sort, setSort] = useState<SortKey>("signal")
   const [direction, setDirection] = useState<"asc" | "desc">("desc")
   const [selected, setSelected] = useState<string[]>([])
 
@@ -261,16 +276,31 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
   )
 
   // Coverage is counted over the whole universe, not the filtered set, so the
-  // number beside each model answers "what can this model value" rather than
-  // drifting as unrelated filters move.
+  // number beside each model answers "what can this model solve for" rather
+  // than drifting as unrelated filters move.
   const methodCoverage = useMemo(() => {
     const base = Object.fromEntries(
       VALUATION_METHODS.map((m) => [m.id, 0])
     ) as Record<MethodId, number>
 
     for (const stock of stocks) {
-      for (const verdict of stock.verdicts) {
-        if (verdict.method in base) base[verdict.method] += 1
+      for (const method of VALUATION_METHODS) {
+        if (methodAlpha(stock, method.id) !== null) base[method.id] += 1
+      }
+    }
+
+    return base
+  }, [stocks])
+
+  // Same basis as the model coverage above: the whole universe.
+  const signalCoverage = useMemo(() => {
+    const base = Object.fromEntries(
+      SIGNAL_COMPONENTS.map((c) => [c.id, 0])
+    ) as Record<SignalId, number>
+
+    for (const stock of stocks) {
+      for (const component of SIGNAL_COMPONENTS) {
+        if (componentRank(stock, component.id) !== null) base[component.id] += 1
       }
     }
 
@@ -296,23 +326,28 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
           return (a.realisedReturn - b.realisedReturn) * factor
         case "volatility":
           return (a.volatility - b.volatility) * factor
+        case "signal": {
+          // Unscored stocks sink in either direction, like unrated ones below.
+          const aScore = signalScore(a, filters.signals)
+          const bScore = signalScore(b, filters.signals)
+          if (aScore === null && bScore === null) return 0
+          if (aScore === null) return 1
+          if (bScore === null) return -1
+          return (aScore - bScore) * factor
+        }
         default: {
-          // Unrated stocks have no margin to rank on, so they sink to the
-          // bottom rather than sorting as though their consensus were zero.
-          const aRated = isRated(a, filters.methods)
-          const bRated = isRated(b, filters.methods)
-          if (!aRated && !bRated) return 0
-          if (!aRated) return 1
-          if (!bRated) return -1
-          return (
-            (consensusMarginOfSafety(a, filters.methods) -
-              consensusMarginOfSafety(b, filters.methods)) *
-            factor
-          )
+          // Unrated stocks have no reading to rank on, so they sink to the
+          // bottom rather than sorting as though it were zero.
+          const aAlpha = impliedAlpha(a, filters.methods)
+          const bAlpha = impliedAlpha(b, filters.methods)
+          if (aAlpha === null && bAlpha === null) return 0
+          if (aAlpha === null) return 1
+          if (bAlpha === null) return -1
+          return (aAlpha - bAlpha) * factor
         }
       }
     })
-  }, [filtered, sort, direction, filters.methods])
+  }, [filtered, sort, direction, filters.methods, filters.signals])
 
   // Over the whole universe, not the filtered rows: this sizes the bar, and
   // the bar describes the index. Still keyed on the model selection, since
@@ -388,6 +423,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
             matches={filtered.length}
             total={stocks.length}
             methodCoverage={methodCoverage}
+            signalCoverage={signalCoverage}
             onChange={setFilters}
             onReset={() => setFilters(DEFAULT_FILTERS)}
           />
@@ -426,7 +462,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  downloadCsv(sorted, filters.methods)
+                  downloadCsv(sorted, filters.methods, filters.signals)
                 }
               >
                 <RiDownloadLine />
@@ -479,6 +515,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
           <ScreenerTable
             stocks={sorted}
             methods={filters.methods}
+            signals={filters.signals}
             sort={sort}
             direction={direction}
             onSort={handleSort}

@@ -5,7 +5,6 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ReferenceLine,
   XAxis,
   YAxis,
 } from "recharts"
@@ -24,7 +23,6 @@ import {
   PanelTitle,
   Stat,
 } from "@/components/ui/panel"
-import { BAND_FILL, VALUATION_METHODS, disagreementBand, type Stock } from "@/lib/valuation"
 
 type Candle = {
   date: string
@@ -142,54 +140,28 @@ export function useTickerReturns(requested: string) {
 }
 
 /**
- * The one-year close series, with every model's fair value laid over it.
+ * The one-year close series.
  *
- * The reference lines are the point of the chart rather than a decoration on
- * it: a fair value is a claim about where this line should be, so drawing the
- * claim on the same axis as the price is the only place the two can be
- * compared without the reader holding a number in their head.
- *
- * ALL of them are drawn, whatever that does to the axis. An earlier version
- * dropped any fair value more than 1.5x the price range away, on the argument
- * that one outlier squashes a year of price action — but a model that thinks
- * the company is worth four times its price is making the single most
- * interesting claim on the page, and hiding it to protect the shape of the
- * line is the wrong trade. A tall panel absorbs most of the cost.
+ * It used to carry every forward model's fair value as a dashed line. Those
+ * models were retired (20261117000003) and the reverse-DCF readings that
+ * replaced them are returns, not prices, so they live in the signal panel
+ * instead of on this axis.
  */
-export function PriceChartCard({
-  data,
-  stock,
-}: {
-  data: ReturnsResponse
-  /** Absent on any surface that has no verdicts to lay over the price. */
-  stock?: Stock
-}) {
+export function PriceChartCard({ data }: { data: ReturnsResponse }) {
   const chartData = data.candles.map((candle) => ({
     date: candle.date,
     close: candle.close,
   }))
 
   const closes = chartData.map((point) => point.close)
-  const verdicts = (stock?.verdicts ?? []).filter(
-    (v) => v.confidence > 0.5
-  )
-  // The last close is what the models were valued against, so it is the price
-  // the reference lines have to be read relative to.
-  const current = stock?.price ?? closes[closes.length - 1]
-
-  const low = Math.min(...closes, current, ...verdicts.map((v) => v.fairValue))
-  const high = Math.max(...closes, current, ...verdicts.map((v) => v.fairValue))
+  const low = Math.min(...closes)
+  const high = Math.max(...closes)
   const pad = (high - low) * 0.04
-
-  const labelOf = new Map(VALUATION_METHODS.map((m) => [m.id, m.label]))
 
   return (
     <Panel>
       <PanelHeader>
         <PanelTitle>{data.ticker} · price, 1 year</PanelTitle>
-        <PanelMeta className="text-muted-foreground">
-          vs modeled fair value
-        </PanelMeta>
       </PanelHeader>
       <PanelBody>
         <ChartContainer config={chartConfig} className="h-96 w-full">
@@ -218,24 +190,6 @@ export function PriceChartCard({
                 />
               }
             />
-
-            {/* Dashed, and behind the price in the paint order: these are
-                estimates about the solid line, not readings of their own. */}
-            {verdicts.map((verdict) => (
-              <ReferenceLine
-                key={verdict.method}
-                y={verdict.fairValue}
-                stroke={BAND_FILL[disagreementBand(verdict.marginOfSafety)]}
-                strokeDasharray="4 3"
-                strokeWidth={1.5}
-                label={{
-                  value: labelOf.get(verdict.method) ?? verdict.method,
-                  position: "right",
-                  fill: "var(--color-muted-foreground)",
-                  fontSize: 10,
-                }}
-              />
-            ))}
 
             <Line
               dataKey="close"

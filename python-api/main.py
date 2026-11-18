@@ -2,14 +2,18 @@
 
 Routes only. Each one delegates to the module that owns the work:
 
-    db          Supabase access, retries, paging
-    market      prices, returns and the risk-free rate, with their caches
-    backfill    the ingest jobs, in dependency order
-    universe    the scored universe the screener reads
+    pipeline    the scheduled stages, in dependency order, recorded in job_runs
+    ingest      extract and load: yfinance and Ken French rows into `raw`
+    dw          direct Postgres: bulk upserts and warehouse.refresh()
+    db          Supabase REST access to the serving layer, retries, paging
+    market      prices, returns and the cash rate, with their caches
     frontier    mean-variance optimisation
-    engine      runs every valuation model across the universe
-    valuation   the models themselves
-    fundamentals / factors   yfinance and Ken French ingest
+
+Everything between ingest and the serving layer — statement pivots, betas,
+valuations, the signal — is SQL in the `warehouse` schema
+(supabase/migrations/20261117000001_create_warehouse.sql). The screener reads
+it straight from Postgres, so the only reason this service exists at request
+time is the optimiser.
 """
 
 from __future__ import annotations
@@ -25,11 +29,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-import backfill
 import config
 import frontier
 import market
-import universe
+import pipeline
 
 
 def _warm_price_cache() -> None:
@@ -234,53 +237,38 @@ def get_returns(ticker: str):
     }
 
 
-@app.get("/valuations")
-def get_valuations():
-    """Every model's verdict for every stock, precomputed."""
-    return universe.scored()
-
-
 @app.post("/backfill/all", dependencies=[Depends(require_backfill_token)])
 def post_backfill_all(full: bool = False, skip_fundamentals: bool = False):
-    """Every stage in dependency order.
+    """Every stage in dependency order, then the warehouse refresh.
 
     `skip_fundamentals=true` is the daily shape: statements change quarterly,
-    prices change every session. `full=true` re-pulls the whole price window,
-    which matters after a ticker is added to the index.
+    prices change every session. `full=true` re-pulls every price from 2015.
     """
-    return backfill.everything(full=full, skip_fundamentals=skip_fundamentals)
+    return pipeline.everything(full=full, skip_fundamentals=skip_fundamentals)
 
 
-@app.post("/backfill/sp500-daily-close", dependencies=[Depends(require_backfill_token)])
-def post_backfill_daily_close(full: bool = False):
-    """Daily closes for the index constituents, ^GSPC, ^IRX and ^TNX."""
-    return backfill.daily_close(full=full)
+@app.post("/backfill/prices", dependencies=[Depends(require_backfill_token)])
+def post_backfill_prices(full: bool = False):
+    """Daily bars, dividends and splits for the constituents, ^GSPC, ^TNX and ^IRX."""
+    return pipeline.prices(full=full)
 
 
 @app.post("/backfill/factor-returns", dependencies=[Depends(require_backfill_token)])
 def post_backfill_factor_returns():
     """Fama-French daily factors from the Ken French library."""
-    return backfill.factor_returns()
+    return pipeline.factor_returns()
 
 
-@app.post(
-    "/backfill/quarterly-fundamentals", dependencies=[Depends(require_backfill_token)]
-)
-def post_backfill_quarterly_fundamentals():
-    """Statements, company profile and dividend history — the heavy one."""
-    return backfill.company_fundamentals(profile_only=False)
+@app.post("/backfill/fundamentals", dependencies=[Depends(require_backfill_token)])
+def post_backfill_fundamentals():
+    """Statements, share counts, earnings dates and profiles — the heavy one."""
+    return pipeline.fundamentals()
 
 
-@app.post("/backfill/company-profile", dependencies=[Depends(require_backfill_token)])
-def post_backfill_company_profile():
-    """Profile fields only: a cheap refresh of what moves daily."""
-    return backfill.company_fundamentals(profile_only=True)
-
-
-@app.post("/backfill/valuations", dependencies=[Depends(require_backfill_token)])
-def post_backfill_valuations():
-    """Recompute every model. Run after any of the three feeders above."""
-    return backfill.valuations()
+@app.post("/backfill/refresh", dependencies=[Depends(require_backfill_token)])
+def post_backfill_refresh():
+    """Rebuild the warehouse from what is loaded. Run after any stage above."""
+    return pipeline.refresh()
 
 
 @app.post("/efficient-frontier", dependencies=[Depends(require_margin_origin)])

@@ -33,7 +33,7 @@ const mono = JetBrains_Mono({
 
 const TITLE = "Value-Investing-Dash";
 const DESCRIPTION =
-  "Value the stocks in the S&P 500 based off 5 different valuation models, screen them based of their consensus fair value, then build an optimized portfolio out of them.";
+  "Rank the S&P 500 on a backtested value and momentum signal, see the return each stock's price implies, then build an optimized portfolio out of the screen.";
 
 export const metadata: Metadata = {
   // Absolute URLs for the share card. Vercel injects the deployment host, so

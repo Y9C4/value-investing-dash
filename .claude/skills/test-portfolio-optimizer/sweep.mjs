@@ -57,11 +57,26 @@ function sample(pool, n) {
   return copy.slice(0, n);
 }
 
+// The scored universe lives in the warehouse's serving view, not on the
+// service: GET /valuations went away with the SQL warehouse.
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321";
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
 async function loadUniverse() {
-  const res = await fetch(`${API_URL}/valuations`);
-  if (!res.ok) throw new Error(`GET /valuations -> ${res.status}`);
-  const body = await res.json();
-  return body.stocks;
+  if (!SUPABASE_KEY) throw new Error("Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (from .env) to read public.screener");
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/screener?select=ticker,sector,realised_return,volatility,pe_ratio`,
+    { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+  );
+  if (!res.ok) throw new Error(`GET public.screener -> ${res.status}`);
+  const rows = await res.json();
+  return rows.map((row) => ({
+    ticker: row.ticker,
+    sector: row.sector,
+    realisedReturn: row.realised_return,
+    volatility: row.volatility,
+    peRatio: row.pe_ratio,
+  }));
 }
 
 /**

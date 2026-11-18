@@ -2,7 +2,7 @@
 
 # Value-Investing-Dash
 
-**Value the S&P 500 using 5 valuation models, screen stocks out on their consensus fair value, then build an optimized portfolio on the rest.**
+**Rank the S&P 500 on a backtested value + momentum signal, see the return each stock’s price implies, then build an optimized portfolio on what survives the screen.**
 
 Next.js frontend | FastAPI Data API | Supabase PostgreSQL database
 
@@ -22,7 +22,7 @@ Next.js frontend | FastAPI Data API | Supabase PostgreSQL database
 
 ## About
 
-Based on Benjamin Graham’s principle of value investing, Value-Investing-Dash (VID) analyses stocks based on their fundamental value rather than just their historical returns. VID values the ~500 stocks in the S&P 500 with 5 different valuation models, combines them into a consensus fair value for each stock, lets the user screen stocks on that consensus, then builds an optimized portfolio out of whatever is left.
+Based on Benjamin Graham’s principle of value investing, Value-Investing-Dash (VID) analyses stocks based on their fundamental value rather than just their historical returns. VID ranks the ~500 stocks in the S&P 500 on a signal that was tested against later returns (reverse-DCF value, momentum and earnings surprise), shows the return each price implies over the return its risk requires, lets the user screen on both, then builds an optimized portfolio out of whatever is left.
 
 The reason for screening first is that a portfolio optimizer estimates expected return from past returns. A stock that has already run up looks like a great opportunity to the optimizer at exactly the point its price is most optimistic. Putting a valuation screen in front of the optimizer removes those stocks before it ever sees them.
 
@@ -30,8 +30,8 @@ The reason for screening first is that a portfolio optimizer estimates expected 
 
 | | Page | What it does |
 |---|---|---|
-| **1** | **Screener** | Filter the index on consensus margin, valuation band, sector and what models value a stock as "underpriced", "overpriced", etc. Stocks that pass these filters or are selected go to the portfolio page. |
-| **2** | **Analysis** | Each model’s fair value for one stock next to its price history, plus relevant discount rates the valuations used. |
+| **1** | **Screener** | Rank the index on the signal (value + momentum by default), then filter on signal strength, valuation band (by implied excess return), sector and beta. Stocks that pass these filters or are selected go to the portfolio page. |
+| **2** | **Analysis** | The signal’s components, the four implied returns behind the value component against the return each must beat, the price history, and the required returns. |
 | **3** | **Portfolio** | Solve the efficient frontier over the screened stocks, setting position bounds, short selling and L2 regularisation. |
 
 ![Frontier](public/frontier.png)
@@ -40,11 +40,11 @@ The reason for screening first is that a portfolio optimizer estimates expected 
 
 ![Architecture diagram](public/Infrastructure-diag.svg)
 
-**Frontend:** Next.js 16, React 19, TypeScript and Tailwind, deployed on Vercel. The screener and stock pages read precomputed valuation data from Supabase.
+**Frontend:** Next.js 16, React 19, TypeScript and Tailwind, deployed on Vercel. The screener and stock pages read the warehouse’s serving views straight from Supabase, so they render with the Data API scaled to zero.
 
-**Data API:** A Python API on Google Cloud Run using FastAPI, cvxpy, Clarabel and NumPy. Every valuation model, portfolio optimization and write to the database goes through it. Valuations and Prices & fundamentals come from yfinance and factor returns from the Ken French data library are backfilled at market close, UTC 18:30 by a task scheduler.
+**Data API:** A Python API on Google Cloud Run using FastAPI, cvxpy, Clarabel and NumPy. It extracts prices and fundamentals from yfinance and factor returns from the Ken French data library, loads them untouched, and runs the portfolio optimizer. A task scheduler runs the pipeline at market close.
 
-**Database:** Supabase PostgreSQL, storing raw prices, fundamentals and factor returns as well as the precomputed valuations.
+**Database:** Supabase PostgreSQL as a small ELT warehouse. `raw` holds provider rows exactly as fetched; `warehouse` turns them into everything the site shows in SQL (statement pivots, betas, the reverse-DCF implied returns, the signal) and archives each day’s signal; `public` is the API, three read-only views the browser-safe key can read.
 
 The frontend and the Data API talk over HTTP and deploy separately. The browser never learns the Data API address since requests are signed server-side, backfill routes are closed behind a token, and solves are rate limited per caller.
 
@@ -52,47 +52,48 @@ The frontend and the Data API talk over HTTP and deploy separately. The browser 
 
 | Job | When | What |
 |---|---|---|
-| `margin-daily` | 18:30 Mon-Fri | Prices, factor returns and recomputes valuation models for all stocks after market close |
-| `margin-weekly` | 07:00 Sat | Everything above plus quarterly statements, company profiles and dividends |
+| `margin-daily` | 18:30 Mon-Fri | Prices and factor returns, then a warehouse refresh after market close |
+| `margin-weekly` | 07:00 Sat | Everything above plus statements, share counts, earnings dates and company profiles |
 | `margin-warm` | Every 5 min, 09:00–20:00 | Pings `/health` so a GCloud Run instance is warm when a user runs an optimization |
+
+## The signal
+
+The [backtest](python-api/notebooks/backtests.md) tested each model against the next month’s factor-adjusted return over 23 development months. Three components ranked stocks better than the classic fair-value models (which were then removed, see below), and the screener ranks on them:
+
+| Component | What it is | Development IC |
+|---|---|---|
+| **Value** | Reverse DCF: the return today’s price implies, minus the return the stock’s risk requires, averaged over reverse FCFF, residual income, revenue and shareholder-yield models | 0.036 |
+| **Momentum** | The return from 12 months to 1 month ago | 0.029 |
+| **Earnings surprise** | Latest EPS beat or miss against the analyst consensus, scaled by price | 0.025 |
+| *Value + momentum* | The default blend | *0.056* |
+| *Momentum + surprise* | | *0.035* |
+
+Each is shown as a percentile of today’s universe, and the score is the mean of the selected percentiles. The backtest found the size of expected alpha meaningless, so no component is shown as a return forecast. None of these results is statistically significant on 23 months yet, and the locked holdout hasn’t been run; the screener says so beside the controls.
 
 ## Valuation models
 
-| Model | Why it’s included |
-|---|---|
-| **DDM** | The most basic way to value a stock, based on receiving dividends growing into perpetuity. Only used for stocks yielding at least 1.5%. |
-| **FCFE** | Values stocks that don’t pay dividends in a similar way to DDM, using the cash left over for shareholders. |
-| **FCFF** | Uses the total cash from operations available to both debt and equity holders, so it handles firms with complex, changing or heavy debt. |
-| **RIM** | Book value plus the profit a company makes above its cost of equity. Not very accurate, but it uses data the other models already pull so it has great coverage. |
-| **COMPS** | Values a stock against the median EV/EBITDA and P/E of its sector, which captures market sentiment the other models miss. |
+Value is read as a return, not a price. Each model solves for the annual return that makes a company’s cash flows worth today’s price, and the screener shows that return minus the return the stock’s risk requires:
 
-Every model is a pure function that returns nothing rather than a wrong number when its inputs don’t make sense, e.g. FCFE and FCFF skip banks and REITs since capex based cash flow doesn’t mean much for them. Coverage varies by stock, so the screener lets you set how many models have to value a stock before it gets rated (2 by default).
-
-![COMPS valuation of SanDisk](public/sandisk.png)
-
-*COMPS picks up the market’s bullish view on flash memory demand in its valuation of SanDisk, while the other models call it overvalued.*
-
-### Consensus margin
-
-Each model’s margin is the difference between its fair value and the price. The consensus margin is the weighted average of those margins, where the weights are essentially a confidence in each model:
-
-| Model | Base weight | Adjustments |
+| Model | Cash flow | Must beat |
 |---|---|---|
-| FCFF | 0.80 | × 0.8 if the tax rate wasn’t available |
-| FCFE | 0.75 | × 0.6 if net borrowing is more than half of FCFE |
-| DDM | 0.60 | × payment stability (0–1), then × 0.6 if the payout ratio is above 0.9 |
-| COMPS | 0.55 | none |
-| RIM | 0.35 | × min(1, quarters used / 4) |
+| **FCFF** | Free cash flow to the firm, against enterprise value | WACC |
+| **RIM** | Book value plus earnings above it, ROE fading to the sector median; works for banks | CAPM kₑ |
+| **Revenue** | Revenue × a cash margin fading to the sector median; speaks for temporarily cash-negative firms | WACC |
+| **Shareholder yield** | Dividends plus net buybacks, against market cap | CAPM kₑ |
 
-When FCFE and FCFF both value a stock, each is scaled by 1/√2, since they discount the same cash flows two different ways and would otherwise get two votes.
+Each grows its cash flow along a five-year fade to long-run growth, then a perpetuity, and the solve is a PL/pgSQL bisection. A model that has no positive cash flow to discount reports nothing. A stock’s reading averages whichever selected models solved, the rule the backtest tested; kₑ is CAPM off the 10-year Treasury yield, which the backtest preferred over a Fama-French regression.
+
+### Why not fair values
+
+VID used to run five forward models (DDM, FCFE, FCFF, RIM, comps) and screen on a confidence-weighted consensus margin of safety. A fair value is the price times a multiple levered by 1/(k − g), so a lumpy cash-flow year or a low cost of equity sent margins past +700% while RIM called the median stock 66% overvalued, and the backtest found the margins’ size meaningless. They were removed in `20261117000003_drop_forward_models.sql`. Implied returns come from the same cash flows but stay in a range you can sanity check (median about 6% a year).
 
 ### Valuation is relative
 
-The valuation bands (Deep value, Undervalued, Fair value, Overvalued, Expensive) each cover a fifth of the stocks ranked by consensus margin. So “Deep value” means the cheapest fifth of the index, not that a stock is below its intrinsic value.
+The valuation bands (Deep value, Undervalued, Fair value, Overvalued, Expensive) each cover a fifth of the index ranked by implied excess return. So “Deep value” means the cheapest fifth of the index, not that a stock will beat its required return by the number shown.
 
 ## Decisions worth explaining
 
-**Valuations are precomputed.** Calculating valuations for ~500 stocks on every request would make the screener slow to load for no reason, since prices, fundamentals and rates only change once a day. So they’re computed after each market close and stored per stock and model, and every run is also archived by market date in `valuation_history`, which builds a forward track record.
+**Python extracts, Postgres transforms.** The Data API used to pivot statements, roll up trailing twelve months, run every model and assemble a JSON payload for the screener, after a minute of bulk reads through the REST API. Now it only loads provider rows, and `warehouse.refresh()` rebuilds everything in SQL in about four seconds, including the reverse-DCF root solve (a PL/pgSQL bisection). Every run archives that day’s signal in `warehouse.signal_history`, which builds a forward track record. The live signal SQL was checked against the backtest notebook stock by stock.
 
 **The max Sharpe portfolio is found, not solved for.** Solving for max Sharpe directly has no solution whenever no allowed portfolio beats the risk-free rate, which happens a lot with value screens since they pick stocks with weak past returns. Instead the frontier is traced as a set of minimum variance solves and the tangency portfolio is found along it with a ternary search. If nothing beats cash, the best Sharpe is just negative instead of an error. See [`python-api/frontier.py`](python-api/frontier.py).
 
@@ -118,9 +119,9 @@ source .venv/bin/activate         # .venv\Scripts\activate on Windows
 pip install -r requirements.txt
 cp .env.example .env              # Supabase URL + service role key, the same BACKFILL_TOKEN
 
-# 3. Database
-supabase link --project-ref <your-ref>
-supabase db push                  # applies supabase/migrations/
+# 3. Database (local)
+supabase start -x storage-api,imgproxy,vector,logflare
+supabase migration up --local     # applies supabase/migrations/
 ```
 
 Run both:
@@ -130,19 +131,19 @@ pnpm dev                                                 # frontend → localhos
 cd python-api && uvicorn main:app --reload --port 8000   # Data API → localhost:8000
 ```
 
-Open [localhost:3000/data](http://localhost:3000/data) and hit **Refresh everything** to run every backfill in order and recomputes the valuations last, which takes about 10 minutes the first time.
+Open [localhost:3000/data](http://localhost:3000/data) and hit **Refresh everything** to run every stage in order and refresh the warehouse last, which takes about 10 minutes the first time.
 
 The same backfills can be run from the terminal:
 
 ```bash
-#Daily: prices, factors, valuations (~2 min)
+#Daily: prices, factors, warehouse refresh (~2 min)
 curl -X POST -H "X-Backfill-Token: $BACKFILL_TOKEN" "http://127.0.0.1:8000/backfill/all?skip_fundamentals=true"
 
-#Everything including quarterly statements (~10 min)
+#Everything including statements (~10 min)
 curl -X POST -H "X-Backfill-Token: $BACKFILL_TOKEN" "http://127.0.0.1:8000/backfill/all"
 ```
 
-Every backfill is incremental and every write is an upsert, so re-running is safe and only pulls unfilled rows in the last 252 day window.
+Every write is an upsert and prices are fetched from each ticker’s own newest stored date, so re-running is safe and cheap.
 
 ## Testing
 
@@ -159,14 +160,14 @@ components/             charts, tables, filters
 lib/                    valuation types, URL encoding, formatting
 python-api/             FastAPI Data API
   main.py               routes only
-  valuation.py          the 5 models, as pure functions
-  engine.py             runs every model across the index
+  pipeline.py           the scheduled stages, in order
+  ingest.py             extract and load into the raw schema
+  dw.py                 direct Postgres: bulk upserts, warehouse refresh
   frontier.py           portfolio optimization
-  backfill.py           data ingest, in order
-  market.py             price and return reads
-  universe.py           the scored stocks the screener uses
-  db.py                 Supabase access
-supabase/migrations/    schema and views
+  market.py             price and cash-rate reads
+  notebooks/            the backtest and its plan (backtests.md)
+  backtest/ml/          model scripts over the backtest export
+supabase/migrations/    raw, warehouse and public schemas
 docs/                   deployment runbook and design notes
 ```
 
@@ -182,14 +183,12 @@ docs/                   deployment runbook and design notes
 | `GET /info/{ticker}` | Full yfinance info |
 | `GET /history/{ticker}` | Price history |
 | `GET /returns/{ticker}` | Daily log returns and the risk-free rate |
-| `GET /valuations` | Every model’s valuation of every stock |
 | `POST /efficient-frontier` | Solve the frontier (see below) |
-| `POST /backfill/all` | Every backfill, in order |
-| `POST /backfill/sp500-daily-close` | Daily closes |
+| `POST /backfill/all` | Every stage, in order, then the warehouse refresh |
+| `POST /backfill/prices` | Daily bars, dividends and splits |
 | `POST /backfill/factor-returns` | Fama-French factors |
-| `POST /backfill/quarterly-fundamentals` | Statements, profiles, dividends |
-| `POST /backfill/company-profile` | Profiles only |
-| `POST /backfill/valuations` | Recompute every model |
+| `POST /backfill/fundamentals` | Statements, share counts, earnings dates, profiles |
+| `POST /backfill/refresh` | Rebuild the warehouse and the default frontier |
 
 Backfill routes need an `X-Backfill-Token` header.
 
@@ -208,7 +207,7 @@ POST /efficient-frontier
 ## Deployment
 
 - **Frontend → Vercel.** Set `MARKET_DATA_API_URL`, the Supabase URL and publishable key, and `MARGIN_ORIGIN_SECRET`.
-- **Data API → Google Cloud Run** from [`python-api/Dockerfile`](python-api/Dockerfile). Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ALLOWED_ORIGINS`, `BACKFILL_TOKEN` and `MARGIN_ORIGIN_SECRET`.
+- **Data API → Google Cloud Run** from [`python-api/Dockerfile`](python-api/Dockerfile). Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `ALLOWED_ORIGINS`, `BACKFILL_TOKEN` and `MARGIN_ORIGIN_SECRET`.
 - **Database → Supabase.** `supabase db push` applies the migrations.
 
 The service role key skips row-level security, so it only ever lives in the Data API and never on Vercel. The full walkthrough including the scheduled jobs is in [`docs/deploy-runbook.md`](docs/deploy-runbook.md).

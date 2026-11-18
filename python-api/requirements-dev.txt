@@ -4,8 +4,13 @@
 # carry a few hundred MB of notebook tooling.
 jupyterlab>=4.2.0
 ipykernel>=6.29.0
+matplotlib>=3.9
 
 # Backtest (python-api/backtest): a direct Postgres connection for bulk loads,
 # and the leak tests.
 psycopg[binary]>=3.2
 pytest>=8
+
+# Model scripts (python-api/backtest/ml): the notebook's parquet export, and the models.
+pyarrow>=17
+scikit-learn>=1.5

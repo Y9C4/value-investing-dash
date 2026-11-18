@@ -105,7 +105,7 @@ def load_universe(conn, tickers: list[str]) -> None:
     """Today's constituents with the sector the product already stores."""
     started = datetime.now(timezone.utc)
     profiles = db.query_df(
-        conn, "select ticker, name, sector, industry from public.company_profile"
+        conn, "select ticker, name, sector, industry from raw.company_profile"
     ).set_index("ticker")
 
     rows = []

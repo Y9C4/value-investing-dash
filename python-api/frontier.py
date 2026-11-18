@@ -616,7 +616,7 @@ def sector_map() -> dict[str, str]:
             return _sector_cache
 
     try:
-        rows = db.fetch_all_rows("company_profile", "ticker, sector")
+        rows = db.fetch_all_rows("screener", "ticker, sector")
     except Exception:  # noqa: BLE001 - decoration must not fail the solve
         return {}
 

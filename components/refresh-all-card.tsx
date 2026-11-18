@@ -15,7 +15,7 @@ import {
  *
  * The per-stage cards below remain the right tool for routine upkeep. This is
  * for the other case: bringing a stale database current without having to
- * remember that valuations read the three tables above them and run last.
+ * remember that the warehouse refresh reads the three loads above it and runs last.
  */
 
 type StageResult = {
@@ -38,11 +38,10 @@ type RefreshAllResult = {
 }
 
 const STAGE_LABELS: Record<string, string> = {
-  daily_close_prices: "Daily close prices",
+  prices: "Prices",
   factor_returns: "Factor returns",
-  quarterly_fundamentals: "Quarterly fundamentals",
-  company_profile: "Company profile",
-  valuations: "Valuations",
+  fundamentals: "Fundamentals",
+  refresh: "Warehouse refresh",
 }
 
 export function RefreshAllCard() {
@@ -94,7 +93,7 @@ export function RefreshAllCard() {
       <CardContent className="flex flex-col gap-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
           Runs every stage below in the order they depend on each other and
-          recomputes the valuations at the end. Use the individual cards when
+          refreshes the warehouse at the end. Use the individual cards when
           you only need one table; use this after a gap, or when you are not
           sure what is stale.
         </p>
