@@ -26,18 +26,12 @@ import config
 import db
 import market
 
-# Per-stock cap for a full-index solve. It cannot be applied blindly to a
-# screened subset: `sum(w) == 1` with `w <= cap` is infeasible unless
-# `cap * n >= 1`, so 3% silently demands 34 names and the screener hands over
-# as few as 5. `weight_cap` scales it instead.
-MAX_STOCK_WEIGHT = 0.03
-# Require at most n/1.5 holdings, so the cap never binds every weight at once.
-# A cap of exactly 1/n is feasible but degenerate: every name is pinned to it
-# and the "optimisation" can only return the equal-weight portfolio.
-CAP_SLACK = 1.5
-# Historical mean returns are clipped before use; an extreme estimate would
-# otherwise dominate the whole allocation.
-MU_CLIP = 0.50
+# Default per-stock cap: the UCITS single-issuer limit (Directive 2009/65/EC,
+# art. 52). A user setting overrides it. `sum(w) == 1` with `w <= cap` needs
+# `cap * n >= 1`, i.e. at least 10 names; below that no default cap applies
+# rather than an invented one, and the response reports the 100% it used.
+MAX_STOCK_WEIGHT = 0.10
+TRADING_DAYS = 252
 
 # The default resolution, and the one the nightly precompute stores.
 #
@@ -290,12 +284,39 @@ def _store_solve(key: str, payload: dict) -> None:
 
 
 def weight_cap(n_assets: int) -> float:
-    """The per-stock cap actually enforceable over `n_assets` names.
+    """The default per-stock cap: UCITS 10% where it can fill a portfolio,
+    otherwise none (100%), since no other figure has a source."""
+    return MAX_STOCK_WEIGHT if MAX_STOCK_WEIGHT * n_assets >= 1.0 else 1.0
 
-    Widening to `CAP_SLACK / n` for small universes keeps the intent (no name
-    dominates) while guaranteeing the feasible set is non-empty.
+
+def bayes_stein_returns(prices: pd.DataFrame, S: pd.DataFrame) -> pd.Series:
+    """Annualised expected returns, Bayes-Stein shrunk (Jorion 1986).
+
+    Each stock's arithmetic mean daily return is pulled toward the mean return
+    of the minimum-variance portfolio, mu0, by a common weight
+
+        w = (N + 2) / ((N + 2) + T (mu - mu0)' S^-1 (mu - mu0)),
+
+    so the fewer the observations and the less the means differ relative to
+    their covariance, the harder they are shrunk. Historical means are the
+    noisiest input to mean-variance optimisation (Chopra & Ziemba 1993); this
+    replaces clipping them at an arbitrary +/-50%.
+
+    `S` is the Ledoit-Wolf covariance the solve itself uses (annualised), not
+    the sample covariance in Jorion's paper: with ~500 stocks and ~750 days the
+    sample matrix is near-singular and its inverse is mostly noise. T is in
+    years so the quadratic form is unit-consistent with annualised inputs.
     """
-    return max(MAX_STOCK_WEIGHT, CAP_SLACK / n_assets)
+    returns = prices.pct_change(fill_method=None)
+    mu = returns.mean() * TRADING_DAYS
+    years = returns.notna().sum().max() / TRADING_DAYS
+    inverse = np.linalg.pinv(S.loc[mu.index, mu.index].to_numpy())
+    ones = np.ones(len(mu))
+    mu0 = float(ones @ inverse @ mu.to_numpy() / (ones @ inverse @ ones))
+    gap = mu.to_numpy() - mu0
+    n = len(mu)
+    weight = (n + 2) / ((n + 2) + years * float(gap @ inverse @ gap))
+    return (1 - weight) * mu + weight * mu0
 
 
 class Constraints(NamedTuple):
@@ -418,7 +439,8 @@ def _market_reference(
         return None
 
     try:
-        mu = expected_returns.mean_historical_return(prices).iloc[0]
+        # Arithmetic, like the portfolios': Bayes-Stein on one asset is its mean.
+        mu = expected_returns.mean_historical_return(prices, compounding=False).iloc[0]
         S = risk_models.CovarianceShrinkage(prices).ledoit_wolf()
     except ValueError:
         # A too-short or degenerate window is a data gap, not a reason to
@@ -808,10 +830,8 @@ def build(
     index_prices = raw[[config.SP500_INDEX_TICKER]]
     prices, excluded = _drop_short_history(raw[universe], universe)
 
-    mu = expected_returns.mean_historical_return(prices).clip(
-        lower=-MU_CLIP, upper=MU_CLIP
-    )
     S = risk_models.CovarianceShrinkage(prices).ledoit_wolf()
+    mu = bayes_stein_returns(prices, S)
     risk_free_rate = market.average_risk_free_rate()
     # Realigned to `prices.index` rather than used as fetched: the shared
     # frame's date range is the union across every ticker in the request, and
@@ -869,9 +889,9 @@ def build(
         "point_budget": POINT_BUDGET,
         "n_assets": int(prices.shape[1]),
         "risk_free_rate": risk_free_rate,
-        # Reported because they are not always what was asked for: over a small
-        # screened set the cap has to widen for the problem to have a solution,
-        # and the reader is owed the constraints that were actually used.
+        # Reported because they are not always what was asked for: under 10
+        # names the UCITS default cannot fill a portfolio and none is applied
+        # (1.0), and the reader is owed the constraints actually used.
         "max_stock_weight": constraints.upper,
         "min_stock_weight": constraints.lower,
         "l2_gamma": constraints.gamma,

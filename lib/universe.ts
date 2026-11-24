@@ -1,5 +1,5 @@
 import { SAMPLE_UNIVERSE } from "@/lib/sample-universe"
-import { selectRows } from "@/lib/supabase"
+import { isSupabaseConfigured, selectRows } from "@/lib/supabase"
 import {
   type DiscountRates,
   type Stock,
@@ -18,9 +18,14 @@ import {
  * This replaced a single-row JSON snapshot the Python service assembled after
  * each run, and the `GET /valuations` fallback that assembled it again on
  * demand. Typed rows from a view need neither: the view is current with the
- * last refresh by construction. `SAMPLE_UNIVERSE` stays as the last resort — an
- * illustrative screen beats an empty one, provided it is labelled, which every
- * surface that renders it does.
+ * last refresh by construction.
+ *
+ * `SAMPLE_UNIVERSE` is served only when Supabase is not configured at all
+ * (local development without a database), and every surface labels it. A
+ * configured database that fails to answer is an error, not a cue to show
+ * made-up stocks: Next keeps serving the last page it rendered successfully
+ * while revalidation fails (stale-while-revalidate), and a cold cache shows the
+ * error boundary instead of illustrative numbers passed off as a screen.
  */
 
 // An hour in production, where the warehouse refreshes once a day and the cost
@@ -239,14 +244,14 @@ function toStock(row: ScreenerRow): Stock {
     name: row.name,
     sector: row.sector,
     price: row.price,
-    // The screener's numeric fields are non-nullable; a missing figure reads
-    // as 0, which every cell already renders as a dash.
-    marketCap: row.market_cap_bn ?? 0,
-    beta: row.beta ?? 0,
-    realisedReturn: row.realised_return ?? 0,
-    volatility: row.volatility ?? 0,
-    peRatio: row.pe_ratio ?? 0,
-    dividendYield: row.dividend_yield ?? 0,
+    // Missing stays missing: a zero beta or P/E is a reading, and coercing to
+    // one let unmeasured stocks pass the beta filter as if riskless.
+    marketCap: row.market_cap_bn,
+    beta: row.beta,
+    realisedReturn: row.realised_return,
+    volatility: row.volatility,
+    peRatio: row.pe_ratio,
+    dividendYield: row.dividend_yield,
     discountRates: toDiscountRates(row.discount_rates),
     signals: toSignals(row.signals),
   }
@@ -267,12 +272,19 @@ function toFreshness(rows: JobRunRow[] | null): Record<string, JobRun> {
   )
 }
 
-/** The three serving-layer reads, in parallel. */
-async function fromWarehouse(): Promise<Universe | null> {
+/**
+ * PostgREST's `max-rows` cap (1000 on Supabase). The index is ~500 rows, so a
+ * read that reaches the cap has been truncated, and is refused rather than
+ * shown as though it were the whole index.
+ */
+const MAX_ROWS = 1000
+
+/** The three serving-layer reads, in parallel. Throws on any failure. */
+async function fromWarehouse(): Promise<Universe> {
   const next = { revalidate: REVALIDATE_SECONDS, tags: [VALUATIONS_CACHE_TAG] }
 
   const [rows, market, jobs] = await Promise.all([
-    selectRows<ScreenerRow>("screener", "select=*&order=ticker", next),
+    selectRows<ScreenerRow>("screener", `select=*&order=ticker&limit=${MAX_ROWS}`, next),
     selectRows<MarketRow>("market_summary", "select=*", next),
     selectRows<JobRunRow>(
       "latest_job_runs",
@@ -281,7 +293,12 @@ async function fromWarehouse(): Promise<Universe | null> {
     ),
   ])
 
-  if (!rows || rows.length === 0) return null
+  if (!rows || rows.length === 0) {
+    throw new Error("The screener view returned no rows; the database is unreachable or empty.")
+  }
+  if (rows.length >= MAX_ROWS) {
+    throw new Error(`The screener read hit the ${MAX_ROWS}-row cap and was truncated.`)
+  }
 
   const summary = market?.[0]
   const freshness = toFreshness(jobs)
@@ -311,17 +328,17 @@ async function fromWarehouse(): Promise<Universe | null> {
 }
 
 export async function loadUniverse(): Promise<Universe> {
-  return (
-    (await fromWarehouse()) ?? {
-      stocks: SAMPLE_UNIVERSE,
-      isBaseline: true,
-      computedAt: null,
-      freshness: {},
-      gatheredAt: null,
-      riskFreeRate: null,
-      marketReturn: null,
-      index: null,
-      isStale: false,
-    }
-  )
+  if (isSupabaseConfigured()) return fromWarehouse()
+
+  return {
+    stocks: SAMPLE_UNIVERSE,
+    isBaseline: true,
+    computedAt: null,
+    freshness: {},
+    gatheredAt: null,
+    riskFreeRate: null,
+    marketReturn: null,
+    index: null,
+    isStale: false,
+  }
 }

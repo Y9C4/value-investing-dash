@@ -160,7 +160,7 @@ export function downloadPortfolioCsv(input: {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement("a")
   anchor.href = url
-  anchor.download = `margin-portfolio-${new Date().toISOString().slice(0, 10)}.csv`
+  anchor.download = `value-investing-dash-portfolio-${new Date().toISOString().slice(0, 10)}.csv`
   anchor.click()
   URL.revokeObjectURL(url)
 }

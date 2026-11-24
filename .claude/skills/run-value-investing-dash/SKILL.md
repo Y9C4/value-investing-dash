@@ -31,9 +31,10 @@ running it first errors out looking for a project-local Playwright.)
 pnpm install
 ```
 
-No env vars are required to run the app locally. (There's a `supabase/`
-directory with a `config.toml` but no code currently talks to Supabase —
-nothing to configure for the dashboard to render.)
+With `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+unset, the app renders a labelled sample universe. With them set (see
+`.env.example`), it reads the warehouse's serving views and a failed read is an
+error, not a fallback to the sample.
 
 ## Run (agent path)
 
@@ -61,12 +62,12 @@ lsof -ti:3000 -sTCP:LISTEN | xargs -r kill
 
 ```bash
 cat > /tmp/smoke.txt <<'EOF'
-nav /dashboard
-wait placeholder=Stock Ticker
-screenshot dashboard
-fill placeholder=Stock Ticker|AAPL
-click text=View
-screenshot dashboard-after-click
+nav /screener
+sleep 2500
+screenshot screener
+nav /stocks/KO
+sleep 3000
+screenshot stock-ko
 console
 EOF
 
@@ -97,14 +98,14 @@ Driver commands:
 pnpm dev
 ```
 
-Opens a dev server at http://localhost:3000. `/` is the stock create-next-app
-placeholder page; `/dashboard` is the actual app (ticker input + View
-button + dark-mode toggle). Ctrl-C to stop.
+Opens a dev server at http://localhost:3000. Routes: `/screener`,
+`/stocks/[ticker]`, `/portfolio`, `/about`, and `/data` (only with
+`ENABLE_DATA_PAGE=true`). Ctrl-C to stop.
 
 ## Test / Lint / Build
 
 ```bash
-pnpm lint    # currently FAILS — see Gotchas
+pnpm lint
 pnpm build   # not verified by this skill; not exercised above
 ```
 
@@ -112,11 +113,7 @@ pnpm build   # not verified by this skill; not exercised above
 
 ## Gotchas
 
-- **`pnpm lint` currently fails** on `components/theme-toggle.tsx:20`
-  (`react-hooks/set-state-in-effect`: calling `setState` synchronously
-  inside a `useLayoutEffect`). This is pre-existing app code, not a
-  driver/skill issue — don't treat a red `pnpm lint` as the driver being
-  broken.
+
 - **Selectors with spaces need the `placeholder=`/`text=` prefixes**,
   not raw CSS attribute selectors — the driver's line parser splits
   commands on the first space, so `input[placeholder="Stock Ticker"]`
@@ -126,7 +123,5 @@ pnpm build   # not verified by this skill; not exercised above
   and resolves browser binaries from a global cache path rather than
   the project — run `pnpm install` (or at least `pnpm add -D playwright`)
   first so the install is tied to this project's Playwright version.
-- **This repo has no `AGENTS.md`-documented custom Next.js behavior**
-  beyond the standard docs bundled at `node_modules/next/dist/docs/` —
-  nothing in the current `/` or `/dashboard` pages relies on
-  Next.js APIs that diverge from upstream docs.
+- **Read `AGENTS.md` first**: this Next.js version has breaking changes; the
+  bundled docs are in `node_modules/next/dist/docs/`.

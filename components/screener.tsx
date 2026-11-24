@@ -60,7 +60,7 @@ const RAIL_BREAKPOINT = 1700
  * How many facets are away from their defaults, for the toolbar button.
  *
  * Counted against `DEFAULT_FILTERS` rather than against emptiness, because the
- * screen now opens on two ticked bands: a raw count would report the opening
+ * screen now opens on three ticked bands: a raw count would report the opening
  * state as two active filters and never fall to zero.
  */
 function activeFilterCount(filters: ScreenerFilters): number {
@@ -75,7 +75,7 @@ function activeFilterCount(filters: ScreenerFilters): number {
   if (filters.signalBands.length > 0) count += 1
   count += filters.sectors.length
   if (!isDefaultBandSelection(filters.bands)) count += 1
-  count += filters.methods.length
+  if (filters.methods.length > 0) count += 1
   if (filters.maxBeta !== DEFAULT_FILTERS.maxBeta) count += 1
   return count
 }
@@ -118,17 +118,17 @@ function downloadCsv(stocks: Stock[], methods: MethodId[], signals: SignalId[]) 
       `"${stock.name.replace(/"/g, '""')}"`,
       `"${stock.sector.replace(/"/g, '""')}"`,
       stock.price.toFixed(2),
-      stock.marketCap.toFixed(2),
+      stock.marketCap === null ? "" : stock.marketCap.toFixed(2),
       figure(score),
       figure(stock.signals?.value),
       figure(stock.signals?.momentum),
       figure(stock.signals?.surprise),
       figure(impliedAlpha(stock, methods)),
       ...VALUATION_METHODS.map((m) => figure(methodAlpha(stock, m.id))),
-      stock.realisedReturn.toFixed(4),
-      stock.volatility.toFixed(4),
-      stock.beta.toFixed(3),
-      stock.peRatio > 0 ? stock.peRatio.toFixed(2) : "",
+      figure(stock.realisedReturn),
+      figure(stock.volatility),
+      stock.beta === null ? "" : stock.beta.toFixed(3),
+      stock.peRatio !== null && stock.peRatio > 0 ? stock.peRatio.toFixed(2) : "",
     ].join(",")
   })
 
@@ -138,9 +138,17 @@ function downloadCsv(stocks: Stock[], methods: MethodId[], signals: SignalId[]) 
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement("a")
   anchor.href = url
-  anchor.download = `margin-screen-${new Date().toISOString().slice(0, 10)}.csv`
+  anchor.download = `value-investing-dash-screen-${new Date().toISOString().slice(0, 10)}.csv`
   anchor.click()
   URL.revokeObjectURL(url)
+}
+
+/** Ascending or descending by `factor`, with unmeasured values last either way. */
+function compareNullable(a: number | null, b: number | null, factor: number): number {
+  if (a === null && b === null) return 0
+  if (a === null) return 1
+  if (b === null) return -1
+  return (a - b) * factor
 }
 
 /** How many stocks fall in each band, under the current model selection. */
@@ -317,15 +325,15 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
         case "price":
           return (a.price - b.price) * factor
         case "marketCap":
-          return (a.marketCap - b.marketCap) * factor
+          return compareNullable(a.marketCap, b.marketCap, factor)
         case "beta":
-          return (a.beta - b.beta) * factor
+          return compareNullable(a.beta, b.beta, factor)
         case "peRatio":
-          return (a.peRatio - b.peRatio) * factor
+          return compareNullable(a.peRatio, b.peRatio, factor)
         case "realisedReturn":
-          return (a.realisedReturn - b.realisedReturn) * factor
+          return compareNullable(a.realisedReturn, b.realisedReturn, factor)
         case "volatility":
-          return (a.volatility - b.volatility) * factor
+          return compareNullable(a.volatility, b.volatility, factor)
         case "signal": {
           // Unscored stocks sink in either direction, like unrated ones below.
           const aScore = signalScore(a, filters.signals)

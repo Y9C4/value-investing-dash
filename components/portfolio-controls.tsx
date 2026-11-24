@@ -239,6 +239,7 @@ export function PortfolioControls({
   onChange,
   onReset,
   universeSize,
+  indexSize,
   dirty,
   resolved,
   methods,
@@ -252,6 +253,8 @@ export function PortfolioControls({
   onReset: () => void
   /** Screened stock count; 0 means the full index. */
   universeSize: number
+  /** Stocks in the index, for the "N / total" readout. */
+  indexSize: number
   /** These settings have not been solved yet. */
   dirty: boolean
   /** Models the implied excess return averages. Empty means all of them. */
@@ -294,10 +297,10 @@ export function PortfolioControls({
       <div className="flex flex-col gap-1 border-b border-border px-6 py-4">
         <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-3xl font-semibold tabular-nums">
-            {universeSize > 0 ? universeSize : "500"}
+            {universeSize > 0 ? universeSize : indexSize}
           </span>
           <span className="text-sm text-muted-foreground">
-            /500 stocks
+            / {indexSize} stocks
           </span>
         </p>
         {dirty && (

@@ -1,11 +1,9 @@
+import { MARKET_DATA_API_URL } from "@/lib/market-data-service"
 import { selectRows } from "@/lib/supabase"
-
-const MARKET_DATA_API_URL =
-  process.env.MARKET_DATA_API_URL ?? "http://127.0.0.1:8000"
 
 /**
  * How many trading days the chart draws. Matches `RETURNS_LOOKBACK_DAYS` in
- * `api/market.py`, so both sources answer over the same window.
+ * `python-api/market.py`, so both sources answer over the same window.
  */
 const LOOKBACK_DAYS = 252
 
@@ -89,8 +87,14 @@ async function readFromService(symbol: string): Promise<Response> {
     )
   }
 
-  const body = await upstream.json()
-  if (!upstream.ok) return Response.json(body, { status: upstream.status })
+  // The service answers JSON, but a proxy or crash page in front of it may not.
+  const body = await upstream.json().catch(() => null)
+  if (!upstream.ok || body === null) {
+    return Response.json(
+      { detail: body?.detail ?? "The market data service returned an unreadable response." },
+      { status: upstream.ok ? 502 : upstream.status }
+    )
+  }
 
   const candles = Array.isArray(body?.candles)
     ? (body.candles as { date: string; close: number }[]).map(

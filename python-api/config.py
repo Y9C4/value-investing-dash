@@ -49,5 +49,9 @@ ALLOWED_ORIGINS = [
 # than a choice.
 SELECT_PAGE_SIZE = 1000
 UPSERT_CHUNK_SIZE = 500
+
+# The optimiser's estimation window: three years of daily returns for the mean
+# and covariance. A ticker with under 90% of it is excluded from a solve.
+PRICE_WINDOW_DAYS = 3 * 365
 # Tickers per yfinance download and per `in_()` filter.
 FETCH_CHUNK_SIZE = 50

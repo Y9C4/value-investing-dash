@@ -239,7 +239,7 @@ export function KeyStatisticsCard({
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
           <Stat label="Beta" value={beta?.toFixed(3) ?? "—"} />
           <Stat
-            label="Risk-free"
+            label="T-bill (3M)"
             value={riskFreeRate === null ? "—" : formatReturn(riskFreeRate)}
           />
           <Stat

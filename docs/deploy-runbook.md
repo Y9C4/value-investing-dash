@@ -1,6 +1,22 @@
-# Deploying Margin
+# Deploying Value Investing Dash
 
-The concrete procedure for Phase 2 of `deploy-readiness-plan.md`. Every command
+> **What has changed since this was written (2026-11-23).** The procedure
+> below still holds for Cloud Run, Vercel and the secrets, but the data layer
+> it describes has been replaced:
+>
+> - The service folder is `python-api/` (paths below are updated).
+> - `universe_snapshot`, `valuations`, `daily_close_prices`, `ticker_statistics`
+>   and `quarterly_fundamentals` were dropped by migrations `20261117000002`
+>   and `000003`. The site reads the warehouse's serving views
+>   `public.screener`, `public.market_summary` and `public.stock_prices`
+>   (see `python-api/notebooks/backtests.md` §17).
+> - `/valuations`, `/backfill/valuations`, `/quote`, `/info` and `/history` no
+>   longer exist on the service. Ignore the steps and smoke tests that call
+>   them. The remaining routes are `/health`, `/returns/{t}`, `/backfill/*`
+>   and `/efficient-frontier`.
+> - `deploy-readiness-plan.md` is archived in `docs/archive/`.
+
+The concrete procedure for Phase 2 of `archive/deploy-readiness-plan.md`. Every command
 is meant to be pasted in order; where a step needs a value from an earlier step,
 it says so.
 
@@ -106,7 +122,7 @@ nothing else.
 
 ```bash
 gcloud run deploy margin-solver \
-  --source api/ \
+  --source python-api/ \
   --region "$REGION" \
   --service-account "$RUNTIME" \
   --cpu 2 --memory 2Gi \
@@ -390,8 +406,8 @@ Cloud Scheduler ping reaching `/health` with a 200.
 
 | variable | Cloud Run | Vercel | local |
 |---|---|---|---|
-| `SUPABASE_URL` | yes | — | `api/.env` |
-| `SUPABASE_SERVICE_ROLE_KEY` | secret | **never** | `api/.env` |
+| `SUPABASE_URL` | yes | — | `python-api/.env` |
+| `SUPABASE_SERVICE_ROLE_KEY` | secret | **never** | `python-api/.env` |
 | `NEXT_PUBLIC_SUPABASE_URL` | — | yes | `.env` |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | — | yes | `.env` |
 | `MARKET_DATA_API_URL` | — | yes | `.env` |
@@ -468,7 +484,7 @@ Next talks to Supabase with the publishable (anon) key over plain PostgREST
 `universe_snapshot`, `frontier_snapshot` and `daily_close_prices`, and nothing
 else. `valuations`, `ticker_statistics`, `quarterly_fundamentals` and
 `company_profile` all return `[]` to that key. The service role key, which
-bypasses RLS entirely, exists only in `api/.env` and Secret Manager.
+bypasses RLS entirely, exists only in `python-api/.env` and Secret Manager.
 
 ## 2. What each page actually needs
 
@@ -550,7 +566,7 @@ unguarded passthroughs left from before the snapshot read path, forwarding no
 origin header and taking no rate limit. Nothing called either. **Both deleted**
 — the whole Next surface that reaches Cloud Run is now the two rows above.
 
-On the Python side (`api/main.py`):
+On the Python side (`python-api/main.py`):
 
 | endpoint | guard |
 |---|---|
@@ -574,7 +590,7 @@ rather than failing loudly. Check it after any `--set-env-vars` edit, which
    zero, which is the bug that silently disabled the whole limiter once.
 2. **The default-snapshot short circuit** — the most common request never
    reaches the solver at all.
-3. **`POINT_BUDGET = 12_000`** (`api/frontier.py`) — points × assets. 499 names
+3. **`POINT_BUDGET = 12_000`** (`python-api/frontier.py`) — points × assets. 499 names
    can only ever get ~24 points however many are asked for; a 20-name screened
    set still gets the full 200. Reported back as `n_portfolios_requested` and
    `resolution_capped`, and shown on the page.
@@ -613,7 +629,7 @@ writing the snapshot, or its own row would not appear until the next day.
 ### To the solver
 
 ```bash
-gcloud run deploy margin-solver --source api/ --region us-central1
+gcloud run deploy margin-solver --source python-api/ --region us-central1
 ```
 
 Nothing else. Flags, secrets, service account and env vars are properties of the
@@ -669,9 +685,9 @@ curl -s -H "apikey: $ANON" "$URL/rest/v1/valuations?select=ticker&limit=1"
 
 | one side | the other |
 |---|---|
-| `ENVELOPE_POINTS` (`api/frontier.py`) | `DEFAULT_PORTFOLIOS` (`lib/portfolio-settings.ts`) |
+| `ENVELOPE_POINTS` (`python-api/frontier.py`) | `DEFAULT_PORTFOLIOS` (`lib/portfolio-settings.ts`) |
 | `MIN`/`MAX_ENVELOPE_POINTS` | `MIN`/`MAX_PORTFOLIOS` |
-| `RETURNS_LOOKBACK_DAYS` (`api/market.py`) | `LOOKBACK_DAYS` (close-history route) |
+| `RETURNS_LOOKBACK_DAYS` (`python-api/market.py`) | `LOOKBACK_DAYS` (close-history route) |
 | Cloud Run `--timeout 1800` | Scheduler `--attempt-deadline 1800s` |
 | `MARGIN_ORIGIN_SECRET` on Cloud Run | the same string on Vercel |
 | `maxDuration = 300` (frontier route) | `AbortSignal.timeout(280_000)` inside it |
@@ -713,7 +729,7 @@ resolution does — the row is a payload, so a code change alone does not move i
 Both debts clear in one motion:
 
 ```bash
-gcloud run deploy margin-solver --source api/ --region us-central1
+gcloud run deploy margin-solver --source python-api/ --region us-central1
 curl -s -X POST -H "X-Backfill-Token: $BACKFILL_TOKEN" \
      "$SERVICE_URL/backfill/valuations"
 
@@ -733,7 +749,7 @@ secret does not fail, it turns the guard off.
 **Removed.** `grep -rn SERVICE_ROLE app lib components` was already empty —
 `lib/supabase.ts` uses only the two `NEXT_PUBLIC_` values — so the line was
 harmless on disk and catastrophic on Vercel, one careless "copy my .env into
-the project settings" away. `api/.env` keeps its own copy, which is the only
+the project settings" away. `python-api/.env` keeps its own copy, which is the only
 place the Python side ever read it from. Keep it that way: the root `.env` is
 the file that gets pasted into a hosting dashboard.
 

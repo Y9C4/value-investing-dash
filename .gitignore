@@ -57,3 +57,6 @@ supabase/backups/
 
 # Backtest notebook export (derived from the local database, re-made by the notebook's last cell)
 python-api/backtest/output/
+
+# Jupyter autosaves
+.ipynb_checkpoints/

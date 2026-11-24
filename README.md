@@ -62,10 +62,10 @@ The [backtest](python-api/notebooks/backtests.md) tested each model against the 
 
 | Component | What it is | Development IC |
 |---|---|---|
-| **Value** | Reverse DCF: the return today’s price implies, minus the return the stock’s risk requires, averaged over reverse FCFF, residual income, revenue and shareholder-yield models | 0.036 |
+| **Value** | Reverse DCF: the return today’s price implies, minus the return the stock’s risk requires, averaged over reverse FCFF, residual income, revenue and shareholder-yield models | 0.032 |
 | **Momentum** | The return from 12 months to 1 month ago | 0.029 |
-| **Earnings surprise** | Latest EPS beat or miss against the analyst consensus, scaled by price | 0.025 |
-| *Value + momentum* | The default blend | *0.056* |
+| **Earnings surprise** | Latest EPS beat or miss against the analyst consensus, scaled by price | 0.024 |
+| *Value + momentum* | The default blend | *0.054* |
 | *Momentum + surprise* | | *0.035* |
 
 Each is shown as a percentile of today’s universe, and the score is the mean of the selected percentiles. The backtest found the size of expected alpha meaningless, so no component is shown as a return forecast. None of these results is statistically significant on 23 months yet, and the locked holdout hasn’t been run; the screener says so beside the controls.
@@ -214,7 +214,7 @@ The service role key skips row-level security, so it only ever lives in the Data
 
 ## Limitations
 
-- Prices and fundamentals come from yfinance, an unofficial source with major gaps as evident in the coverage of the FCFF and FCFE models.
+- Prices and fundamentals come from yfinance, an unofficial source with major gaps as evident in the uneven coverage of the reverse-DCF models.
 - Expected returns come from past returns, which are not reliable forecasts. The value screen helps, but a strong run still looks good to the optimizer.
 - Nothing on Value-Investing-Dash is investment advice. It’s a demonstrator project.
 

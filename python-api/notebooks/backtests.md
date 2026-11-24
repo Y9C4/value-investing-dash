@@ -1,6 +1,6 @@
 # Proposal: Backtesting Valuation Signals with Reverse DCF
 
-**Status:** development tests done, holdout not yet run · live warehouse phase 1 in progress (§17) · **Last revised:** 2026-11-17
+**Status:** development tests re-run under the revised specification (§18), holdout not yet run · **Last revised:** 2026-11-23
 
 §1–§12 are the original plan. §13–§17 record what development found and what comes next: the signals added to the product, further models graded by feasibility, how each is tested, how the signal is shown on the screener, and the live data warehouse that computes it.
 
@@ -198,7 +198,7 @@ Each stage is cached and lives in its own file, so a later stage never forces an
 
 | Stage | Does | Output | Cost | Reruns |
 |---|---|---|---|---|
-| 0. Data | Pull from yfinance into the `backtest` schema, then build `backtest.models` (one row per rebalance date × ticker, point-in-time rules applied) with `DWimplementation.sql` | Local Supabase (Postgres) | ~10 min load, ~2 s build | Once; rebuild `models` when an input rule changes |
+| 0. Data | Pull from yfinance into the `backtest` schema, then build `backtest.models` (one row per rebalance date × ticker, point-in-time rules applied) with `notebooks/DWimplementation_v2.sql` | Local Supabase (Postgres) | ~10 min load, ~2 s build | Once; rebuild `models` when an input rule changes |
 | 1. Signals | For each date × stock × model: implied return (root solve), required return, expected alpha, plain ratios | One long table: `date, ticker, model, value` | Seconds to minutes (~35k solves) | When a model specification changes |
 | 2. Evaluation | Join forward returns, then compute IC, spreads, calibration and factor regressions | Tables and charts | Seconds | Freely, during development |
 | 3. Freeze and holdout | Commit the chosen specification, then run stages 1–2 on the holdout dates | Reported results | Seconds | **Once** |
@@ -264,22 +264,22 @@ All portfolios are long-only, drawn from the top fifth by expected alpha, and us
 
 ## 13. What development found, and what the product adds
 
-Development dates only (Mar 2023 – Jan 2025, 23 months), target = 1-month factor-adjusted return, CAPM benchmark. Run of 2026-11-17.
+Development dates only (Mar 2023 – Jan 2025, 23 months), target = 1-month factor-adjusted return, CAPM benchmark. **Run of 2026-11-23, under the revised specification (§18).** The 2026-11-17 figures are kept in §18's variant log.
 
-| Signal | Mean IC | IC t-stat | IC > 0 | Q5 − Q1 / month | FF5 alpha / yr (t) | Coverage, dev | Coverage, Oct 2026 |
+| Signal | Mean IC | IC t-stat | IC > 0 | Q5 − Q1 / month | FF5 alpha / yr (t) | Coverage, dev | Coverage, live 2026-11-23 |
 |---|---|---|---|---|---|---|---|
-| **Value + momentum** (mean percentile of combined alpha and momentum) | **0.056** | 1.91 | 70% | 0.8% | +1.0% (0.08) | 97.7% | 86.5% |
-| Combined alpha (value) | 0.036 | 1.17 | 61% | 0.4% | −5.3% (−0.86) | 97.9% | 86.5% |
-| **Momentum + surprise** (mean percentile of momentum and earnings surprise) | 0.035 | 1.45 | 70% | **0.8%** (t 1.58) | **+3.0%** (0.33) | 98.5% | 96.0% |
-| Momentum 12-1 | 0.029 | 1.17 | 65% | 0.5% | −0.6% (−0.05) | 99.8% | 99.4% |
-| Earnings surprise (SUE against the analyst forecast, scaled by price) | 0.025 | 1.49 | 65% | 0.3% | −5.2% (−0.90) | 98.9% | 96.4% |
+| **Value + momentum** (mean percentile of combined alpha and momentum) | **0.054** | 1.92 | 70% | 0.8% (t 1.38) | +1.1% (0.09) | 97.7% | 96.4% |
+| Combined alpha (value) | 0.032 | 1.18 | 57% | 0.3% | −4.3% (−0.76) | 97.9% | 96.4% |
+| **Momentum + surprise** (mean percentile of momentum and earnings surprise) | 0.035 | 1.47 | 70% | **0.8%** (t 1.57) | **+2.8%** (0.30) | 98.7% | 97.0% |
+| Momentum 12-1 | 0.029 | 1.18 | 65% | 0.5% | −1.2% (−0.10) | 99.8% | 98.6% |
+| Earnings surprise (analyst surprise scaled by price) | 0.024 | 1.45 | 57% | 0.2% | −6.1% (−1.04) | 98.9% | 97.4% |
 
-Coverage is the share of stock-months with a value; about 466–476 stocks per date in development. Value's lower coverage in Oct 2026 is the holdout rows' missing CAPM betas where the Fama-French library ends (Sep 2026), not missing statements.
+Coverage is the share of stock-months (development) or stocks (live) with a value; about 466–476 stocks per date in development.
 
 - The two blends are the strongest results in the study and neither is significant on 23 months. Momentum + surprise has the best spread and the only positive factor-adjusted alpha; value + momentum has the best ranking.
 - **Regression tree** (`backtest/ml/tree.py`, 33 percentile-ranked predictors, 200-round date-block bootstrap): negative out-of-bag R² at every depth (−1% to −6%) and an out-of-bag IC of about zero. It loses to both blends on most rounds. The fitted tree splits mostly on statement staleness, which is the earnings calendar, not value.
 
-**Decision.** The product shows three signal components (value, momentum, earnings surprise) and their blends, as percentiles (§16). The forward-DCF consensus stays on the site as context. The holdout has not been run, so everything the screener says about these signals is development-period evidence, and the page says so.
+**Decision.** The product shows three signal components (value, momentum, earnings surprise) and their blends, as percentiles (§16). The forward-DCF models were later removed from the site (§16, revised 2026-11-17). The holdout has not been run, so everything the screener says about these signals is development-period evidence, and the page says so.
 
 ---
 
@@ -421,3 +421,39 @@ Python keeps extraction, loading and the optimiser.
 2. **Holdout:** freeze the specification in a committed config, run tests 1–5 once on May 2025 – Oct 2026, and report the result on the about page whatever it is.
 3. **A-grade models** (§14), through §15, then the IC-weighted blend.
 4. **Portfolio stage** (§9) with the frozen signal, ranked rather than scaled, as the optimiser's expected-return input.
+
+---
+
+## 18. Specification revision (2026-11-23)
+
+Every constant now has a source, and missing data produces no reading rather than a guess (`.claude/plans/overhaul.md` §5). Four inputs to the value signal changed, identically in `notebooks/backtest.ipynb` (cells 2 and 12) and in `warehouse` (`supabase/migrations/20261123000001_principled_spec.sql`). The holdout had not been run, so this was the last point at which the specification could change. It is now frozen in `warehouse.spec`.
+
+| Input | Before | After | Source |
+|---|---|---|---|
+| Beta (CAPM, for kₑ and the screener column) | Raw 252-day daily OLS beta. 90 of 503 live stocks had β < 0, so kₑ < rf | Vasicek-shrunk toward the cross-sectional mean by its own standard error, then shrunk 25% toward 0.9: β = 0.75 × β_Vasicek + 0.25 × 0.9 | Levi & Welch (2017, JFQA), eq. (1); 0.9 is their mean beta for the largest size tertile. Industry priors were rejected: the paper finds they explain 4% of future beta against ~50% for the stock's own |
+| Cost of debt | Interest ÷ debt clamped to [2%, 15%]; rf + 2% when missing | rf + the default spread of the synthetic rating for EBIT ÷ interest expense. No interest figure means no cost of debt | Damodaran, ratings table for large non-financial firms, January 2026 (`warehouse.synthetic_rating`) |
+| WACC for financial firms | Computed like any other | None: FCFF and revenue do not apply; RIM and shareholder yield still value them | Damodaran: debt is a financial firm's raw material, not its capital |
+| Trailing revenue growth | Clamped to [−10%, +25%] | Winsorised at the 1st/99th percentile of each date's cross-section | Standard outlier treatment in empirical finance |
+
+**Effect, development dates (CAPM benchmark).**
+
+| Signal | Mean IC before → after | IC t-stat before → after |
+|---|---|---|
+| Value + momentum | 0.056 → **0.054** | 1.91 → 1.92 |
+| Combined alpha (value) | 0.036 → 0.032 | 1.17 → 1.18 |
+| Momentum + surprise | 0.035 → 0.035 | 1.45 → 1.47 |
+| FCFF / RIM / Revenue / Shareholder yield | 0.035 / 0.025 / 0.036 / 0.041 → 0.034 / 0.021 / 0.029 / 0.043 | |
+| Calibration slope, combined alpha | 0.14 → 0.17 | |
+
+- Every kept model still beats its plain ratio on the same stocks (test 2), and COMPS still fails the keep rule.
+- Live, kₑ falls below the risk-free rate for 22 stocks instead of 90. The remaining negative betas are what the method gives for this window; no floor is imposed on top.
+- Firm-level coverage falls: 70 financial firms lose FCFF and revenue by design, and 28 non-financial firms that report debt but no interest expense lose them for want of a cost of debt. Value coverage stays at 96% because RIM and shareholder yield still cover them.
+- Optimiser, not part of the signal: expected returns are Jorion (1986) Bayes–Stein means instead of historical means clipped at ±50%, and the default position cap is the UCITS 10% single-issuer limit (none under 10 holdings) instead of 3% widened to 1.5/n.
+
+**Variant log** (§4 asks for one):
+
+| # | Date | Specification | Value + momentum IC |
+|---|---|---|---|
+| 1 | 2026-11-17 | Original (§6–§7): raw CAPM beta, clamped kd, clamped growth | 0.056 |
+| 2 | 2026-11-23 | This revision | 0.054 |
+

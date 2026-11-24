@@ -15,10 +15,6 @@ from fastapi import HTTPException
 import config
 import db
 
-# How much history to hold. Every return calculation asks for 252 trading days
-# and `period="1y"` yields only ~250 rows; two years leaves headroom for the
-# Fama-French series, which publishes weeks in arrears.
-PRICE_HISTORY_PERIOD = "2y"
 RETURNS_LOOKBACK_DAYS = 252
 
 # Paged price reads are independent round trips, so they overlap.
@@ -68,40 +64,6 @@ def average_risk_free_rate() -> float:
     return _risk_free_rate
 
 
-def expected_market_return() -> float | None:
-    """No longer called: the warehouse computes this as market_summary.market_return,
-    and the view it reads (daily_log_returns) was dropped by migration 20261117000002.
-
-    The index's annualised log return over the same 252-day window.
-
-    A universe-level scalar, like the risk-free rate beside it: every stock page
-    reads the same figure, so it is computed once here rather than derived from
-    a per-ticker response. `ticker_statistics` cannot carry it, because ^GSPC is
-    the benchmark rather than a member of the universe and gets no row.
-
-    None rather than 0.0 when there is no history: a market return of zero is a
-    statement, and an absent one is not.
-    """
-    res = db.read(
-        lambda client: client.table("daily_log_returns")
-        .select("log_return")
-        .eq("ticker", config.SP500_INDEX_TICKER)
-        .order("date", desc=True)
-        .limit(RETURNS_LOOKBACK_DAYS)
-        .execute()
-    )
-
-    returns = [
-        float(row["log_return"])
-        for row in (res.data or [])
-        if row.get("log_return") is not None
-    ]
-    if not returns:
-        return None
-
-    return sum(returns) / len(returns) * RETURNS_LOOKBACK_DAYS
-
-
 def returns_df(ticker: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Daily log returns for `ticker` alongside ^GSPC on the same dates, plus
     their 2x2 variance-covariance matrix.
@@ -143,11 +105,16 @@ def clear_price_cache() -> None:
         _risk_free_rate = None
 
 
+def _window_start() -> str:
+    return (date.today() - timedelta(days=config.PRICE_WINDOW_DAYS)).isoformat()
+
+
 def _fetch_price_page(chunk: list[str], start: int) -> list[dict]:
     return db.read(
         lambda client: client.table("stock_prices")
-        .select("date, ticker, close")
+        .select("date, ticker, adj_close")
         .in_("ticker", chunk)
+        .gte("date", _window_start())
         .order("date")
         .order("ticker")
         .range(start, start + config.SELECT_PAGE_SIZE - 1)
@@ -168,12 +135,17 @@ def _fetch_price_chunk(chunk: list[str]) -> list[dict]:
 
 
 def prices_df(tickers: list[str]) -> pd.DataFrame:
-    """Daily closes for exactly `tickers`, pivoted wide (index=date, columns=ticker).
+    """Dividend-adjusted daily closes for exactly `tickers` over the last
+    `config.PRICE_WINDOW_DAYS`, pivoted wide (index=date, columns=ticker).
+
+    Adjusted, so expected returns include dividends. Windowed, because
+    `raw.daily_prices` holds history back to 2015 and an unbounded read paged
+    through ~1.45M rows on every cold start.
 
     Three details, together worth ~80s per optimisation:
 
-    - The whole index is ~258 sequential pages and they do not depend on each
-      other, so they are issued in parallel.
+    - The whole index is ~380 pages over the window and they do not depend on
+      each other, so they are issued in parallel.
     - The ticker list is pushed down into the query. Optimising ten screened
       names used to pay for reading all 500.
     - Columns are cached per ticker rather than per request, so a small solve
@@ -201,9 +173,9 @@ def prices_df(tickers: list[str]) -> pd.DataFrame:
         if rows:
             frame = pd.DataFrame(rows)
             frame["date"] = pd.to_datetime(frame["date"])
-            frame["close"] = pd.to_numeric(frame["close"])
+            frame["adj_close"] = pd.to_numeric(frame["adj_close"])
             frame = frame.drop_duplicates(subset=["date", "ticker"])
-            wide = frame.pivot(index="date", columns="ticker", values="close")
+            wide = frame.pivot(index="date", columns="ticker", values="adj_close")
             with _price_cache_lock:
                 for ticker in wide.columns:
                     _price_column_cache[ticker] = wide[ticker]
@@ -231,44 +203,3 @@ def prices_df(tickers: list[str]) -> pd.DataFrame:
 
     return pd.DataFrame(columns).sort_index()
 
-
-def recent_prices_df() -> pd.DataFrame:
-    """No longer called: it fed the Python valuations run (backfill.valuations),
-    which warehouse.refresh() replaced, and it reads a dropped table.
-
-    Closes inside the valuation window, pivoted wide.
-
-    Bounded rather than reading the whole table: the models only look at 252
-    trading days, so an unbounded read would grow the egress bill as history
-    accumulates, for rows that get discarded.
-    """
-    cutoff = (date.today() - timedelta(days=400)).isoformat()
-
-    rows: list[dict] = []
-    start = 0
-    while True:
-        page = db.read(
-            lambda client, start=start: client.table("daily_close_prices")
-            .select("date, ticker, close")
-            .gte("date", cutoff)
-            .order("date")
-            .order("ticker")
-            .range(start, start + config.SELECT_PAGE_SIZE - 1)
-            .execute()
-        ).data
-        rows.extend(page)
-        if len(page) < config.SELECT_PAGE_SIZE:
-            break
-        start += config.SELECT_PAGE_SIZE
-
-    if not rows:
-        raise HTTPException(
-            status_code=404,
-            detail="No close price data. Run /backfill/sp500-daily-close first.",
-        )
-
-    frame = pd.DataFrame(rows)
-    frame["date"] = pd.to_datetime(frame["date"])
-    frame["close"] = pd.to_numeric(frame["close"])
-    frame = frame.drop_duplicates(subset=["date", "ticker"])
-    return frame.pivot(index="date", columns="ticker", values="close").sort_index()

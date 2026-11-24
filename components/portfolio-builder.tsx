@@ -352,9 +352,9 @@ export function PortfolioBuilder({
       // state rather than anything about their settings.
       if (res.status === 431) {
         throw new Error(
-          "The request headers were too large for the dev server (HTTP 431). " +
-          "The optimiser was never reached. This is almost always cookies " +
-          "accumulated on localhost. Clear them for this site and retry.",
+          "Your browser sent request headers too large for the server " +
+          "(HTTP 431), so the optimiser was never reached. Clearing this " +
+          "site's cookies usually fixes it.",
         )
       }
 
@@ -526,6 +526,7 @@ export function PortfolioBuilder({
           onChange={setSettings}
           onReset={() => setSettings(DEFAULT_SETTINGS)}
           universeSize={tickers.length}
+          indexSize={stocks.length}
           dirty={dirty}
           resolved={resolvedBounds}
           methods={methods}
@@ -591,7 +592,7 @@ export function PortfolioBuilder({
                     },
                   )}`
                   : ""}
-              {dirty && "- settings changed"}
+              {dirty && " · settings changed"}
             </span>
           </div>
 
@@ -727,7 +728,7 @@ export function PortfolioBuilder({
               }
             />
             <Stat
-              label="Risk-free rate"
+              label="T-bill (3M)"
               value={formatPercent(data.risk_free_rate)}
               hint="13-week T-bill"
             />

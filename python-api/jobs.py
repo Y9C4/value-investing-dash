@@ -81,34 +81,3 @@ def record(job: str, res: dict) -> None:
         ).execute()
     except Exception:  # noqa: BLE001 - see docstring
         pass
-
-
-def latest() -> dict[str, dict]:
-    """The most recent run of each stage, keyed by job.
-
-    Baked into the universe snapshot so the front end gets freshness for free
-    on a payload it already reads. Empty on any failure: a missing freshness
-    block hides one strip of chrome, and must never take the screener with it.
-    """
-    try:
-        rows = db.read(
-            lambda client: client.table("latest_job_runs")
-            .select("job, status, finished_at, duration_seconds, rows_upserted")
-            .execute()
-        ).data
-    except Exception:  # noqa: BLE001 - chrome, not data
-        return {}
-
-    return {
-        row["job"]: {
-            "status": row["status"],
-            "finishedAt": row["finished_at"],
-            "durationSeconds": (
-                float(row["duration_seconds"])
-                if row.get("duration_seconds") is not None
-                else None
-            ),
-            "rowsUpserted": row.get("rows_upserted"),
-        }
-        for row in rows or []
-    }

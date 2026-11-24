@@ -204,35 +204,17 @@ export function PortfolioList({
                       nothing on its own. Untoned when there is no index to
                       compare against. */}
                   <TableCell
-                    className={cn(
-                      "text-right font-mono tabular-nums",
-                      market &&
-                        (row.portfolio.return < market.return
-                          ? "text-overvalued"
-                          : "text-undervalued")
-                    )}
+                    className="text-right font-mono tabular-nums"
                   >
                     {formatPercent(row.portfolio.return)}
                   </TableCell>
                   <TableCell
-                    className={cn(
-                      "text-right font-mono tabular-nums",
-                      market &&
-                        (row.portfolio.volatility > market.volatility
-                          ? "text-overvalued"
-                          : "text-undervalued")
-                    )}
+                    className="text-right font-mono tabular-nums"
                   >
                     {formatPercent(row.portfolio.volatility)}
                   </TableCell>
                   <TableCell
-                    className={cn(
-                      "text-right font-mono tabular-nums",
-                      market &&
-                        (row.portfolio.sharpe < market.sharpe
-                          ? "text-overvalued"
-                          : "text-undervalued")
-                    )}
+                    className="text-right font-mono tabular-nums"
                   >
                     {row.portfolio.sharpe.toFixed(2)}
                   </TableCell>

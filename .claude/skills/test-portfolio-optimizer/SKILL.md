@@ -1,6 +1,6 @@
 ---
 name: test-portfolio-optimizer
-description: Test the portfolio optimiser (efficient frontier / tangency portfolio) across many screened stock sets, via HTTP and a real headless browser. Use when changing api/frontier.py, components/efficient-frontier.tsx, or the backfills that feed them — and whenever someone reports the optimiser failing, erroring, hanging, or showing "page not working".
+description: Test the portfolio optimiser (efficient frontier / tangency portfolio) across many screened stock sets, via HTTP and a real headless browser. Use when changing python-api/frontier.py, components/efficient-frontier.tsx, or the backfills that feed them — and whenever someone reports the optimiser failing, erroring, hanging, or showing "page not working".
 ---
 
 Sweeps `POST /efficient-frontier` and the `/portfolio` page across many
@@ -192,7 +192,7 @@ row instead.
 ## Gotchas
 
 - **Run from the repo root.** `node .claude/skills/...` resolves relative to
-  the current directory; from `api/` it will not find the script.
+  the current directory; from `python-api/` it will not find the script.
 - **A cold price cache costs ~40s on the first wide case.** The service caches
   close series per ticker for 15 minutes, so a second sweep is much faster.
   A sweep straight after restarting `uvicorn` will look slow — that is the
@@ -210,7 +210,7 @@ row instead.
   positions shift when a constituent is added or removed — an old shared link
   would otherwise decode into a *different* portfolio and plot it without
   complaint. `?tickers=` is still honoured for short, hand-built URLs.
-- **Reads are retried, writes are not.** `db.read` in `api/db.py`
+- **Reads are retried, writes are not.** `db.read` in `python-api/db.py`
   wraps every read in the request path, because re-running a read has no side
   effects. Do not extend it over an upsert or a delete without thinking about
   what a repeated write does.

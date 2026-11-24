@@ -73,7 +73,7 @@ export function DiscountRatePanel({ rates }: { rates: DiscountRates }) {
             note="what FCFF and revenue must beat"
           />
           <Figure
-            label="Risk-free rate"
+            label="10Y Treasury"
             value={formatPercent(rates.riskFree)}
             note="10-year Treasury (^TNX), spot"
           />

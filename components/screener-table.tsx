@@ -109,7 +109,7 @@ const COLUMNS: {
         title: "Annualised log return",
         body: "The mean daily log return over the last 252 trading days * 252.",
         points: [
-          "Realised returns aren't a reliable forecast of future returns, but for the mean varience optimiser, they're used as expected returns",
+          "Realised returns aren't a reliable forecast of future returns, but for the mean-variance optimiser, they're used as expected returns",
         ],
       },
     },
@@ -122,7 +122,7 @@ const COLUMNS: {
         title: "Annualised volatility",
         body: "Standard deviation of daily log returns * √252.",
         points: [
-          "Past Volatility isn't a reliable forecast of future volatility, but for the mean varience optimiser, they're used as expected volatility",
+          "Past volatility isn't a reliable forecast of future volatility, but for the mean-variance optimiser, they're used as expected volatility",
         ],
       },
     },
@@ -390,19 +390,19 @@ export function ScreenerTable({
                   {formatSharePrice(stock.price)}
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {formatMarketCap(stock.marketCap)}
+                  {stock.marketCap === null ? "—" : formatMarketCap(stock.marketCap)}
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {formatSignedPercent(stock.realisedReturn)}
+                  {stock.realisedReturn === null ? "—" : formatSignedPercent(stock.realisedReturn)}
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {(stock.volatility * 100).toFixed(1)}%
+                  {stock.volatility === null ? "—" : `${(stock.volatility * 100).toFixed(1)}%`}
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {stock.beta.toFixed(2)}
+                  {stock.beta === null ? "—" : stock.beta.toFixed(2)}
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {stock.peRatio > 0 ? stock.peRatio.toFixed(1) : "—"}
+                  {stock.peRatio !== null && stock.peRatio > 0 ? stock.peRatio.toFixed(1) : "—"}
                 </TableCell>
               </TableRow>
             )

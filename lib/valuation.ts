@@ -118,14 +118,15 @@ export type Stock = {
   name: string
   sector: string
   price: number
-  marketCap: number
-  beta: number
-  peRatio: number
-  dividendYield: number
+  /** US$ billions. Null fields below were not measured: never read them as 0. */
+  marketCap: number | null
+  beta: number | null
+  peRatio: number | null
+  dividendYield: number | null
   /** Annualised expected return actually realised over the window. */
-  realisedReturn: number
+  realisedReturn: number | null
   /** Annualised volatility over the same window. */
-  volatility: number
+  volatility: number | null
   /** Absent on the offline sample, which has no rates to report. */
   discountRates?: DiscountRates
   /** The tested signal (lib/signals.ts). Absent on a stock with no data. */
@@ -352,7 +353,8 @@ export function applyFilters(
       return false
     }
 
-    if (stock.beta > filters.maxBeta) return false
+    // An unmeasured beta cannot be shown to be under the cap, so it fails it.
+    if (stock.beta === null || stock.beta > filters.maxBeta) return false
 
     if (
       filters.signalBands.length > 0 &&

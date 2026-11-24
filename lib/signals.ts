@@ -8,7 +8,7 @@
  * with — so value + momentum here is the value + momentum of the backtest.
  *
  * Percentiles rather than the raw numbers because test 4 found the size of
- * expected alpha meaningless (calibration slope 0.14). A rank is what the
+ * expected alpha meaningless (calibration slope 0.17). A rank is what the
  * evidence supports; a forecast return is not.
  */
 
@@ -30,7 +30,7 @@ export type SignalComponent = {
 
 /** Development dates: Mar 2023 – Jan 2025. Stated wherever an IC is shown. */
 export const SIGNAL_EVIDENCE =
-  "Rank ICs are from 23 development months (Mar 2023 – Jan 2025) against next-month factor-adjusted returns. None is statistically significant yet, and the locked holdout has not been run."
+  "Rank ICs are from 23 development months (Mar 2023 – Jan 2025) against next-month factor-adjusted returns, from the backtest run of 23 Nov 2026. None is statistically significant yet, and the locked holdout has not been run."
 
 export const SIGNAL_COMPONENTS: SignalComponent[] = [
   {
@@ -40,8 +40,8 @@ export const SIGNAL_COMPONENTS: SignalComponent[] = [
     blurb:
       "The return the current price implies, minus the return the stock's risk requires: the average over reverse FCFF, residual income, revenue and shareholder-yield models. Solved from price, not discounted to a fair value.",
     formula: "α = r(implied) − WACC or kₑ, averaged over 4 models",
-    ic: 0.036,
-    icTStat: 1.17,
+    ic: 0.032,
+    icTStat: 1.18,
   },
   {
     id: "momentum",
@@ -51,7 +51,7 @@ export const SIGNAL_COMPONENTS: SignalComponent[] = [
       "The return from twelve months ago to one month ago. Skipping the last month avoids its short-term reversal.",
     formula: "P(t−21) ÷ P(t−252) − 1, on dividend-adjusted closes",
     ic: 0.029,
-    icTStat: 1.17,
+    icTStat: 1.18,
   },
   {
     id: "surprise",
@@ -60,15 +60,15 @@ export const SIGNAL_COMPONENTS: SignalComponent[] = [
     blurb:
       "How far the latest quarter's EPS beat or missed the analyst consensus, scaled by price. Only reports from the last 100 days count.",
     formula: "(reported EPS − estimated EPS) ÷ price",
-    ic: 0.025,
-    icTStat: 1.49,
+    ic: 0.024,
+    icTStat: 1.45,
   },
 ]
 
 /** The tested blends, by their sorted component ids. Anything else is untested. */
 const TESTED_BLENDS: Record<string, { label: string; ic: number; icTStat: number }> = {
-  "momentum+value": { label: "Value + momentum", ic: 0.056, icTStat: 1.91 },
-  "momentum+surprise": { label: "Momentum + surprise", ic: 0.035, icTStat: 1.45 },
+  "momentum+value": { label: "Value + momentum", ic: 0.054, icTStat: 1.92 },
+  "momentum+surprise": { label: "Momentum + surprise", ic: 0.035, icTStat: 1.47 },
 }
 
 /** Value + momentum: the best tested blend. */

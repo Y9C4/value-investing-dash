@@ -36,7 +36,7 @@ export type PortfolioSettings = {
   shortAllowed: boolean
   /** Percent. Blank defers to the backend; negative permits shorting. */
   minWeight: string
-  /** Percent. Blank defers to the backend's universe-scaled cap. */
+  /** Percent. Blank defers to the backend's default: the UCITS 10% cap, or none under 10 names. */
   maxWeight: string
   /** L2 penalty. 0 leaves the solve unregularised. */
   gamma: string

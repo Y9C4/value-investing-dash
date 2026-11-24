@@ -54,7 +54,7 @@ export function StockDetail({
           <div className="h-[21rem] animate-pulse border border-border bg-card" />
         )}
 
-        {data && <PriceChartCard data={data} />}
+        {data && data.candles.length > 0 && <PriceChartCard data={data} />}
 
         <KeyStatisticsCard
           beta={stock.beta}
