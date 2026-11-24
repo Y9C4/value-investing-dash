@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 
 import { StockDetail } from "@/components/stock-detail"
 import { StockSearch } from "@/components/stock-search"
+import { rankUniverse } from "@/lib/screen"
 import { loadUniverse } from "@/lib/universe"
 
 export default async function StockPage({
@@ -14,6 +15,10 @@ export default async function StockPage({
   const stock = stocks.find((item) => item.ticker === symbol)
 
   if (!stock) notFound()
+
+  // Ranked over the whole index, as the screener ranks them, at all four models.
+  const valueTrend = rankUniverse(stocks, [], ["value", "momentum"])
+  const trendEarnings = rankUniverse(stocks, [], ["momentum", "surprise"])
 
   return (
     <>
@@ -53,6 +58,11 @@ export default async function StockPage({
         stock={stock}
         riskFreeRate={riskFreeRate}
         marketReturn={marketReturn}
+        valueRank={valueTrend.value.get(stock.ticker) ?? null}
+        blends={[
+          { label: "Value + trend", score: valueTrend.score.get(stock.ticker) ?? null },
+          { label: "Trend + earnings", score: trendEarnings.score.get(stock.ticker) ?? null },
+        ]}
       />
     </>
   )

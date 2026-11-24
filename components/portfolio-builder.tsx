@@ -43,8 +43,7 @@ import {
   methodAlpha,
   portfolioConsensus,
   VALUATION_METHODS,
-  valuationBand,
-  BAND_TEXT_CLASS,
+  gapTextClass,
   type MethodId,
   type Stock,
 } from "@/lib/valuation"
@@ -739,7 +738,7 @@ export function PortfolioBuilder({
             <Stat
               className={
                 consensus.ratedHoldings > 0
-                  ? BAND_TEXT_CLASS[valuationBand(consensus.impliedAlpha)]
+                  ? gapTextClass(consensus.impliedAlpha)
                   : undefined
               }
               label="Price implies"

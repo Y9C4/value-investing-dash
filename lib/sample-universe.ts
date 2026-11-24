@@ -1,4 +1,4 @@
-import type { Stock } from "@/lib/valuation"
+import type { Stock, StockRatios } from "@/lib/valuation"
 
 /**
  * A fixed sample of the S&P 500, kept as the screener's fallback.
@@ -10,7 +10,7 @@ import type { Stock } from "@/lib/valuation"
  * not this sample. Regenerate from `public.screener` when its shape changes.
  */
 
-export const SAMPLE_UNIVERSE: Stock[] = [
+export const SAMPLE_UNIVERSE: Omit<Stock, keyof StockRatios>[] = [
   {
     ticker: "AAPL",
     name: "Apple Inc.",

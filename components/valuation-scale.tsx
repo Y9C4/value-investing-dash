@@ -4,6 +4,37 @@ import {
   valuationBand,
 } from "@/lib/valuation"
 
+/** A value percentile as a bar filling from the left, coloured by its fifth. */
+export function ValueBar({
+  percentile,
+  className,
+}: {
+  percentile: number | null
+  className?: string
+}) {
+  const band = valuationBand(percentile)
+  return (
+    <div className={className}>
+      <div className="relative h-5 w-full" aria-hidden="true">
+        <span className="absolute inset-x-0 inset-y-1 bg-muted" />
+        {percentile !== null && (
+          <span
+            className="absolute inset-y-1 left-0"
+            style={{
+              width: `${(Math.max(0, Math.min(1, percentile)) * 100).toFixed(1)}%`,
+              background: BAND_FILL[band],
+            }}
+          />
+        )}
+      </div>
+      <span className="sr-only">
+        {BAND_LABELS[band]}
+        {percentile !== null && `, value ${Math.round(percentile * 100)} of 100`}
+      </span>
+    </div>
+  )
+}
+
 /**
  * A signed percentage where the sign is the reading rather than an annotation
  * on it: an explicit `+` for cheap, `−` for expensive, one decimal.
@@ -26,10 +57,11 @@ export function formatSignedPercent(value: number) {
 const BAR_DOMAIN = 0.1
 
 /**
- * The diverging bar every row of the screener carries: zero (the price implies
+ * A diverging bar for one implied excess return: zero (the price implies
  * exactly the required return) is the centre tick, and the mark grows right
- * (cheap) or left (expensive) from it. The numeric value sits beside it in text
- * ink, so the reading never depends on colour alone.
+ * (implies more) or left (implies less). Coloured by sign, the absolute
+ * reading, never by band, which needs a cross-section. The number sits beside
+ * it in text ink, so the reading never depends on colour alone.
  */
 export function ImpliedReturnBar({
   alpha,
@@ -38,7 +70,6 @@ export function ImpliedReturnBar({
   alpha: number
   className?: string
 }) {
-  const band = valuationBand(alpha)
   const magnitude = Math.min(Math.abs(alpha), BAR_DOMAIN) / BAR_DOMAIN
   const width = `${(magnitude * 50).toFixed(2)}%`
   const positive = alpha > 0
@@ -52,7 +83,9 @@ export function ImpliedReturnBar({
         <span
           className="absolute inset-y-1"
           style={{
-            background: BAND_FILL[band],
+            background: positive
+              ? "var(--color-undervalued)"
+              : "var(--color-overvalued)",
             width,
             ...(positive
               ? { left: "50%", marginLeft: "1px" }
@@ -61,8 +94,8 @@ export function ImpliedReturnBar({
         />
       </div>
       <span className="sr-only">
-        {BAND_LABELS[band]}, price implies {formatSignedPercent(alpha)} a year
-        over the required return
+        Price implies {formatSignedPercent(alpha)} a year against the required
+        return
       </span>
     </div>
   )

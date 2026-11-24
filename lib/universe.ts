@@ -3,6 +3,7 @@ import { isSupabaseConfigured, selectRows } from "@/lib/supabase"
 import {
   type DiscountRates,
   type Stock,
+  type StockRatios,
   type StockSignals,
 } from "@/lib/valuation"
 
@@ -160,6 +161,13 @@ type ScreenerRow = {
   volatility: Num
   pe_ratio: Num
   dividend_yield: Num
+  fcf_yield: Num
+  ev_ebitda: Num
+  pb_ratio: Num
+  shareholder_yield: Num
+  roe: Num
+  revenue_growth: Num
+  revenue_bn: Num
   discount_rates: {
     risk_free: Num
     cost_of_equity: Num
@@ -167,6 +175,9 @@ type ScreenerRow = {
     cost_of_debt: Num
     equity_weight: Num
     tax_rate: Num
+    beta_raw: Num
+    interest_coverage: Num
+    synthetic_rating: string | null
   } | null
   signals: {
     value: Num
@@ -184,6 +195,8 @@ type ScreenerRow = {
     } | null
     required_return_equity: Num
     required_return_firm: Num
+    implied_growth: Num
+    implied_growth_above_max: boolean | null
   } | null
 }
 
@@ -214,6 +227,9 @@ function toDiscountRates(row: ScreenerRow["discount_rates"]): DiscountRates | un
     costOfDebt: row.cost_of_debt,
     equityWeight: row.equity_weight,
     taxRate: row.tax_rate,
+    betaRaw: row.beta_raw,
+    interestCoverage: row.interest_coverage,
+    syntheticRating: row.synthetic_rating,
   }
 }
 
@@ -235,6 +251,8 @@ function toSignals(row: ScreenerRow["signals"]): StockSignals | undefined {
     },
     requiredReturnEquity: row.required_return_equity,
     requiredReturnFirm: row.required_return_firm,
+    impliedGrowth: row.implied_growth,
+    impliedGrowthAboveMax: row.implied_growth_above_max,
   }
 }
 
@@ -252,6 +270,13 @@ function toStock(row: ScreenerRow): Stock {
     volatility: row.volatility,
     peRatio: row.pe_ratio,
     dividendYield: row.dividend_yield,
+    fcfYield: row.fcf_yield,
+    evEbitda: row.ev_ebitda,
+    pbRatio: row.pb_ratio,
+    shareholderYield: row.shareholder_yield,
+    roe: row.roe,
+    revenueGrowth: row.revenue_growth,
+    revenueBn: row.revenue_bn,
     discountRates: toDiscountRates(row.discount_rates),
     signals: toSignals(row.signals),
   }
@@ -327,11 +352,22 @@ async function fromWarehouse(): Promise<Universe> {
   }
 }
 
+const NO_RATIOS: StockRatios = {
+  fcfYield: null,
+  evEbitda: null,
+  pbRatio: null,
+  shareholderYield: null,
+  roe: null,
+  revenueGrowth: null,
+  revenueBn: null,
+}
+
 export async function loadUniverse(): Promise<Universe> {
   if (isSupabaseConfigured()) return fromWarehouse()
 
   return {
-    stocks: SAMPLE_UNIVERSE,
+    // The sample predates the ratio columns: they are unmeasured there.
+    stocks: SAMPLE_UNIVERSE.map((stock) => ({ ...NO_RATIOS, ...stock })),
     isBaseline: true,
     computedAt: null,
     freshness: {},

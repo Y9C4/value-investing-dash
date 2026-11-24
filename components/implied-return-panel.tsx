@@ -21,7 +21,7 @@ import {
 } from "@/components/valuation-scale"
 import {
   BAND_LABELS,
-  BAND_TEXT_CLASS,
+  gapTextClass,
   IMPLIED_BASIS,
   VALUATION_METHODS,
   impliedAlpha,
@@ -41,11 +41,18 @@ function percent(value: number | null | undefined) {
  * rate the stock is required to earn, and their average — the number the
  * screener's "Price implies" column shows and its bands are cut on.
  */
-export function ImpliedReturnPanel({ stock }: { stock: Stock }) {
+export function ImpliedReturnPanel({
+  stock,
+  valuePercentile,
+}: {
+  stock: Stock
+  /** This stock's value percentile in the index, which sets its band. */
+  valuePercentile: number | null
+}) {
   if (!stock.signals) return null
 
   const alpha = impliedAlpha(stock)
-  const band = valuationBand(alpha)
+  const band = valuationBand(valuePercentile)
 
   return (
     <Panel>
@@ -62,7 +69,7 @@ export function ImpliedReturnPanel({ stock }: { stock: Stock }) {
       <div className="border-b border-border px-4 py-3">
         <Stat
           label="Over the required return"
-          className={BAND_TEXT_CLASS[band]}
+          className={gapTextClass(alpha)}
           value={
             <span className="flex items-baseline gap-2">
               <span>{alpha === null ? "—" : formatSignedPercent(alpha)}</span>
@@ -111,7 +118,7 @@ export function ImpliedReturnPanel({ stock }: { stock: Stock }) {
                   </span>
                 </TableCell>
                 <TableCell
-                  className={`text-right font-mono text-sm ${BAND_TEXT_CLASS[valuationBand(excess)]}`}
+                  className={`text-right font-mono text-sm ${gapTextClass(excess)}`}
                 >
                   {excess === null ? "—" : formatSignedPercent(excess)}
                 </TableCell>
@@ -126,9 +133,9 @@ export function ImpliedReturnPanel({ stock }: { stock: Stock }) {
           Each model solves for the return that makes five years of its cash
           flow, then a perpetuity, worth today&rsquo;s price. The headline
           averages whichever solved. A dash means no solution at this price (no
-          positive cash flow, or an implied return above 100%). Bands are
-          quintiles of the index, and the backtest found the ranking useful and
-          the size not.
+          positive cash flow, or an implied return above 100%). The band is
+          this stock&rsquo;s fifth of the index; the backtest found the ranking
+          useful and the size not.
         </p>
       </PanelBody>
     </Panel>

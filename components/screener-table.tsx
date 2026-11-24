@@ -8,6 +8,7 @@ import {
   RiInformationLine,
 } from "@remixicon/react"
 
+import { Button } from "@/components/ui/button"
 import {
   Table,
   TableBody,
@@ -23,134 +24,262 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ImpliedReturnBar, formatSignedPercent } from "@/components/valuation-scale"
+import { ValueBar, formatSignedPercent } from "@/components/valuation-scale"
 import { SignalBar } from "@/components/signal-scale"
 import { formatMarketCap, formatSharePrice } from "@/lib/format"
 import { useScrollPane } from "@/lib/use-scroll-pane"
 import {
+  BAND_BASIS,
   BAND_LABELS,
   BAND_TEXT_CLASS,
+  IMPLIED_BASIS,
+  gapTextClass,
   impliedAlpha,
   valuationBand,
-  type Stock,
   type MethodId,
+  type Stock,
 } from "@/lib/valuation"
-import {
-  SIGNAL_BAND_LABELS,
-  formatScore,
-  signalBand,
-  signalScore,
-  type SignalId,
-} from "@/lib/signals"
+import { SIGNAL_BAND_LABELS, formatScore, signalBand } from "@/lib/signals"
+import type { Ranking } from "@/lib/screen"
 import { cn } from "@/lib/utils"
 
 export type SortKey =
-  | "signal"
-  | "implied"
   | "ticker"
+  | "score"
+  | "value"
   | "price"
   | "marketCap"
-  | "beta"
   | "peRatio"
+  | "pbRatio"
+  | "evEbitda"
+  | "fcfYield"
+  | "shareholderYield"
+  | "roe"
+  | "revenueGrowth"
+  | "momentum"
+  | "surprise"
   | "realisedReturn"
   | "volatility"
+  | "beta"
 
-const COLUMNS: {
+export type ColumnGroup = "ratios" | "trend" | "risk"
+
+export const COLUMN_GROUPS: { id: ColumnGroup; label: string }[] = [
+  { id: "ratios", label: "Classic ratios" },
+  { id: "trend", label: "Trend & earnings" },
+  { id: "risk", label: "Risk" },
+]
+
+type Help = { title: string; body: string; points?: string[] }
+
+type Column = {
   key: SortKey
   label: string
   align: "left" | "right"
-  numeric: boolean
-  /** Shown behind an info trigger in the header for non-obvious columns. */
-  help?: { title: string; body: string; points?: string[] }
-}[] = [
-    { key: "ticker", label: "Stock", align: "left", numeric: false },
-    // First after the name and the default sort: the backtest ranks the blend
-    // above value alone (backtests.md §13).
-    {
-      key: "signal",
-      label: "Signal",
-      align: "left",
-      numeric: false,
-      help: {
-        title: "Signal score",
-        body: "The mean percentile, 0-100, of the signal components switched on in the filters: where the stock ranks against today's universe. A rank, not a forecast return.",
-        points: [
-          "100 means top of the universe on every selected component.",
-          "Blank means at least one selected component could not be measured for this stock.",
-        ],
-      },
+  /** Absent: always shown. */
+  group?: ColumnGroup
+  help?: Help
+  width?: string
+  cell: (stock: Stock, ctx: { ranking: Ranking; methods: MethodId[] }) => React.ReactNode
+}
+
+const DASH = "—"
+const pct = (value: number | null | undefined, digits = 1) =>
+  value === null || value === undefined ? DASH : `${(value * 100).toFixed(digits)}%`
+const signed = (value: number | null | undefined) =>
+  value === null || value === undefined ? DASH : formatSignedPercent(value)
+const multiple = (value: number | null) => (value === null ? DASH : `${value.toFixed(1)}×`)
+
+const COLUMNS: Column[] = [
+  {
+    key: "ticker",
+    label: "Stock",
+    align: "left",
+    cell: (stock) => (
+      // Ticker and name on one line: the table's height is fixed at the window,
+      // so every line break costs visible rows.
+      <Link href={`/stocks/${stock.ticker}`} className="flex items-baseline gap-2 group-hover:underline">
+        <span className="font-medium">{stock.ticker}</span>
+        <span className="max-w-[10rem] truncate text-xs text-muted-foreground">{stock.name}</span>
+      </Link>
+    ),
+  },
+  {
+    key: "score",
+    label: "Score",
+    align: "left",
+    width: "w-[11rem]",
+    help: {
+      title: "Score",
+      body: "The average of the selected component ranks (value + trend by default), re-ranked 0–100 across the index. A rank, not a forecast return.",
+      points: [
+        "Blank means a selected component could not be measured for this stock.",
+        "Value + trend had a development IC of 0.054 (t 1.92). Not yet significant, and the holdout has not been run.",
+      ],
     },
-    {
-      key: "implied",
-      label: "Price implies",
-      align: "right",
-      numeric: false,
-      help: {
-        title: "Implied excess return",
-        body: "The annual return today's price implies, minus the return the stock's risk requires (WACC or CAPM cost of equity), averaged over the toggled reverse-DCF models.",
-        points: [
-          "+2% means the price implies 2 points a year more than the stock needs to earn: cheap.",
-          "−2% means it implies 2 points less: the price already assumes more than the risk pays for.",
-          "The backtest found the rank of this number useful and its size not, so read it as a ranking rather than a forecast.",
-        ],
-      },
+    cell: (stock, { ranking }) => {
+      const score = ranking.score.get(stock.ticker) ?? null
+      return (
+        <div className="flex items-center gap-3">
+          <SignalBar score={score} className="w-16 shrink-0" />
+          <span className="w-7 shrink-0 text-right font-mono text-sm">{formatScore(score)}</span>
+          <span className="hidden text-xs whitespace-nowrap text-muted-foreground 2xl:inline">
+            {score === null ? "" : SIGNAL_BAND_LABELS[signalBand(score)]}
+          </span>
+        </div>
+      )
     },
-    { key: "price", label: "Price", align: "right", numeric: true },
-    { key: "marketCap", label: "Mkt cap", align: "right", numeric: true },
-    {
-      key: "realisedReturn",
-      // Shortened from "Return (ann.)": the window is stated in the popover
-      // beside it, and four numeric headings at full length were most of what
-      // pushed the last columns off a laptop screen.
-      label: "Return 1Y",
-      align: "right",
-      numeric: true,
-      help: {
-        title: "Annualised log return",
-        body: "The mean daily log return over the last 252 trading days * 252.",
-        points: [
-          "Realised returns aren't a reliable forecast of future returns, but for the mean-variance optimiser, they're used as expected returns",
-        ],
-      },
+  },
+  {
+    key: "value",
+    label: "Value",
+    align: "left",
+    width: "w-[15rem]",
+    help: {
+      title: "Value",
+      body: IMPLIED_BASIS,
+      points: [
+        "The number is the stock's rank, 0–100, on that gap. 100 is the cheapest in the index.",
+        "The figure beside it is the gap itself, in points a year.",
+        BAND_BASIS,
+      ],
     },
-    {
-      key: "volatility",
-      label: "Vol 1Y",
-      align: "right",
-      numeric: true,
-      help: {
-        title: "Annualised volatility",
-        body: "Standard deviation of daily log returns * √252.",
-        points: [
-          "Past volatility isn't a reliable forecast of future volatility, but for the mean-variance optimiser, they're used as expected volatility",
-        ],
-      },
+    cell: (stock, { ranking, methods }) => {
+      const percentile = ranking.value.get(stock.ticker) ?? null
+      const alpha = impliedAlpha(stock, methods)
+      const band = valuationBand(percentile)
+      return (
+        <div className="flex items-center gap-3" title={BAND_LABELS[band]}>
+          <ValueBar percentile={percentile} className="w-16 shrink-0" />
+          <span className={cn("w-7 shrink-0 text-right font-mono text-sm", BAND_TEXT_CLASS[band])}>
+            {percentile === null ? DASH : Math.round(percentile * 100)}
+          </span>
+          <span className={cn("font-mono text-xs whitespace-nowrap", gapTextClass(alpha))}>
+            {alpha === null ? "unrated" : `${formatSignedPercent(alpha).replace("%", "")} pts`}
+          </span>
+        </div>
+      )
     },
-    {
-      key: "beta",
-      label: "Beta",
-      align: "right",
-      numeric: true,
-      help: {
-        title: "Beta vs Market Index",
-        body: "Cov(Rp, Rm) / Var(Rm). Measures the stock's sensitivity to movements in the market index (S&P 500: ^GSPC).",
-        points: [
-          "Under the CAPM, beta measures an asset's systematic risk relative to the market.",
-          "A beta above 1 indicates greater sensitivity to market movements, while a beta below 1 indicates lower sensitivity."
-        ],
-      },
+  },
+  {
+    key: "price",
+    label: "Price",
+    align: "right",
+    cell: (stock) => formatSharePrice(stock.price),
+  },
+  {
+    key: "marketCap",
+    label: "Mkt cap",
+    align: "right",
+    cell: (stock) => (stock.marketCap === null ? DASH : formatMarketCap(stock.marketCap)),
+  },
+  {
+    key: "peRatio",
+    label: "P/E",
+    align: "right",
+    help: { title: "Price / earnings", body: "Price over trailing-twelve-month diluted EPS. Blank when earnings are negative, where the ratio has no meaning." },
+    cell: (stock) => (stock.peRatio !== null && stock.peRatio > 0 ? stock.peRatio.toFixed(1) : DASH),
+  },
+  {
+    key: "pbRatio",
+    label: "P/B",
+    align: "right",
+    group: "ratios",
+    help: { title: "Price / book", body: "Market cap over common equity from the latest annual statement. Blank when book value is zero or negative." },
+    cell: (stock) => multiple(stock.pbRatio),
+  },
+  {
+    key: "evEbitda",
+    label: "EV/EBITDA",
+    align: "right",
+    group: "ratios",
+    help: { title: "EV / EBITDA", body: "Enterprise value (market cap plus net debt, excluding leases) over annual EBITDA. Blank when either is zero or negative." },
+    cell: (stock) => multiple(stock.evEbitda),
+  },
+  {
+    key: "fcfYield",
+    label: "FCF yield",
+    align: "right",
+    group: "ratios",
+    help: { title: "Free cash flow yield", body: "Free cash flow to the firm over enterprise value: the plain ratio the reverse FCFF model is built from." },
+    cell: (stock) => pct(stock.fcfYield),
+  },
+  {
+    key: "shareholderYield",
+    label: "Sh. yield",
+    align: "right",
+    group: "ratios",
+    help: { title: "Shareholder yield", body: "Dividends plus net buybacks over market cap: cash returned to shareholders, the base of the shareholder-yield model." },
+    cell: (stock) => pct(stock.shareholderYield),
+  },
+  {
+    key: "roe",
+    label: "ROE",
+    align: "right",
+    group: "ratios",
+    help: { title: "Return on equity", body: "Net income over book equity, latest annual statement." },
+    cell: (stock) => pct(stock.roe),
+  },
+  {
+    key: "revenueGrowth",
+    label: "Rev. growth",
+    align: "right",
+    group: "ratios",
+    help: { title: "Revenue growth", body: "Trailing revenue growth a year: the 2-year compound rate, else 1-year, as reported." },
+    cell: (stock) => signed(stock.revenueGrowth),
+  },
+  {
+    key: "momentum",
+    label: "Trend",
+    align: "right",
+    group: "trend",
+    help: { title: "Trend (12-1 momentum)", body: "The total return from twelve months ago to one month ago (Jegadeesh & Titman 1993)." },
+    cell: (stock) => signed(stock.signals?.momentum),
+  },
+  {
+    key: "surprise",
+    label: "Earnings",
+    align: "right",
+    group: "trend",
+    help: { title: "Earnings surprise", body: "Reported minus consensus EPS for the latest quarter, as a share of the price. Only reports from the last 100 days count." },
+    cell: (stock) => signed(stock.signals?.surprise),
+  },
+  {
+    key: "realisedReturn",
+    label: "Return 1Y",
+    align: "right",
+    group: "risk",
+    help: {
+      title: "Annualised return",
+      body: "Mean daily log return over the last 252 sessions × 252, on dividend-adjusted closes.",
+      points: ["Past returns are a poor forecast of future ones; the optimiser shrinks them (Bayes–Stein) before use."],
     },
-    { key: "peRatio", label: "P/E", align: "right", numeric: true },
-  ]
+    cell: (stock) => signed(stock.realisedReturn),
+  },
+  {
+    key: "volatility",
+    label: "Vol 1Y",
+    align: "right",
+    group: "risk",
+    help: { title: "Annualised volatility", body: "Standard deviation of daily log returns over the last 252 sessions × √252." },
+    cell: (stock) => pct(stock.volatility),
+  },
+  {
+    key: "beta",
+    label: "Beta",
+    align: "right",
+    group: "risk",
+    help: {
+      title: "Beta",
+      body: "Sensitivity to the market: a CAPM regression of 252 days of daily excess returns on the market factor, shrunk toward the cross-sectional mean by its own standard error, then 25% toward 0.9 (Levi & Welch 2017).",
+      points: ["The same beta sets the stock's cost of equity."],
+    },
+    cell: (stock) => (stock.beta === null ? DASH : stock.beta.toFixed(2)),
+  },
+]
 
 /** The definition behind a column heading that is not self-explanatory. */
-function ColumnHelp({
-  help,
-  align,
-}: {
-  help: NonNullable<(typeof COLUMNS)[number]["help"]>
-  align: "left" | "right"
-}) {
+function ColumnHelp({ help, align }: { help: Help; align: "left" | "right" }) {
   return (
     <Popover>
       <PopoverTrigger
@@ -161,14 +290,9 @@ function ColumnHelp({
       >
         <RiInformationLine className="size-3.5" aria-hidden="true" />
       </PopoverTrigger>
-      <PopoverContent
-        align={align === "right" ? "end" : "start"}
-        className="max-w-sm gap-2 normal-case"
-      >
+      <PopoverContent align={align === "right" ? "end" : "start"} className="max-w-sm gap-2 normal-case">
         <PopoverTitle>{help.title}</PopoverTitle>
-        <p className="text-xs leading-relaxed font-normal tracking-normal text-muted-foreground">
-          {help.body}
-        </p>
+        <p className="text-xs leading-relaxed font-normal tracking-normal text-muted-foreground">{help.body}</p>
         {help.points && (
           <ul className="flex flex-col gap-1">
             {help.points.map((point) => (
@@ -187,23 +311,25 @@ function ColumnHelp({
   )
 }
 
-
 export function ScreenerTable({
   stocks,
-  methods = [],
-  signals,
+  ranking,
+  methods,
+  groups,
   sort,
   direction,
   onSort,
   selected,
   onToggleSelected,
   onToggleAll,
+  onReset,
 }: {
   stocks: Stock[]
+  ranking: Ranking
   /** The models currently switched on; empty means all of them. */
-  methods?: MethodId[]
-  /** The signal components the score averages. */
-  signals: SignalId[]
+  methods: MethodId[]
+  /** Optional column groups switched on. */
+  groups: ColumnGroup[]
   sort: SortKey
   direction: "asc" | "desc"
   onSort: (key: SortKey) => void
@@ -211,19 +337,22 @@ export function ScreenerTable({
   onToggleSelected: (ticker: string) => void
   /** Ticks or clears every row currently on screen. */
   onToggleAll: () => void
+  onReset: () => void
 }) {
   const router = useRouter()
   const { ref: scrollRef, clipped, maxHeight } = useScrollPane<HTMLDivElement>()
+  const columns = COLUMNS.filter((column) => !column.group || groups.includes(column.group))
 
   if (stocks.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 border border-border bg-card px-6 py-16 text-center">
-        <p className="font-heading text-sm font-semibold tracking-wider uppercase">
-          no results
-        </p>
+      <div className="flex flex-col items-center gap-3 border border-border bg-card px-6 py-16 text-center">
+        <p className="text-sm font-semibold">No stocks pass these filters</p>
         <p className="max-w-sm text-sm text-muted-foreground">
-          None of the stocks in the universe pass the filters. Loosen the filters to see more results.
+          Loosen a filter, or go back to the opening screen.
         </p>
+        <Button size="sm" variant="outline" onClick={onReset}>
+          Reset filters
+        </Button>
       </div>
     )
   }
@@ -235,9 +364,8 @@ export function ScreenerTable({
     <div className="relative border border-border bg-card">
       <Table
         // The scroll port is this container rather than the page; see
-        // `useScrollPane`. The class is the pre-measurement fallback, close
-        // enough that the first paint does not visibly jump.
-        containerClassName="overflow-auto lg:max-h-[calc(100vh-22rem)]"
+        // `useScrollPane`. The class is the pre-measurement fallback.
+        containerClassName="overflow-auto lg:max-h-[calc(100vh-20rem)]"
         containerStyle={maxHeight ? { maxHeight } : undefined}
         containerRef={scrollRef}
       >
@@ -252,37 +380,22 @@ export function ScreenerTable({
                   if (el) el.indeterminate = someSelected
                 }}
                 onChange={onToggleAll}
-                aria-label={
-                  allSelected
-                    ? `Clear all ${stocks.length} rows`
-                    : `Select all ${stocks.length} rows`
-                }
+                aria-label={allSelected ? `Clear all ${stocks.length} rows` : `Select all ${stocks.length} rows`}
               />
             </TableHead>
-            {COLUMNS.map((column) => {
+            {columns.map((column) => {
               const active = sort === column.key
-
               return (
                 <TableHead
                   key={column.key}
-                  className={cn(
-                    column.align === "right" && "text-right",
-                    column.key === "implied" && "w-[19rem]",
-                    column.key === "signal" && "w-[12rem]"
-                  )}
-                  aria-sort={
-                    active
-                      ? direction === "asc"
-                        ? "ascending"
-                        : "descending"
-                      : "none"
-                  }
+                  className={cn(column.align === "right" && "text-right", column.width)}
+                  aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}
                 >
                   <button
                     type="button"
                     onClick={() => onSort(column.key)}
                     className={cn(
-                      "inline-flex items-center gap-1 tracking-wide uppercase transition-colors hover:text-foreground",
+                      "inline-flex items-center gap-1 transition-colors hover:text-foreground",
                       column.align === "right" && "flex-row-reverse",
                       active && "text-foreground"
                     )}
@@ -295,123 +408,43 @@ export function ScreenerTable({
                         <RiArrowDownLine className="size-3" />
                       ))}
                   </button>
-
-                  {/* Sibling of the sort button, never nested inside it: the
-                      header has two independent actions. */}
-                  {column.help && (
-                    <ColumnHelp align={column.align} help={column.help} />
-                  )}
+                  {/* Sibling of the sort button, never nested inside it. */}
+                  {column.help && <ColumnHelp align={column.align} help={column.help} />}
                 </TableHead>
               )
             })}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {stocks.map((stock) => {
-            const alpha = impliedAlpha(stock, methods)
-            const band = valuationBand(alpha)
-            const isSelected = selected.includes(stock.ticker)
-            const score = signalScore(stock, signals)
-
-            return (
-              <TableRow
-                key={stock.ticker}
-                // The whole row is the target, which is how a table of
-                // stocks is expected to behave — only the ticker cell used
-                // to be clickable, which is a hit area of about 40 pixels in a
-                // row 48 tall and 1,000 wide. The anchor inside that cell
-                // stays, so middle-click and "open in new tab" still work.
-                className="group cursor-pointer"
-                onClick={() => router.push(`/stocks/${stock.ticker}`)}
-              >
-                <TableCell onClick={(event) => event.stopPropagation()}>
-                  <Checkbox
-                    checked={isSelected}
-                    onChange={() => onToggleSelected(stock.ticker)}
-                    aria-label={`Include ${stock.ticker} in the portfolio`}
-                  />
+          {stocks.map((stock) => (
+            <TableRow
+              key={stock.ticker}
+              // The whole row is the target; the anchor in the first cell keeps
+              // middle-click and "open in new tab" working.
+              className="group cursor-pointer"
+              onClick={() => router.push(`/stocks/${stock.ticker}`)}
+            >
+              <TableCell onClick={(event) => event.stopPropagation()}>
+                <Checkbox
+                  checked={selected.includes(stock.ticker)}
+                  onChange={() => onToggleSelected(stock.ticker)}
+                  aria-label={`Include ${stock.ticker} in the portfolio`}
+                />
+              </TableCell>
+              {columns.map((column) => (
+                <TableCell
+                  key={column.key}
+                  className={cn(column.align === "right" && "text-right font-mono tabular-nums")}
+                >
+                  {column.cell(stock, { ranking, methods })}
                 </TableCell>
-
-                <TableCell>
-                  {/* Ticker and name on one line, not stacked. A two-line
-                      identity cell sets the height of every row in the table,
-                      and the table's height is fixed at the window: it cost
-                      about six visible rows on a laptop to gain a line break
-                      the truncation was already handling. */}
-                  <Link
-                    href={`/stocks/${stock.ticker}`}
-                    className="flex items-baseline gap-2 group-hover:underline"
-                  >
-                    <span className="font-medium">{stock.ticker}</span>
-                    <span className="max-w-[10rem] truncate text-xs text-muted-foreground">
-                      {stock.name}
-                    </span>
-                  </Link>
-                </TableCell>
-
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <SignalBar score={score} className="w-20 shrink-0" />
-                    <span className="w-7 shrink-0 text-right font-mono text-sm">
-                      {formatScore(score)}
-                    </span>
-                    <span className="hidden text-xs whitespace-nowrap text-muted-foreground 2xl:inline">
-                      {score === null ? "" : SIGNAL_BAND_LABELS[signalBand(score)]}
-                    </span>
-                  </div>
-                </TableCell>
-
-                <TableCell>
-                  <div className="flex items-center gap-3">
-
-                    {/* An unrated row has nothing to draw. Blank beats a bar
-                        sitting at zero, which reads as "fairly priced". */}
-                    {alpha !== null ? (
-                      <ImpliedReturnBar alpha={alpha} className="w-32 shrink-0" />
-                    ) : (
-                      <span className="w-32 shrink-0" />
-                    )}
-
-                    <span
-                      className={`w-16 shrink-0 text-right font-mono text-sm ${BAND_TEXT_CLASS[band]}`}
-                    >
-                      {alpha !== null ? formatSignedPercent(alpha) : "-"}
-                    </span>
-
-                    <span
-                      className={`hidden text-xs whitespace-nowrap 2xl:inline ${BAND_TEXT_CLASS[band]}`}
-                    >
-                      {BAND_LABELS[band]}
-                    </span>
-                  </div>
-                </TableCell>
-
-                <TableCell className="text-right font-mono">
-                  {formatSharePrice(stock.price)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {stock.marketCap === null ? "—" : formatMarketCap(stock.marketCap)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {stock.realisedReturn === null ? "—" : formatSignedPercent(stock.realisedReturn)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {stock.volatility === null ? "—" : `${(stock.volatility * 100).toFixed(1)}%`}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {stock.beta === null ? "—" : stock.beta.toFixed(2)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {stock.peRatio !== null && stock.peRatio > 0 ? stock.peRatio.toFixed(1) : "—"}
-                </TableCell>
-              </TableRow>
-            )
-          })}
+              ))}
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
 
-      {/* The affordance for whatever is past the right edge. Pointer events
-          off, so it never eats a click on the cell underneath. */}
+      {/* The affordance for whatever is past the right edge. */}
       {clipped && (
         <div
           aria-hidden="true"

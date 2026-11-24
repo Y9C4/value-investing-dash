@@ -17,13 +17,7 @@
  * value) reports nothing rather than a zero, so coverage varies by model.
  */
 
-import {
-  DEFAULT_SIGNALS,
-  signalBand,
-  signalScore,
-  type SignalBand,
-  type SignalId,
-} from "@/lib/signals"
+import { quintile } from "@/lib/rank"
 
 export type MethodId = "fcff" | "rim" | "revenue" | "shareholderYield"
 
@@ -111,6 +105,34 @@ export type DiscountRates = {
   /** E / (E + debt ex leases). */
   equityWeight: number | null
   taxRate: number | null
+  /** The OLS beta before Levi-Welch shrinkage. Absent on the sample. */
+  betaRaw?: number | null
+  /** EBIT / interest expense, the input to the synthetic rating. */
+  interestCoverage?: number | null
+  /** Damodaran synthetic rating the cost of debt is priced off. */
+  syntheticRating?: string | null
+}
+
+/**
+ * Classic ratios, shown beside the signal as context (not part of it). Each is
+ * null where its denominator makes it meaningless. Absent on the sample, which
+ * predates them; `loadUniverse` fills those with nulls.
+ */
+export type StockRatios = {
+  /** FCFF / enterprise value. */
+  fcfYield: number | null
+  /** Enterprise value / EBITDA, positive EBITDA only. */
+  evEbitda: number | null
+  /** Market cap / book equity, positive book only. */
+  pbRatio: number | null
+  /** (Dividends + net buybacks) / market cap. */
+  shareholderYield: number | null
+  /** Net income / book equity. */
+  roe: number | null
+  /** Trailing revenue CAGR (2-year, else 1-year), as reported. */
+  revenueGrowth: number | null
+  /** Annual revenue, US$ billions. */
+  revenueBn: number | null
 }
 
 export type Stock = {
@@ -131,7 +153,7 @@ export type Stock = {
   discountRates?: DiscountRates
   /** The tested signal (lib/signals.ts). Absent on a stock with no data. */
   signals?: StockSignals
-}
+} & StockRatios
 
 /**
  * The signal's components for one stock, from `warehouse.signals`. Each rank is
@@ -156,6 +178,14 @@ export type StockSignals = {
   requiredReturnEquity: number | null
   /** WACC: what FCFF and revenue are measured against. */
   requiredReturnFirm: number | null
+  /**
+   * The starting FCFF growth (fading to long-run growth over five years) at
+   * which the enterprise value is worth exactly today's price at the WACC.
+   * Display only. Absent on the sample.
+   */
+  impliedGrowth?: number | null
+  /** True when the price needs more growth than the solver's 100%/yr ceiling. */
+  impliedGrowthAboveMax?: boolean | null
 }
 
 /** Every modelled method, for the "all of them" reading of an empty selection. */
@@ -214,49 +244,50 @@ export type ValuationBand =
   | "fair"
   | "overvalued"
   | "expensive"
-  // No model could solve for this company. Distinct from "fair" on purpose: no
-  // reading is not the same claim as a reading of zero.
+  // No model could solve for this company. Distinct from the middle band on
+  // purpose: no reading is not the same claim as an average one.
   | "unrated"
 
 /**
- * Buckets the implied excess return into the five bands the screener's
- * diverging scale paints.
+ * The fifth of today's index a stock's value percentile falls in.
  *
- * THESE BANDS ARE RELATIVE, NOT ABSOLUTE — quintiles of the S&P 500
- * distribution, so "deep value" means "cheapest fifth of the index". The
- * backtest found the rank of this number useful and its size not (calibration
- * slope 0.14), so a band says where a stock sits, not what it will earn.
- *
- * Quintiles of `warehouse.signals.value` on 2026-11-16 (median −1.2%: most
- * prices imply a little less than CAPM asks for). Recompute when the models
- * change.
+ * RELATIVE, NOT ABSOLUTE. A cross-sectional quintile sort with breakpoints
+ * recomputed from the live distribution (Fama & French), the same sort as the
+ * backtest's Q5 − Q1 test, so "cheapest fifth" means exactly that and nothing
+ * more. The percentile comes from `rankUniverse` in `lib/screen.ts`, over the
+ * models selected. Whether a price implies more or less than the required
+ * return is a separate, absolute fact: see `gapTextClass`.
  */
-export function valuationBand(alpha: number | null): ValuationBand {
-  if (alpha === null) return "unrated"
-  if (alpha >= 0.022) return "deep-value"
-  if (alpha >= 0.001) return "undervalued"
-  if (alpha >= -0.029) return "fair"
-  if (alpha >= -0.07) return "overvalued"
-  return "expensive"
+export function valuationBand(percentile: number | null): ValuationBand {
+  if (percentile === null) return "unrated"
+  return (
+    {
+      5: "deep-value",
+      4: "undervalued",
+      3: "fair",
+      2: "overvalued",
+      1: "expensive",
+    } as const
+  )[quintile(percentile)]
 }
 
 /**
- * Shown wherever bands are explained. Kept here beside the cut points so the
- * caveat cannot drift away from the thresholds it describes.
+ * Shown wherever bands are explained. Kept here beside the band rule so the
+ * caveat cannot drift away from what it describes.
  */
 export const BAND_BASIS =
-  "Bands are quintiles of the S&P 500 by implied excess return, so they rank a company against the index. They are taken over the models selected."
+  "Bands are fifths of today's S&P 500 ranked by implied excess return over the models selected, recomputed with every refresh. They rank a company against the index; they do not say it is cheap in absolute terms."
 
-/** Shown behind the info trigger on the implied-return column and tiles. */
+/** Shown behind the info trigger on the value column and tiles. */
 export const IMPLIED_BASIS =
-  "The annual return today's price implies, minus the return the stock's risk requires (WACC or CAPM cost of equity), averaged over the selected reverse-DCF models. +2% means the price implies 2 points a year more than the stock needs to earn. The backtest found its rank useful and its size not, so read it as a ranking, not a forecast."
+  "The annual return today's price implies, minus the return the stock's risk requires (WACC for FCFF and revenue, CAPM cost of equity for RIM and shareholder yield), averaged over the selected reverse-DCF models. +2 pts means the price implies 2 points a year more than the stock needs to earn. The backtest found its rank useful and its size not, so the screener ranks on the percentile."
 
 export const BAND_LABELS: Record<ValuationBand, string> = {
-  "deep-value": "Deep value",
-  undervalued: "Undervalued",
-  fair: "Fair value",
-  overvalued: "Overvalued",
-  expensive: "Expensive",
+  "deep-value": "Cheapest fifth",
+  undervalued: "Cheaper",
+  fair: "Middle",
+  overvalued: "Dearer",
+  expensive: "Dearest fifth",
   unrated: "Unrated",
 }
 
@@ -289,91 +320,15 @@ export const BAND_TEXT_CLASS: Record<ValuationBand, string> = {
   unrated: "text-muted-foreground",
 }
 
-export type ScreenerFilters = {
-  search: string
-  /** Signal components the score averages (lib/signals.ts). Never empty. */
-  signals: SignalId[]
-  /** Keep only these fifths of the signal score. Empty keeps every stock. */
-  signalBands: SignalBand[]
-  sectors: string[]
-  bands: ValuationBand[]
-  /**
-   * Restrict the implied excess return to these models. Empty means all four,
-   * the backtested reading.
-   */
-  methods: MethodId[]
-  maxBeta: number
-}
-
 /**
- * The screen the app opens on: ranked by the signal, restricted to the cheaper
- * three fifths of the index by implied excess return, beta at most 1.5.
- *
- * The value cut is expressed as bands because bands are the vocabulary the
- * distribution strip and every row's colour already use. 1.5 beta trims the
- * high-volatility tail without touching the market-tracking middle.
- *
- * Everything downstream reads the filtered set, so this is also what the
- * optimiser is handed on the screener's primary call to action.
+ * Colour for an implied excess return by its sign: the absolute reading
+ * (price implies more, or less, than the risk requires), as opposed to the
+ * relative band. Used where there is no cross-section to rank against: one
+ * model's reading, or a portfolio's.
  */
-export const DEFAULT_FILTERS: ScreenerFilters = {
-  search: "",
-  signals: DEFAULT_SIGNALS,
-  signalBands: [],
-  sectors: [],
-  bands: ["deep-value", "undervalued", "fair"],
-  methods: [],
-  maxBeta: 1.5,
-}
-
-/** Whether a facet still holds the value the screen opened on. */
-export function isDefaultBandSelection(bands: ValuationBand[]): boolean {
-  return (
-    bands.length === DEFAULT_FILTERS.bands.length &&
-    bands.every((band) => DEFAULT_FILTERS.bands.includes(band))
-  )
-}
-
-export function applyFilters(
-  stocks: Stock[],
-  filters: ScreenerFilters
-): Stock[] {
-  const query = filters.search.trim().toUpperCase()
-
-  return stocks.filter((stock) => {
-    if (
-      query &&
-      !stock.ticker.includes(query) &&
-      !stock.name.toUpperCase().includes(query)
-    ) {
-      return false
-    }
-
-    if (filters.sectors.length > 0 && !filters.sectors.includes(stock.sector)) {
-      return false
-    }
-
-    // An unmeasured beta cannot be shown to be under the cap, so it fails it.
-    if (stock.beta === null || stock.beta > filters.maxBeta) return false
-
-    if (
-      filters.signalBands.length > 0 &&
-      !filters.signalBands.includes(
-        signalBand(signalScore(stock, filters.signals))
-      )
-    ) {
-      return false
-    }
-
-    if (
-      filters.bands.length > 0 &&
-      !filters.bands.includes(valuationBand(impliedAlpha(stock, filters.methods)))
-    ) {
-      return false
-    }
-
-    return true
-  })
+export function gapTextClass(alpha: number | null): string {
+  if (alpha === null || alpha === 0) return "text-muted-foreground"
+  return alpha > 0 ? "text-undervalued" : "text-overvalued"
 }
 
 /** What the models say about a whole portfolio, weighted by position size. */

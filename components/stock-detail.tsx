@@ -2,7 +2,7 @@
 
 import { DiscountRatePanel } from "@/components/discount-rate-panel"
 import { ImpliedReturnPanel } from "@/components/implied-return-panel"
-import { SignalPanel } from "@/components/signal-panel"
+import { SignalPanel, type BlendScore } from "@/components/signal-panel"
 import {
   KeyStatisticsCard,
   PriceChartCard,
@@ -25,8 +25,12 @@ export function StockDetail({
   stock,
   riskFreeRate,
   marketReturn,
+  valueRank,
+  blends,
 }: {
   stock: Stock
+  valueRank: number | null
+  blends: BlendScore[]
   /** Both scalars ride on the universe payload this page already loaded. */
   riskFreeRate: number | null
   marketReturn: number | null
@@ -73,8 +77,8 @@ export function StockDetail({
         {/* The signal leads the estimated side of the page, as it leads the
             screener; what the price implies is its value component broken
             down by model. */}
-        <SignalPanel stock={stock} />
-        <ImpliedReturnPanel stock={stock} />
+        <SignalPanel stock={stock} valueRank={valueRank} blends={blends} />
+        <ImpliedReturnPanel stock={stock} valuePercentile={valueRank} />
       </div>
     </div>
   )

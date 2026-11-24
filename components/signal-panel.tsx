@@ -20,13 +20,15 @@ import {
   SIGNAL_BAND_LABELS,
   SIGNAL_COMPONENTS,
   SIGNAL_EVIDENCE,
-  componentRank,
   formatScore,
   signalBand,
-  signalScore,
+  warehouseRank,
   type SignalId,
 } from "@/lib/signals"
 import type { Stock } from "@/lib/valuation"
+
+/** A tested blend's score for this stock, ranked over the whole universe. */
+export type BlendScore = { label: string; score: number | null }
 
 /** The raw reading behind each component, in its own unit. */
 function rawReading(stock: Stock, id: SignalId): string {
@@ -42,11 +44,6 @@ function rawReading(stock: Stock, id: SignalId): string {
   return `${formatSignedPercent(signals.surprise)} of price`
 }
 
-const BLENDS: { label: string; components: SignalId[] }[] = [
-  { label: "Value + momentum", components: ["value", "momentum"] },
-  { label: "Momentum + surprise", components: ["momentum", "surprise"] },
-]
-
 /**
  * The signal for one stock: the two tested blends and each component's raw
  * reading and percentile. The four implied returns behind the value component
@@ -56,7 +53,16 @@ const BLENDS: { label: string; components: SignalId[] }[] = [
  * round: the backtest found the ranking informative and the magnitudes not
  * (backtests.md §13, test 4).
  */
-export function SignalPanel({ stock }: { stock: Stock }) {
+export function SignalPanel({
+  stock,
+  valueRank,
+  blends,
+}: {
+  stock: Stock
+  /** Value percentile over all four models. */
+  valueRank: number | null
+  blends: BlendScore[]
+}) {
   const signals = stock.signals
   if (!signals) return null
 
@@ -69,8 +75,8 @@ export function SignalPanel({ stock }: { stock: Stock }) {
 
       {/* The two tested blends first: these are the scores the screener ranks on. */}
       <div className="grid grid-cols-1 gap-px border-b border-border bg-border sm:grid-cols-2 [&>*]:bg-card [&>*]:px-4 [&>*]:py-3">
-        {BLENDS.map((blend) => {
-          const score = signalScore(stock, blend.components)
+        {blends.map((blend) => {
+          const score = blend.score
           return (
             <Stat
               key={blend.label}
@@ -101,7 +107,8 @@ export function SignalPanel({ stock }: { stock: Stock }) {
         </TableHeader>
         <TableBody>
           {SIGNAL_COMPONENTS.map((component) => {
-            const rank = componentRank(stock, component.id)
+            const rank =
+              component.id === "value" ? valueRank : warehouseRank(stock, component.id)
             return (
               <TableRow key={component.id} className="hover:bg-transparent">
                 <TableCell>

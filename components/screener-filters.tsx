@@ -9,7 +9,6 @@ import {
 import { Info } from "@/components/info"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Popover,
   PopoverContent,
@@ -22,9 +21,14 @@ import {
   BAND_LABELS,
   VALUATION_METHODS,
   type MethodId,
-  type ScreenerFilters,
 } from "@/lib/valuation"
 import type { ValuationBand } from "@/lib/valuation"
+import {
+  GRAHAM_NOTE,
+  PRESETS,
+  applyPreset,
+  type ScreenerFilters,
+} from "@/lib/screen"
 import {
   SIGNAL_BANDS,
   SIGNAL_BAND_FILL,
@@ -46,6 +50,9 @@ const BANDS: ValuationBand[] = [
   "unrated",
 ]
 
+/** Beta cap the slider starts at when switched on: the market's own beta. */
+const BETA_CAP_START = 1
+
 function FilterGroup({
   label,
   info,
@@ -57,7 +64,7 @@ function FilterGroup({
 }) {
   return (
     <div className="flex flex-col gap-3 border-b border-border px-6 py-5 last:border-b-0">
-      <span className="flex items-center gap-1.5 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+      <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
         {label}
         {info}
       </span>
@@ -387,181 +394,74 @@ export function ScreenerFilterRail({
       : [...list, value]
   }
 
+  // Changing what the score is made of, or which fifths are kept, departs from
+  // the chosen screen: the preset is then "custom" rather than silently wrong.
+  function customise(next: Partial<ScreenerFilters>) {
+    onChange({ ...filters, ...next, preset: null })
+  }
+
   return (
     <div className="flex flex-col border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <span className="font-heading text-sm font-semibold tracking-wider uppercase">
-          Filters
-        </span>
+        <span className="text-sm font-semibold">Screen</span>
         <Button variant="ghost" size="xs" onClick={onReset}>
           <RiCloseLine />
           Reset
         </Button>
       </div>
 
-      {/* Live count — the filter rail's whole purpose is narrowing this number. */}
+      {/* Live count: the rail's whole purpose is narrowing this number. */}
       <div className="border-b border-border px-6 py-4">
         <p className="flex items-baseline gap-2">
-          <span className="text-3xl font-semibold">{matches}</span>
-          <span className="text-sm text-muted-foreground">
-            of {total} stocks match
-          </span>
+          <span className="font-mono text-3xl font-semibold tabular-nums">{matches}</span>
+          <span className="text-sm text-muted-foreground">of {total} stocks</span>
         </p>
       </div>
 
+      <FilterGroup label="Start from a screen">
+        <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="Screens">
+          {PRESETS.map((preset) => {
+            const active = filters.preset === preset.id
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => onChange(applyPreset(filters, preset.id))}
+                className={cn(
+                  "flex flex-col gap-0.5 border px-3 py-2.5 text-left transition-colors",
+                  active ? "border-primary bg-primary/10" : "border-border hover:border-ring"
+                )}
+              >
+                <span className={cn("text-sm font-medium", active ? "text-foreground" : "text-muted-foreground")}>
+                  {preset.label}
+                </span>
+                <span className="text-xs leading-relaxed text-muted-foreground">{preset.blurb}</span>
+                <span className="text-xs leading-relaxed text-muted-foreground/80">{preset.basis}</span>
+              </button>
+            )
+          })}
+          {filters.preset === null && (
+            <p className="text-xs text-muted-foreground">Custom: adjusted under Advanced.</p>
+          )}
+        </div>
+        {filters.graham && (
+          <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">{GRAHAM_NOTE}</p>
+        )}
+      </FilterGroup>
+
       <FilterGroup label="Search">
         <div className="flex items-center gap-2 border-b border-input focus-within:border-ring">
-          <RiSearchLine className="size-4 shrink-0 text-muted-foreground" />
+          <RiSearchLine className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <Input
             type="search"
+            aria-label="Search by ticker or company name"
             placeholder="Ticker or name"
             value={filters.search}
             onChange={(e) => onChange({ ...filters, search: e.target.value })}
             className="border-transparent"
           />
-        </div>
-      </FilterGroup>
-
-      {/* The signal first: the backtest ranks the blend above value alone,
-          and it is what the table is sorted on by default. */}
-      <FilterGroup
-        label="Rank each stock on"
-        info={<Info title="Signal">{SIGNAL_EVIDENCE}</Info>}
-      >
-        <div className="flex flex-col gap-1.5">
-          {SIGNAL_COMPONENTS.map((component) => (
-            <SignalToggle
-              key={component.id}
-              component={component}
-              active={filters.signals.includes(component.id)}
-              coverage={signalCoverage[component.id] ?? 0}
-              total={total}
-              onClick={() => {
-                const next = toggle(filters.signals, component.id)
-                // A score of nothing would blank the column with no reason given.
-                if (next.length === 0) return
-                // Kept in registry order, so the tested-blend lookup is stable.
-                onChange({
-                  ...filters,
-                  signals: SIGNAL_COMPONENTS.map((c) => c.id).filter((id) =>
-                    next.includes(id)
-                  ),
-                })
-              }}
-            />
-          ))}
-        </div>
-
-        {/* What the switches add up to, and whether that blend was tested. */}
-        <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
-          {evidence ? (
-            <>
-              Score = mean percentile.{" "}
-              <span className="text-foreground">{evidence.label}</span> had a
-              development IC of{" "}
-              <span className="font-mono">{evidence.ic.toFixed(3)}</span> (t ={" "}
-              <span className="font-mono">{evidence.icTStat.toFixed(2)}</span>).
-            </>
-          ) : (
-            <>
-              Score = mean percentile. This combination was not tested in the
-              backtest.
-            </>
-          )}
-        </p>
-      </FilterGroup>
-
-      <FilterGroup label="Signal strength">
-        <div className="flex flex-wrap gap-2">
-          {SIGNAL_BANDS.map((band) => (
-            <Chip
-              key={band}
-              active={filters.signalBands.includes(band)}
-              swatch={SIGNAL_BAND_FILL[band]}
-              onClick={() =>
-                onChange({
-                  ...filters,
-                  signalBands: toggle(filters.signalBands, band),
-                })
-              }
-            >
-              {SIGNAL_BAND_LABELS[band]}
-            </Chip>
-          ))}
-        </div>
-      </FilterGroup>
-
-      {/* The rail reads top to bottom as one sentence: value each stock with
-          these models, then keep only these bands. */}
-      <FilterGroup
-        label="Value each stock with"
-        info={
-          <Info title="Reverse-DCF models">
-            Each model solves for the annual return today&rsquo;s price implies
-            and subtracts the return the stock&rsquo;s risk requires. The
-            &ldquo;Price implies&rdquo; column averages the ones switched on
-            here, so turning some off re-answers every reading and band on
-            screen. The number beside a model is how many of the {total} stocks
-            it can solve for.
-          </Info>
-        }
-      >
-        <div className="flex flex-col gap-1.5">
-          {VALUATION_METHODS.map((method) => (
-            <MethodToggle
-              key={method.id}
-              method={method}
-              active={
-                filters.methods.length === 0 ||
-                filters.methods.includes(method.id)
-              }
-              coverage={methodCoverage[method.id] ?? 0}
-              total={total}
-              onClick={() => {
-                // An empty selection means "all". The first click has to
-                // materialise that into an explicit list minus the one just
-                // switched off, or nothing would appear to happen.
-                const current =
-                  filters.methods.length === 0
-                    ? VALUATION_METHODS.map((m) => m.id)
-                    : filters.methods
-                const next = toggle(current, method.id)
-                // Switching the last model off would leave nothing to average
-                // and empty the screen with no stated reason.
-                if (next.length === 0) return
-                onChange({
-                  ...filters,
-                  methods: next.length === VALUATION_METHODS.length ? [] : next,
-                })
-              }}
-            />
-          ))}
-        </div>
-
-        {/* What the switches above add up to. */}
-        <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
-          Each stock averages whichever selected models solved for it, the rule
-          the backtest used. Unrated means none did.
-        </p>
-      </FilterGroup>
-
-      <FilterGroup
-        label="Valuation bands"
-        info={<Info title="Valuation bands">{BAND_BASIS}</Info>}
-      >
-        <div className="flex flex-wrap gap-2">
-          {BANDS.map((band) => (
-            <Chip
-              key={band}
-              active={filters.bands.includes(band)}
-              swatch={BAND_FILL[band]}
-              onClick={() =>
-                onChange({ ...filters, bands: toggle(filters.bands, band) })
-              }
-            >
-              {BAND_LABELS[band]}
-            </Chip>
-          ))}
         </div>
       </FilterGroup>
 
@@ -571,12 +471,7 @@ export function ScreenerFilterRail({
             <Chip
               key={sector}
               active={filters.sectors.includes(sector)}
-              onClick={() =>
-                onChange({
-                  ...filters,
-                  sectors: toggle(filters.sectors, sector),
-                })
-              }
+              onClick={() => onChange({ ...filters, sectors: toggle(filters.sectors, sector) })}
             >
               {sector}
             </Chip>
@@ -584,38 +479,147 @@ export function ScreenerFilterRail({
         </div>
       </FilterGroup>
 
-      <FilterGroup
-        label="Maximum beta"
-        info={
-          <Info title="Beta">
-            Covariance with the S&amp;P 500 over the trailing 252 trading days,
-            divided by the index&rsquo;s variance. How much of a stock&rsquo;s
-            movement is the market moving rather than the company.
-          </Info>
-        }
-      >
-        <Label
-          htmlFor="max-beta"
-          className="flex items-center justify-between text-sm font-normal"
-        >
-          <span className="text-muted-foreground">Max</span>
-          <span className="font-mono tabular-nums">
-            {filters.maxBeta.toFixed(2)}
-          </span>
-        </Label>
-        <input
-          id="max-beta"
-          type="range"
-          min={25}
-          max={300}
-          step={5}
-          value={filters.maxBeta * 100}
-          onChange={(e) =>
-            onChange({ ...filters, maxBeta: Number(e.target.value) / 100 })
-          }
-          className="w-full accent-primary"
-        />
+      <FilterGroup label="Value, by fifth of the index" info={<Info title="Value fifths">{BAND_BASIS}</Info>}>
+        <div className="flex flex-wrap gap-2">
+          {BANDS.map((band) => (
+            <Chip
+              key={band}
+              active={filters.bands.includes(band)}
+              swatch={BAND_FILL[band]}
+              onClick={() => customise({ bands: toggle(filters.bands, band) })}
+            >
+              {BAND_LABELS[band]}
+            </Chip>
+          ))}
+        </div>
       </FilterGroup>
+
+      <FilterGroup label="Score, by fifth">
+        <div className="flex flex-wrap gap-2">
+          {SIGNAL_BANDS.map((band) => (
+            <Chip
+              key={band}
+              active={filters.signalBands.includes(band)}
+              swatch={SIGNAL_BAND_FILL[band]}
+              onClick={() => customise({ signalBands: toggle(filters.signalBands, band) })}
+            >
+              {SIGNAL_BAND_LABELS[band]}
+            </Chip>
+          ))}
+        </div>
+      </FilterGroup>
+
+      <details className="group/advanced border-t border-border">
+        <summary className="cursor-pointer list-none px-6 py-4 text-xs font-semibold text-muted-foreground hover:text-foreground">
+          <span className="group-open/advanced:hidden">+ Advanced: score components, valuation models, beta</span>
+          <span className="hidden group-open/advanced:inline">− Advanced</span>
+        </summary>
+
+        <FilterGroup label="Score is the average rank of" info={<Info title="Evidence">{SIGNAL_EVIDENCE}</Info>}>
+          <div className="flex flex-col gap-1.5">
+            {SIGNAL_COMPONENTS.map((component) => (
+              <SignalToggle
+                key={component.id}
+                component={component}
+                active={filters.signals.includes(component.id)}
+                coverage={signalCoverage[component.id] ?? 0}
+                total={total}
+                onClick={() => {
+                  const next = toggle(filters.signals, component.id)
+                  // A score of nothing would blank the column with no reason given.
+                  if (next.length === 0) return
+                  // Kept in registry order, so the tested-blend lookup is stable.
+                  customise({
+                    signals: SIGNAL_COMPONENTS.map((c) => c.id).filter((id) => next.includes(id)),
+                  })
+                }}
+              />
+            ))}
+          </div>
+          <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
+            {evidence ? (
+              <>
+                <span className="text-foreground">{evidence.label}</span> had a development IC of{" "}
+                <span className="font-mono">{evidence.ic.toFixed(3)}</span> (t ={" "}
+                <span className="font-mono">{evidence.icTStat.toFixed(2)}</span>).
+              </>
+            ) : (
+              <>This combination was not tested in the backtest.</>
+            )}
+          </p>
+        </FilterGroup>
+
+        <FilterGroup
+          label="Value averages these models"
+          info={
+            <Info title="Reverse-DCF models">
+              Each model solves for the annual return today&rsquo;s price implies and subtracts the return the
+              stock&rsquo;s risk requires. Value averages the ones switched on, so turning some off re-ranks
+              every stock. The number beside a model is how many of the {total} stocks it can solve for.
+            </Info>
+          }
+        >
+          <div className="flex flex-col gap-1.5">
+            {VALUATION_METHODS.map((method) => (
+              <MethodToggle
+                key={method.id}
+                method={method}
+                active={filters.methods.length === 0 || filters.methods.includes(method.id)}
+                coverage={methodCoverage[method.id] ?? 0}
+                total={total}
+                onClick={() => {
+                  // An empty selection means "all": the first click materialises
+                  // it into an explicit list minus the one switched off.
+                  const current =
+                    filters.methods.length === 0 ? VALUATION_METHODS.map((m) => m.id) : filters.methods
+                  const next = toggle(current, method.id)
+                  if (next.length === 0) return
+                  onChange({ ...filters, methods: next.length === VALUATION_METHODS.length ? [] : next })
+                }}
+              />
+            ))}
+          </div>
+          <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
+            Each stock averages whichever selected models solved for it, the rule the backtest used. Unrated
+            means none did. The backtest&rsquo;s figures are for all four.
+          </p>
+        </FilterGroup>
+
+        <FilterGroup
+          label="Maximum beta"
+          info={
+            <Info title="Beta">
+              Sensitivity to the market, from 252 days of daily returns, shrunk toward the average (Levi &amp;
+              Welch 2017). A cap also drops stocks whose beta could not be measured.
+            </Info>
+          }
+        >
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={filters.maxBeta !== null}
+              onChange={(e) => onChange({ ...filters, maxBeta: e.target.checked ? BETA_CAP_START : null })}
+              className="accent-primary"
+            />
+            <span className="text-muted-foreground">Cap beta</span>
+            {filters.maxBeta !== null && (
+              <span className="ml-auto font-mono tabular-nums">{filters.maxBeta.toFixed(2)}</span>
+            )}
+          </label>
+          {filters.maxBeta !== null && (
+            <input
+              aria-label="Maximum beta"
+              type="range"
+              min={25}
+              max={300}
+              step={5}
+              value={filters.maxBeta * 100}
+              onChange={(e) => onChange({ ...filters, maxBeta: Number(e.target.value) / 100 })}
+              className="w-full accent-primary"
+            />
+          )}
+        </FilterGroup>
+      </details>
     </div>
   )
 }
