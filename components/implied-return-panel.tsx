@@ -37,9 +37,40 @@ function percent(value: number | null | undefined) {
 }
 
 /**
+ * The same reverse FCFF solved the other way: the growth the price assumes at
+ * the WACC, beside the growth the company has delivered. Display only.
+ */
+function ImpliedGrowth({ stock }: { stock: Stock }) {
+  const { impliedGrowth = null, impliedGrowthAboveMax = null } = stock.signals ?? {}
+  const assumed = impliedGrowthAboveMax
+    ? "over 100%"
+    : impliedGrowth === null
+      ? "—"
+      : `${(impliedGrowth * 100).toFixed(1)}%`
+  const why = impliedGrowthAboveMax
+    ? "No five-year growth path from today's cash flow reaches this price."
+    : impliedGrowth === null
+      ? stock.discountRates?.wacc === null
+        ? "No WACC (financial firms, or no cost of debt), so FCFF does not apply."
+        : "Needs positive free cash flow to the firm."
+      : "a year to start, fading to long-run growth over five years"
+
+  return (
+    <div className="grid grid-cols-2 gap-px border-b border-border bg-border [&>*]:bg-card [&>*]:px-4 [&>*]:py-3">
+      <Stat label="Growth the price assumes" value={assumed} hint={why} />
+      <Stat
+        label="Revenue has grown"
+        value={stock.revenueGrowth === null ? "—" : `${(stock.revenueGrowth * 100).toFixed(1)}%`}
+        hint={stock.revenueGrowth === null ? "no growth history" : "a year, trailing, as reported"}
+      />
+    </div>
+  )
+}
+
+/**
  * What the price implies: each reverse-DCF model's implied return against the
  * rate the stock is required to earn, and their average — the number the
- * screener's "Price implies" column shows and its bands are cut on.
+ * screener's value rank is taken from.
  */
 export function ImpliedReturnPanel({
   stock,
@@ -86,6 +117,8 @@ export function ImpliedReturnPanel({
         </Stat>
       </div>
 
+      <ImpliedGrowth stock={stock} />
+
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -101,7 +134,7 @@ export function ImpliedReturnPanel({
             return (
               <TableRow key={method.id} className="hover:bg-transparent">
                 <TableCell>
-                  <span className="text-xs font-semibold tracking-wider uppercase">
+                  <span className="text-sm font-medium">
                     {method.label}
                   </span>
                   <span className="ml-2 hidden text-xs text-muted-foreground sm:inline">

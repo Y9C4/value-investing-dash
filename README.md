@@ -1,8 +1,8 @@
 <div align="center">
 
-# Value-Investing-Dash
+# Value Investing Dash
 
-**Rank the S&P 500 on a backtested value + momentum signal, see the return each stock’s price implies, then build an optimized portfolio on what survives the screen.**
+**What return does each S&P 500 stock’s price imply, and is it more than its risk requires? Rank the index on that, confirm it with trend, then build an optimised portfolio from the screen.**
 
 Next.js frontend | FastAPI Data API | Supabase PostgreSQL database
 
@@ -18,11 +18,11 @@ Next.js frontend | FastAPI Data API | Supabase PostgreSQL database
 
 </div>
 
-![The screener](public/screener.png)
+![The overview](public/overview.png)
 
 ## About
 
-Based on Benjamin Graham’s principle of value investing, Value-Investing-Dash (VID) analyses stocks based on their fundamental value rather than just their historical returns. VID ranks the ~500 stocks in the S&P 500 on a signal that was tested against later returns (reverse-DCF value, momentum and earnings surprise), shows the return each price implies over the return its risk requires, lets the user screen on both, then builds an optimized portfolio out of whatever is left.
+Based on Benjamin Graham’s principle of value investing, Value Investing Dash (VID) analyses stocks based on their fundamental value rather than just their historical returns. VID ranks the ~500 stocks in the S&P 500 on a signal that was tested against later returns (reverse-DCF value, momentum and earnings surprise), shows the return each price implies over the return its risk requires, lets the user screen on both, then builds an optimized portfolio out of whatever is left.
 
 The reason for screening first is that a portfolio optimizer estimates expected return from past returns. A stock that has already run up looks like a great opportunity to the optimizer at exactly the point its price is most optimistic. Putting a valuation screen in front of the optimizer removes those stocks before it ever sees them.
 
@@ -30,9 +30,13 @@ The reason for screening first is that a portfolio optimizer estimates expected 
 
 | | Page | What it does |
 |---|---|---|
-| **1** | **Screener** | Rank the index on the signal (value + momentum by default), then filter on signal strength, valuation band (by implied excess return), sector and beta. Stocks that pass these filters or are selected go to the portfolio page. |
-| **2** | **Analysis** | The signal’s components, the four implied returns behind the value component against the return each must beat, the price history, and the required returns. |
-| **3** | **Portfolio** | Solve the efficient frontier over the screened stocks, setting position bounds, short selling and L2 regularisation. |
+| | **Overview** | Is the market cheap? The median implied vs required return, sectors ranked by value, and the top ten on the default screen. |
+| **1** | **Screener** | Rank the index on value + trend (or start from Deep value, Earnings momentum or a partial Graham screen), filter by sector and fifths, and add classic-ratio, trend and risk columns. Stocks that pass or are ticked go to the portfolio page. |
+| **2** | **Stock** | A one-sentence verdict, the four implied returns and the growth the price assumes, classic ratios against the sector, trend and earnings, the price chart, and the required-return inputs. Reached from the search bar on every page. |
+| **3** | **Portfolio** | Solve the efficient frontier over the screened stocks, setting position bounds, short selling and L2 regularisation, and see the portfolio’s value tilt. |
+| | **Methodology** | Why reverse DCF, the backtest tables, every assumption with its source, and a glossary. |
+
+![The screener](public/screener.png)
 
 ![Frontier](public/frontier.png)
 
@@ -63,12 +67,12 @@ The [backtest](python-api/notebooks/backtests.md) tested each model against the 
 | Component | What it is | Development IC |
 |---|---|---|
 | **Value** | Reverse DCF: the return today’s price implies, minus the return the stock’s risk requires, averaged over reverse FCFF, residual income, revenue and shareholder-yield models | 0.032 |
-| **Momentum** | The return from 12 months to 1 month ago | 0.029 |
-| **Earnings surprise** | Latest EPS beat or miss against the analyst consensus, scaled by price | 0.024 |
-| *Value + momentum* | The default blend | *0.054* |
-| *Momentum + surprise* | | *0.035* |
+| **Trend** | 12-1 momentum: the return from 12 months to 1 month ago (Jegadeesh & Titman 1993) | 0.029 |
+| **Earnings** | Latest EPS beat or miss against the analyst consensus, scaled by price (Livnat & Mendenhall 2006) | 0.024 |
+| *Value + trend* | The default blend, equal-weighted (Asness, Moskowitz & Pedersen 2013) | *0.054* |
+| *Trend + earnings* | | *0.035* |
 
-Each is shown as a percentile of today’s universe, and the score is the mean of the selected percentiles. The backtest found the size of expected alpha meaningless, so no component is shown as a return forecast. None of these results is statistically significant on 23 months yet, and the locked holdout hasn’t been run; the screener says so beside the controls.
+Each is shown as a percentile of today’s universe, and the score is the mean of the selected percentiles, re-ranked so its fifths hold equal numbers of stocks. The backtest found the size of expected alpha meaningless, so no component is shown as a return forecast. None of these results is statistically significant on 23 months yet, and the locked holdout hasn’t been run; the screener says so beside the controls.
 
 ## Valuation models
 
@@ -81,7 +85,7 @@ Value is read as a return, not a price. Each model solves for the annual return 
 | **Revenue** | Revenue × a cash margin fading to the sector median; speaks for temporarily cash-negative firms | WACC |
 | **Shareholder yield** | Dividends plus net buybacks, against market cap | CAPM kₑ |
 
-Each grows its cash flow along a five-year fade to long-run growth, then a perpetuity, and the solve is a PL/pgSQL bisection. A model that has no positive cash flow to discount reports nothing. A stock’s reading averages whichever selected models solved, the rule the backtest tested; kₑ is CAPM off the 10-year Treasury yield, which the backtest preferred over a Fama-French regression.
+Each grows its cash flow along a five-year fade to long-run growth, then a perpetuity, and the solve is a PL/pgSQL bisection. A model that has no positive cash flow to discount reports nothing. A stock’s reading averages whichever selected models solved, the rule the backtest tested; kₑ is CAPM off the 10-year Treasury yield with a Levi-Welch shrunk beta, and the cost of debt comes from Damodaran’s synthetic rating table. Every constant and its source is listed on the Methodology page and in `warehouse.spec`.
 
 ### Why not fair values
 
@@ -89,7 +93,7 @@ VID used to run five forward models (DDM, FCFE, FCFF, RIM, comps) and screen on 
 
 ### Valuation is relative
 
-The valuation bands (Deep value, Undervalued, Fair value, Overvalued, Expensive) each cover a fifth of the index ranked by implied excess return. So “Deep value” means the cheapest fifth of the index, not that a stock will beat its required return by the number shown.
+Value is shown as a percentile (100 = cheapest), cut into fifths recomputed from the live cross-section at every refresh, as in a Fama-French sort. “Cheapest fifth” means exactly that, not that a stock will beat its required return by the number shown. The classic ratios (P/E, P/B, EV/EBITDA, FCF and shareholder yield, ROE) appear as context: in the backtest each lost to the reverse-DCF model built on the same figures.
 
 ## Decisions worth explaining
 
@@ -97,11 +101,11 @@ The valuation bands (Deep value, Undervalued, Fair value, Overvalued, Expensive)
 
 **The max Sharpe portfolio is found, not solved for.** Solving for max Sharpe directly has no solution whenever no allowed portfolio beats the risk-free rate, which happens a lot with value screens since they pick stocks with weak past returns. Instead the frontier is traced as a set of minimum variance solves and the tangency portfolio is found along it with a ternary search. If nothing beats cash, the best Sharpe is just negative instead of an error. See [`python-api/frontier.py`](python-api/frontier.py).
 
-**Bad constraints get caught before the solver.** A 3% max position means at least 34 stocks are needed for the weights to add up to 100%, but the screener can hand over 5. Bounds are checked before any solve and the error tells you the minimum cap that would work, rather than showing a vague solver failure. By default the cap widens for small sets so a feasible portfolio always exists.
+**Bad constraints get caught before the solver.** A 10% max position means at least 10 stocks are needed for the weights to add up to 100%, but the screener can hand over 5. Bounds are checked before any solve and the error tells you the minimum cap that would work, rather than showing a vague solver failure. The default cap is the UCITS 10% single-issuer limit, lifted for sets under 10 stocks.
 
 **Screened sets fit in a short URL.** Passing ~500 tickers as `?tickers=A,AAPL,…` made a URL big enough to hit `431 Request Header Fields Too Large`. Since every screened set is a subset of the same index, it’s encoded as one bit per stock, which is 84 characters no matter how many stocks are selected. See [`lib/ticker-set.ts`](lib/ticker-set.ts).
 
-**Estimates are kept in check.** Covariance uses Ledoit-Wolf shrinkage, expected returns are clipped to ±50%, and stocks with less than 90% of the price history (e.g. recent spin-offs) are left out rather than guessed.
+**Estimates are kept in check.** Over three years of dividend-adjusted prices, covariance uses Ledoit-Wolf shrinkage, expected returns are Bayes-Stein shrunk toward the minimum-variance portfolio (Jorion 1986), and stocks with less than 90% of the price history (e.g. recent spin-offs) are left out rather than guessed.
 
 ## Running it locally
 
@@ -149,6 +153,7 @@ Every write is an upsert and prices are fetched from each ticker’s own newest 
 
 ```bash
 pnpm lint && pnpm build
+node --test lib/rank.test.ts     # percentile and quintile maths
 ```
 
 ## Project layout
@@ -179,9 +184,6 @@ docs/                   deployment runbook and design notes
 | Endpoint | What |
 |---|---|
 | `GET /health` | Liveness check |
-| `GET /quote/{ticker}` | Latest price |
-| `GET /info/{ticker}` | Full yfinance info |
-| `GET /history/{ticker}` | Price history |
 | `GET /returns/{ticker}` | Daily log returns and the risk-free rate |
 | `POST /efficient-frontier` | Solve the frontier (see below) |
 | `POST /backfill/all` | Every stage, in order, then the warehouse refresh |
@@ -216,7 +218,7 @@ The service role key skips row-level security, so it only ever lives in the Data
 
 - Prices and fundamentals come from yfinance, an unofficial source with major gaps as evident in the uneven coverage of the reverse-DCF models.
 - Expected returns come from past returns, which are not reliable forecasts. The value screen helps, but a strong run still looks good to the optimizer.
-- Nothing on Value-Investing-Dash is investment advice. It’s a demonstrator project.
+- Nothing on Value Investing Dash is investment advice. It’s a demonstrator project.
 
 ## Licence
 

@@ -165,7 +165,6 @@ export function formatDataTimestamp(iso: string): string {
       day: "2-digit",
       year: "numeric",
     })
-    .toUpperCase()
 
   const time = at.toLocaleTimeString("en-US", {
     timeZone: DATA_TIMEZONE,

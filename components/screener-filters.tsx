@@ -144,7 +144,7 @@ function MethodInfo({
         </p>
 
         <div className="flex flex-col gap-1 border border-border px-3 py-2">
-          <span className="text-xs tracking-wider text-muted-foreground uppercase">
+          <span className="text-xs text-muted-foreground">
             formula
           </span>
           <div className="text-xs leading-relaxed break-words">
@@ -153,7 +153,7 @@ function MethodInfo({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-xs tracking-wider text-destructive font-semibold uppercase">
+          <span className="text-xs text-destructive font-semibold">
             fails when
           </span>
           <ul className="flex flex-col gap-1">
@@ -231,7 +231,7 @@ export function MethodToggle({
             />
             <span
               className={cn(
-                "text-xs font-semibold tracking-wider uppercase",
+                "text-xs font-semibold",
                 active ? "text-foreground" : "text-muted-foreground"
               )}
             >
@@ -305,7 +305,7 @@ function SignalToggle({
             />
             <span
               className={cn(
-                "text-xs font-semibold tracking-wider uppercase",
+                "text-xs font-semibold",
                 active ? "text-foreground" : "text-muted-foreground"
               )}
             >
@@ -344,7 +344,7 @@ function SignalToggle({
               {component.blurb}
             </p>
             <div className="flex flex-col gap-1 border border-border px-3 py-2">
-              <span className="text-xs tracking-wider text-muted-foreground uppercase">
+              <span className="text-xs text-muted-foreground">
                 formula
               </span>
               <div className="text-xs leading-relaxed break-words">

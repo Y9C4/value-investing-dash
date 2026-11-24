@@ -93,7 +93,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
         // read; wide tracking on top of it pushed the letters far enough
         // apart to stop reading as words. Semibold and one step less
         // tracking keeps the label style and gives the glyphs some weight.
-        "h-10 px-3 text-left align-middle text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase [&:has([role=checkbox])]:pr-0",
+        "h-10 px-3 text-left align-middle text-xs font-semibold whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}

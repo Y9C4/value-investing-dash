@@ -1,10 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <!-- Rounded, unlike the rest of the UI, so it sits like an app icon in the
-       tab strip. The mark is the efficient frontier: concave, rising,
-       flattening — the one shape in the project that still reads at 16px. -->
-  <rect width="32" height="32" rx="7" fill="#12100e"/>
-  <path d="M5 26 C 12 26, 20 20, 27 6"
-        fill="none" stroke="#3987e5" stroke-width="3.5"
-        stroke-linecap="square"/>
-  <circle cx="27" cy="6" r="3" fill="#1baf7a"/>
+  <!-- The site's one idea at 16px: price-implied return against the required
+       return. Brass centre line = required; teal right = implies more (cheap),
+       rust left = implies less (dear). -->
+  <rect width="32" height="32" rx="6" fill="#141210"/>
+  <rect x="16" y="8" width="11" height="6" fill="#0ea48c"/>
+  <rect x="7" y="18" width="9" height="6" fill="#d6683c"/>
+  <rect x="15" y="5" width="2" height="22" fill="#c9a45a"/>
 </svg>

@@ -2,34 +2,33 @@
 
 import { DiscountRatePanel } from "@/components/discount-rate-panel"
 import { ImpliedReturnPanel } from "@/components/implied-return-panel"
+import { RatioPanel } from "@/components/ratio-panel"
 import { SignalPanel, type BlendScore } from "@/components/signal-panel"
 import {
   KeyStatisticsCard,
   PriceChartCard,
   useTickerReturns,
 } from "@/components/ticker-history"
+import type { RatioContext } from "@/lib/sectors"
 import type { Stock } from "@/lib/valuation"
 
 /**
- * The stock detail layout: what the company has done on the left, what it is
- * worth on the right.
- *
- * The discount rates moved to the left column with the restyle. They are an
- * input to the right-hand column, not a reading of it, and the two columns
- * used to end at wildly different heights — the left ran out after two cards
- * and left a quarter of the page empty on a wide screen. Grouping the measured
- * quantities (price, beta, the rates derived from them) against the estimated
- * ones (the signal, what the price implies) is also the more honest split.
+ * The stock page's evidence, in reading order: what the price implies, the
+ * classic ratios against the sector, trend and earnings, the price itself,
+ * and — collapsed, because it is the machinery — the required return.
+ * On a wide screen the first two and the next two sit side by side.
  */
 export function StockDetail({
   stock,
   riskFreeRate,
   marketReturn,
   valueRank,
+  ratios,
   blends,
 }: {
   stock: Stock
   valueRank: number | null
+  ratios: RatioContext[]
   blends: BlendScore[]
   /** Both scalars ride on the universe payload this page already loaded. */
   riskFreeRate: number | null
@@ -38,48 +37,50 @@ export function StockDetail({
   const { data, loading, error } = useTickerReturns(stock.ticker)
 
   return (
-    <div className="grid items-start gap-4 px-6 py-5 lg:px-10 xl:grid-cols-2">
-      <div className="flex min-w-0 flex-col gap-4">
-        {error && (
-          <div className="border border-border bg-card px-4 py-3">
-            <p className="text-sm text-destructive">{error}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Everything else on this page is precomputed and unaffected: only
-              the close series is fetched.
-            </p>
+    <div className="flex flex-col gap-4 px-6 py-5 lg:px-10">
+      <div className="grid items-start gap-4 2xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-4">
+          <ImpliedReturnPanel stock={stock} valuePercentile={valueRank} />
+          <RatioPanel sector={stock.sector} context={ratios} />
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-4">
+          <SignalPanel stock={stock} valueRank={valueRank} blends={blends} />
+
+          {error && (
+            <div className="border border-border bg-card px-4 py-3">
+              <p className="text-sm text-destructive">{error}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Only the price chart is affected: everything else on this page
+                is precomputed.
+              </p>
+            </div>
+          )}
+          {loading && !data && (
+            <div className="h-[21rem] animate-pulse border border-border bg-card" />
+          )}
+          {data && data.candles.length > 0 && <PriceChartCard data={data} />}
+
+          <KeyStatisticsCard
+            beta={stock.beta}
+            riskFreeRate={riskFreeRate}
+            realisedReturn={stock.realisedReturn}
+            marketReturn={marketReturn}
+          />
+        </div>
+      </div>
+
+      {/* Absent on the offline sample, which has no rates to report. */}
+      {stock.discountRates && (
+        <details className="group border border-border bg-card">
+          <summary className="cursor-pointer px-4 py-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase select-none hover:text-foreground">
+            Required return and risk inputs
+          </summary>
+          <div className="border-t border-border [&>section]:border-0">
+            <DiscountRatePanel rates={stock.discountRates} beta={stock.beta} />
           </div>
-        )}
-
-        {/* A placeholder for the chart alone. Key statistics used to sit
-            behind this too, because it read the same request; every figure it
-            prints is now on the server payload, so it renders immediately and
-            has nothing to wait for. */}
-        {loading && !data && (
-          <div className="h-[21rem] animate-pulse border border-border bg-card" />
-        )}
-
-        {data && data.candles.length > 0 && <PriceChartCard data={data} />}
-
-        <KeyStatisticsCard
-          beta={stock.beta}
-          riskFreeRate={riskFreeRate}
-          realisedReturn={stock.realisedReturn}
-          marketReturn={marketReturn}
-        />
-
-        {/* Absent on the offline sample, which has no rates to report. */}
-        {stock.discountRates && (
-          <DiscountRatePanel rates={stock.discountRates} />
-        )}
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-4">
-        {/* The signal leads the estimated side of the page, as it leads the
-            screener; what the price implies is its value component broken
-            down by model. */}
-        <SignalPanel stock={stock} valueRank={valueRank} blends={blends} />
-        <ImpliedReturnPanel stock={stock} valuePercentile={valueRank} />
-      </div>
+        </details>
+      )}
     </div>
   )
 }

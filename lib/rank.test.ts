@@ -2,7 +2,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 
-import { cumeDist, quintile } from "./rank.ts"
+import { cumeDist, median, quintile } from "./rank.ts"
 
 test("cumeDist matches Postgres cume_dist, ties included", () => {
   const ranks = cumeDist([
@@ -24,4 +24,10 @@ test("quintiles split a uniform cross-section into equal fifths", () => {
   const counts = [0, 0, 0, 0, 0]
   for (const p of cumeDist(entries).values()) counts[quintile(p) - 1] += 1
   assert.deepEqual(counts, [100, 100, 100, 100, 100])
+})
+
+test("median skips nulls and averages the middle pair", () => {
+  assert.equal(median([3, null, 1, 2]), 2)
+  assert.equal(median([4, 1, 3, 2]), 2.5)
+  assert.equal(median([null]), null)
 })

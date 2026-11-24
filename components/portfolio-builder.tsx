@@ -196,7 +196,14 @@ export function PortfolioBuilder({
   tickers = [],
   staleSet = false,
   stocks = [],
+  snapshot = null,
 }: {
+  /**
+   * The scheduled full-index solve under default settings, read on the server
+   * from `frontier_snapshot`. Shown for a bare `/portfolio` visit instead of
+   * the illustrative baseline; null when it has not been computed yet.
+   */
+  snapshot?: { data: FrontierResponse; computedAt: string } | null
   /** A screened subset handed over by the screener; empty means the full index. */
   tickers?: string[]
   /** The `?set=` token was built against a different index and cannot be read. */
@@ -212,17 +219,20 @@ export function PortfolioBuilder({
   const [settings, setSettings] = useState<PortfolioSettings>(DEFAULT_SETTINGS)
   // Seeded so the page is never blank: the baseline renders instantly and is
   // replaced the moment a live solve returns or a cached one is restored.
-  const [data, setData] = useState<FrontierResponse>(BASELINE_FRONTIER)
-  const [isBaseline, setIsBaseline] = useState(true)
+  const seed = tickers.length === 0 ? snapshot : null
+  const [data, setData] = useState<FrontierResponse>(seed?.data ?? BASELINE_FRONTIER)
+  const [isBaseline, setIsBaseline] = useState(seed === null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /** Seconds the current solve has been running, for the progress readout. */
   const [elapsed, setElapsed] = useState(0)
   /** When the displayed solve was produced. Null while it is the baseline. */
-  const [solvedAt, setSolvedAt] = useState<number | null>(null)
+  const [solvedAt, setSolvedAt] = useState<number | null>(
+    seed ? Date.parse(seed.computedAt) : null
+  )
   /** The settings the displayed solve was produced under. */
   const [solvedSettings, setSolvedSettings] =
-    useState<PortfolioSettings | null>(null)
+    useState<PortfolioSettings | null>(seed ? DEFAULT_SETTINGS : null)
   /**
    * Which portfolio on the curve every panel below is describing.
    *
@@ -576,20 +586,23 @@ export function PortfolioBuilder({
               Settings
             </Button>
 
-            <span className="font-mono text-xs text-muted-foreground tabular-nums">
+            {/* The server renders in UTC and the browser in local time. */}
+            <span
+              suppressHydrationWarning
+              className="font-mono text-xs text-muted-foreground tabular-nums"
+            >
               {tickers.length > 0
                 ? `${tickers.length} screened ${tickers.length === 1 ? "stock" : "stocks"}`
                 : "Full index"}
               {isBaseline
                 ? " : Example"
                 : solvedAt
-                  ? ` : solved ${new Date(solvedAt).toLocaleTimeString(
-                    "en-GB",
-                    {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    },
-                  )}`
+                  ? ` : solved ${new Date(solvedAt).toLocaleString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}`
                   : ""}
               {dirty && " · settings changed"}
             </span>
@@ -628,7 +641,7 @@ export function PortfolioBuilder({
 
         {error && (
           <div className="flex flex-col gap-1 border border-destructive/40 bg-destructive/5 px-4 py-3">
-            <span className="text-xs font-semibold tracking-widest text-destructive uppercase">
+            <span className="text-xs font-semibold text-destructive">
               Not optimised
             </span>
             <p className="text-sm text-destructive">{error}</p>
@@ -672,10 +685,10 @@ export function PortfolioBuilder({
             readings of the portfolio: the ledger below states every position,
             and the cap is already printed on the control that sets it. */}
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border border-border bg-card px-4 py-2">
-            <h2 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+            <h2 className="text-xs font-semibold text-muted-foreground">
               {activeLabel} portfolio
             </h2>
-            <span className="font-mono text-xs text-muted-foreground tabular-figures">
+            <span className="font-mono text-xs text-muted-foreground">
               {heldCount} {heldCount === 1 ? "position" : "positions"}
             </span>
           </div>
@@ -689,7 +702,7 @@ export function PortfolioBuilder({
                     ? "text-undervalued"
                     : "text-overvalued"
               }
-              label="Sharpe Ratio"
+              label="Sharpe ratio"
               value={active.sharpe.toFixed(2)}
               hint={
                 market &&
@@ -719,7 +732,7 @@ export function PortfolioBuilder({
                     ? "text-overvalued"
                     : "text-undervalued"
               }
-              label="Expected Volatility"
+              label="Expected volatility"
               value={formatPercent(active.volatility)}
               hint={
                 market &&
@@ -741,7 +754,7 @@ export function PortfolioBuilder({
                   ? gapTextClass(consensus.impliedAlpha)
                   : undefined
               }
-              label="Price implies"
+              label="Value tilt (weighted)"
               value={
                 consensus.ratedHoldings > 0
                   ? `${formatMargin(consensus.impliedAlpha)}/yr`

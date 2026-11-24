@@ -3,12 +3,7 @@
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Panel, PanelBody, PanelHeader, PanelTitle } from "@/components/ui/panel"
 
 /**
  * One backfill stage, with its own button and result readout.
@@ -70,14 +65,14 @@ export function BackfillCard({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex items-baseline justify-between gap-4">
-        <CardTitle>{title}</CardTitle>
-        <span className="text-xs tracking-wider text-muted-foreground uppercase">
+    <Panel>
+      <PanelHeader>
+        <PanelTitle>{title}</PanelTitle>
+        <span className="text-xs text-muted-foreground">
           {estimate}
         </span>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      </PanelHeader>
+      <PanelBody className="flex flex-col gap-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
           {description}
         </p>
@@ -127,7 +122,7 @@ export function BackfillCard({
             )}
           </dl>
         )}
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   )
 }

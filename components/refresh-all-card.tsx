@@ -3,12 +3,7 @@
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Panel, PanelBody, PanelHeader, PanelTitle } from "@/components/ui/panel"
 
 /**
  * Runs every backfill stage in dependency order behind one button.
@@ -83,14 +78,14 @@ export function RefreshAllCard() {
   }
 
   return (
-    <Card className="lg:col-span-2">
-      <CardHeader className="flex items-baseline justify-between gap-4">
-        <CardTitle>Refresh everything</CardTitle>
-        <span className="text-xs tracking-wider text-muted-foreground uppercase">
+    <Panel className="lg:col-span-2">
+      <PanelHeader>
+        <PanelTitle>Refresh everything</PanelTitle>
+        <span className="text-xs text-muted-foreground">
           {estimate}
         </span>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      </PanelHeader>
+      <PanelBody className="flex flex-col gap-4">
         <p className="text-sm leading-relaxed text-muted-foreground">
           Runs every stage below in the order they depend on each other and
           refreshes the warehouse at the end. Use the individual cards when
@@ -160,7 +155,7 @@ export function RefreshAllCard() {
             </dl>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   )
 }

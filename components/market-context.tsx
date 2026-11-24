@@ -1,6 +1,7 @@
 import { RiArrowDownSFill, RiArrowUpSFill } from "@remixicon/react"
 
 import { PageLabel } from "@/components/page-label"
+import { StockSearch } from "@/components/stock-search"
 import { formatDataTimestamp } from "@/lib/format"
 import { type IndexLevel } from "@/lib/universe"
 import { cn } from "@/lib/utils"
@@ -39,19 +40,11 @@ function Field({
 }) {
   return (
     <div className={cn("flex items-baseline gap-2", className)}>
-      <span className="text-[0.6875rem] font-semibold tracking-widest text-muted-foreground uppercase">
+      <span className="text-xs font-semibold text-muted-foreground">
         {label}
       </span>
-      <span className="font-mono text-xs tabular-figures">{children}</span>
+      <span className="font-mono text-xs">{children}</span>
     </div>
-  )
-}
-
-function Separator() {
-  return (
-    <span className="text-border select-none" aria-hidden="true">
-      /
-    </span>
   )
 }
 
@@ -61,9 +54,11 @@ export function MarketContext({
   computedAt,
   gatheredAt,
   isStale,
-  universeSize,
+  stocks,
   isBaseline,
 }: {
+  /** For the search box. */
+  stocks: { ticker: string; name: string }[]
   index: IndexLevel | null
   riskFreeRate: number | null
   computedAt: string | null
@@ -71,7 +66,6 @@ export function MarketContext({
   gatheredAt: string | null
   /** Decided by `loadUniverse`; see the note on `Universe.isStale`. */
   isStale: boolean
-  universeSize: number
   isBaseline: boolean
 }) {
   // The stamp is when data was gathered, falling back to when it was computed
@@ -81,13 +75,12 @@ export function MarketContext({
   const stamp = gatheredAt ?? computedAt
 
   return (
-    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 border-b border-border bg-card px-6 py-2.5 lg:px-10">
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b lg:flex-nowrap border-border bg-card px-6 py-2.5 lg:px-10">
       {/* First, and set apart from the fields: this names the page rather than
           reporting a number about the market, so it does not take the
           label-over-value form the rest of the strip uses. */}
       <PageLabel />
 
-      <Separator />
 
       {index && (
         <Field label="S&P 500">
@@ -115,17 +108,13 @@ export function MarketContext({
         </Field>
       )}
 
-      {index && riskFreeRate !== null && <Separator />}
 
       {riskFreeRate !== null && (
-        <Field label="13W T-bill">{(riskFreeRate * 100).toFixed(2)}%</Field>
+        <Field label="T-bill (3M)">{(riskFreeRate * 100).toFixed(2)}%</Field>
       )}
 
-      {(index || riskFreeRate !== null) && <Separator />}
 
-      <Field label="Universe">{universeSize} stocks</Field>
 
-      <Separator />
 
       <Field
         label={isBaseline ? "Sample" : collected ? "Collected" : "Computed"}
@@ -143,13 +132,8 @@ export function MarketContext({
         )}
       </Field>
 
-      {/* Pushed to the far end: provenance is the one field a reader looks for
-          deliberately rather than scans. */}
-      <div className="ml-auto hidden items-baseline gap-2 xl:flex">
-        <span className="text-[0.6875rem] font-semibold tracking-widest text-muted-foreground uppercase">
-          Source
-        </span>
-        <span className="text-xs text-muted-foreground">yfinance</span>
+      <div className="ml-auto">
+        <StockSearch stocks={stocks} />
       </div>
     </div>
   )

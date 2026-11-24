@@ -6,13 +6,14 @@ export const metadata = {
 }
 
 /**
- * No page header. The name lives in the context strip, which is on every route
- * already; the eyebrow-title-paragraph block that used to sit here cost the
- * top eighth of the window to restate the sidebar, on the one page whose
- * useful height is entirely rows of table.
+ * No page header: the name lives in the context strip. `?sector=` (repeatable)
+ * opens the screen filtered, which is how the Overview's sector rows link here.
  */
-export default async function ScreenerPage() {
-  const { stocks } = await loadUniverse()
+export default async function ScreenerPage({ searchParams }: PageProps<"/screener">) {
+  const [{ stocks }, { sector }] = await Promise.all([loadUniverse(), searchParams])
+  const known = new Set(stocks.map((stock) => stock.sector))
+  const sectors = [sector ?? []].flat().filter((name) => known.has(name))
 
-  return <Screener stocks={stocks} />
+  // Keyed so following a different sector link resets the screen's state.
+  return <Screener key={sectors.join("|")} stocks={stocks} initialSectors={sectors} />
 }

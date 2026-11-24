@@ -98,9 +98,10 @@ Driver commands:
 pnpm dev
 ```
 
-Opens a dev server at http://localhost:3000. Routes: `/screener`,
-`/stocks/[ticker]`, `/portfolio`, `/about`, and `/data` (only with
-`ENABLE_DATA_PAGE=true`). Ctrl-C to stop.
+Opens a dev server at http://localhost:3000. Routes: `/` (overview),
+`/screener` (`?sector=` filters), `/stocks/[ticker]`, `/portfolio`,
+`/methodology`, and `/data` (only with `ENABLE_DATA_PAGE=true`). `/about` and
+`/stocks` redirect. Ctrl-C to stop.
 
 ## Test / Lint / Build
 

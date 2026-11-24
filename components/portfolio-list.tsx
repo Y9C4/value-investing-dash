@@ -134,7 +134,7 @@ export function PortfolioList({
         {/* Tighter and smaller than the app's default table: four columns in a
             panel a third the width of the page, where at standard padding the
             last of them scrolled out of sight. */}
-        <Table containerClassName="overflow-y-auto overflow-x-hidden max-h-[26rem] [&_td]:px-2 [&_th]:px-2 [&_td]:py-1.5 [&_td]:text-xs [&_th]:text-[0.6875rem]">
+        <Table containerClassName="overflow-y-auto overflow-x-hidden max-h-[26rem] [&_td]:px-2 [&_th]:px-2 [&_td]:py-1.5 [&_td]:text-xs [&_th]:text-xs">
           <TableHeader className="sticky top-0 z-10 bg-card [&_tr]:border-b-0">
             {/* An inset shadow rather than a border: a sticky row's own border
                 is painted with the cell and scrolls out from under it. */}
@@ -238,16 +238,16 @@ export function PortfolioList({
           {market && (
             <TableFooter className="sticky bottom-0 z-10 bg-card shadow-[inset_0_1px_0_0_var(--color-border)]">
               <TableRow className="border-b-0 hover:bg-transparent">
-                <TableCell className="font-medium text-chart-1">
+                <TableCell className="font-medium text-muted-foreground">
                   Market portfolio
                 </TableCell>
-                <TableCell className="text-right font-mono tabular-nums text-chart-1">
+                <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
                   {formatPercent(market.return)}
                 </TableCell>
-                <TableCell className="text-right font-mono tabular-nums text-chart-1">
+                <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
                   {formatPercent(market.volatility)}
                 </TableCell>
-                <TableCell className="text-right font-mono tabular-nums text-chart-1">
+                <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
                   {market.sharpe.toFixed(2)}
                 </TableCell>
               </TableRow>

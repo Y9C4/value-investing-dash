@@ -32,3 +32,11 @@ export function quintile(percentile: number): 1 | 2 | 3 | 4 | 5 {
   if (percentile > 0.2) return 2
   return 1
 }
+
+/** The median of the values that were measured; null when none were. */
+export function median(values: (number | null)[]): number | null {
+  const xs = values.filter((v): v is number => v !== null && Number.isFinite(v)).sort((a, b) => a - b)
+  if (xs.length === 0) return null
+  const mid = xs.length >> 1
+  return xs.length % 2 ? xs[mid] : (xs[mid - 1] + xs[mid]) / 2
+}

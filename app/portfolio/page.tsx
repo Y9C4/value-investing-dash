@@ -1,6 +1,8 @@
 import { PortfolioBuilder } from "@/components/portfolio-builder"
+import type { FrontierResponse } from "@/lib/baseline-frontier"
+import { selectSnapshotRow } from "@/lib/supabase"
 import { decodeTickerSet } from "@/lib/ticker-set"
-import { loadUniverse } from "@/lib/universe"
+import { loadUniverse, VALUATIONS_CACHE_TAG } from "@/lib/universe"
 
 export const metadata = {
   title: "Portfolio",
@@ -26,6 +28,15 @@ export default async function PortfolioPage({
   // the only page that needs both, and neither costs a solve.
   const { stocks } = await loadUniverse()
 
+  // The scheduled default solve (`frontier.precompute_default`), so a bare
+  // visit opens on today's frontier rather than the illustrative baseline.
+  const row = await selectSnapshotRow<{ payload: FrontierResponse; computed_at: string }>(
+    "frontier_snapshot",
+    "select=payload,computed_at&cache_key=eq.default",
+    { revalidate: process.env.NODE_ENV === "development" ? 0 : 3600, tags: [VALUATIONS_CACHE_TAG] }
+  )
+  const snapshot = row ? { data: row.payload, computedAt: row.computed_at } : null
+
   const decoded = set ? decodeTickerSet(set) : null
 
   const screened =
@@ -47,6 +58,7 @@ export default async function PortfolioPage({
         tickers={screened}
         staleSet={staleSet}
         stocks={stocks}
+        snapshot={snapshot}
       />
     </div>
   )

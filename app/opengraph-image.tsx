@@ -11,117 +11,48 @@ import { ImageResponse } from "next/og"
  */
 
 export const alt =
-  "Value-Investing-Dash - rank the S&P 500 on a backtested value and momentum signal, then build an optimized portfolio"
+  "Value Investing Dash: rank the S&P 500 on what each price implies against what its risk requires, then build a portfolio from the screen"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
-const INK = "#12100e"
-const PAPER = "#f7f6f4"
-const MUTED = "#8d8880"
-const SERIES_1 = "#3987e5"
-const SERIES_3 = "#1baf7a"
-const AXIS = "#3a3733"
+// Literal values of the dark tokens in globals.css (satori reads no CSS vars).
+const INK = "#141210"
+const CARD = "#1c1a17"
+const PAPER = "#ece6da"
+const MUTED = "#a39b8d"
+const BRASS = "#c9a45a"
+const TEAL = "#0ea48c"
+const RUST = "#d6683c"
 
-/**
- * The frontier, as the page draws it: a concave envelope with the capital
- * market line tangent to it.
- *
- * Concave is not decoration. Risk buys return at a diminishing rate, so the
- * curve rises steeply and flattens; drawn the other way up it says the
- * opposite, on the one image a reader sees before they see anything else. The
- * dashed line is placed by taking the actual tangent of the cubic at t = 0.5
- * rather than by eye, so it touches at exactly one point and sits above the
- * envelope everywhere else.
- *
- * Inlined as a data URI because satori renders `img` reliably and nested SVG
- * only partially.
- */
-const CURVE = `data:image/svg+xml,${encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 300">
-     <path d="M20 280 L400 280" stroke="${AXIS}" stroke-width="1.5"/>
-     <path d="M20 280 L20 20" stroke="${AXIS}" stroke-width="1.5"/>
-     <path d="M20 218 L330 10" stroke="${MUTED}" stroke-width="2"
-           stroke-dasharray="7 7"/>
-     <path d="M40 262 C 90 150, 190 90, 330 60" fill="none"
-           stroke="${SERIES_1}" stroke-width="5" stroke-linecap="round"/>
-     <circle cx="151" cy="130" r="9" fill="${SERIES_3}"/>
-   </svg>`
-)}`
+/** Implied minus required return for a handful of rows: the screener's idea. */
+const GAPS = [0.062, 0.041, 0.018, -0.009, -0.027, -0.055]
 
 export default function Image() {
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          background: INK,
-          color: PAPER,
-          fontFamily: "sans-serif",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            padding: "64px 0 64px 72px",
-            width: 700,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 20, height: 20, background: SERIES_1 }} />
-            <span style={{ fontSize: 26, letterSpacing: 10, fontWeight: 600 }}>
-              VALUE-INVESTING-DASH
-            </span>
+      <div style={{ width: "100%", height: "100%", display: "flex", background: INK, color: PAPER, fontFamily: "sans-serif" }}>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "64px 0 64px 72px", width: 680 }}>
+          <span style={{ fontSize: 30, color: BRASS }}>Value Investing Dash</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <span style={{ fontSize: 60, lineHeight: 1.1 }}>What does the price imply?</span>
+            <span style={{ fontSize: 60, lineHeight: 1.1, color: MUTED }}>What does the risk require?</span>
           </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            <span style={{ fontSize: 62, lineHeight: 1.12, fontWeight: 600 }}>
-              Screen on what the price implies.
-            </span>
-            <span
-              style={{
-                fontSize: 62,
-                lineHeight: 1.12,
-                fontWeight: 600,
-                color: SERIES_1,
-              }}
-            >
-              Optimise what survives.
-            </span>
-          </div>
-
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            {[
-              "5 VALUATION MODELS",
-              "493 COMPANIES",
-              "MEAN-VARIANCE FRONTIER",
-            ].map((label, index) => (
-              <div key={label} style={{ display: "flex", gap: 14 }}>
-                {index > 0 && <span style={{ color: MUTED }}>·</span>}
-                <span
-                  style={{ fontSize: 20, letterSpacing: 3, color: MUTED }}
-                >
-                  {label}
-                </span>
-              </div>
-            ))}
-          </div>
+          <span style={{ fontSize: 22, color: MUTED, fontFamily: "sans-serif" }}>
+            S&amp;P 500 · reverse DCF · trend · portfolio optimiser
+          </span>
         </div>
-
-        <div
-          style={{
-            display: "flex",
-            flex: 1,
-            alignItems: "center",
-            justifyContent: "center",
-            borderLeft: "1px solid #2a2724",
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={CURVE} width={420} height={300} alt="" />
+        <div style={{ display: "flex", flex: 1, flexDirection: "column", justifyContent: "center", gap: 18, padding: "0 56px", background: CARD }}>
+          {GAPS.map((gap) => (
+            <div key={gap} style={{ display: "flex", height: 30, position: "relative" }}>
+              <div style={{ display: "flex", flex: 1, justifyContent: "flex-end" }}>
+                {gap < 0 && <div style={{ width: `${(-gap / 0.07) * 100}%`, background: RUST }} />}
+              </div>
+              <div style={{ width: 3, background: BRASS }} />
+              <div style={{ display: "flex", flex: 1 }}>
+                {gap > 0 && <div style={{ width: `${(gap / 0.07) * 100}%`, background: TEAL }} />}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     ),

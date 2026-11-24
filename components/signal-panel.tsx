@@ -112,7 +112,7 @@ export function SignalPanel({
             return (
               <TableRow key={component.id} className="hover:bg-transparent">
                 <TableCell>
-                  <span className="text-xs font-semibold tracking-wider uppercase">
+                  <span className="text-sm font-medium">
                     {component.label}
                   </span>
                   <span className="ml-2 text-xs text-muted-foreground">

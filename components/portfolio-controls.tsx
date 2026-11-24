@@ -46,7 +46,7 @@ function ControlGroup({
 }) {
   return (
     <div className="flex flex-col gap-3 border-b border-border px-6 py-4 last:border-b-0">
-      <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+      <span className="text-xs font-semibold text-muted-foreground">
         {label}
       </span>
       {children}
@@ -107,7 +107,7 @@ function SliderField({
         className="w-full accent-primary"
       />
       {(minLabel ?? maxLabel) && (
-        <span className="flex justify-between font-mono text-[0.6875rem] text-muted-foreground tabular-nums">
+        <span className="flex justify-between font-mono text-xs text-muted-foreground tabular-nums">
           <span>{minLabel}</span>
           <span>{maxLabel}</span>
         </span>
@@ -155,7 +155,7 @@ function NumberField({
       >
         {label}
         {isAuto && (
-          <span className="text-[0.625rem] tracking-wider normal-case">
+          <span className="text-xs normal-case">
             auto
           </span>
         )}
@@ -217,7 +217,7 @@ function ToggleRow({
       <span className="flex min-w-0 flex-col gap-0.5">
         <span
           className={cn(
-            "text-xs font-semibold tracking-wider uppercase",
+            "text-xs font-semibold",
             checked ? "text-foreground" : "text-muted-foreground"
           )}
         >
@@ -281,7 +281,7 @@ export function PortfolioControls({
   return (
     <div className="flex flex-col border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <span className="font-heading text-sm font-semibold tracking-wider uppercase">
+        <span className="font-heading text-sm font-semibold">
           Optimiser
         </span>
         <Button variant="ghost" size="xs" onClick={onReset}>
@@ -345,7 +345,7 @@ export function PortfolioControls({
       <ControlGroup label="Diversification">
         <SliderField
           id="gamma"
-          label="Concentration Penalty (L2)"
+          label="L2 penalty (γ)"
           value={gamma}
           display={gamma.toFixed(2)}
           min={0}
@@ -360,7 +360,7 @@ export function PortfolioControls({
       <ControlGroup label="Resolution">
         <SliderField
           id="n-portfolios"
-          label="# Portfolios"
+          label="Frontier points"
           value={portfolios}
           display={String(portfolios)}
           min={MIN_PORTFOLIOS}
@@ -382,7 +382,7 @@ export function PortfolioControls({
           rather than among the dials that do need the button. */}
       <ControlGroup label="Valuation models">
         <span className="text-xs leading-snug text-muted-foreground">
-          Which reverse-DCF models the &ldquo;Price implies&rdquo; reading
+          Which reverse-DCF models the &ldquo;Value tilt&rdquo; reading
           averages: the return each says the holdings&apos; prices imply,
           against the return their risk requires.
         </span>

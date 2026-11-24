@@ -233,6 +233,26 @@ export function impliedAlpha(
   return count === 0 ? null : total / count
 }
 
+/**
+ * The mean implied and mean required return over the models that solved, per
+ * year. Their difference is `impliedAlpha(stock)`; shown apart because two
+ * plain rates read more easily than their gap.
+ */
+export function impliedAndRequired(stock: Stock): { implied: number; required: number } | null {
+  let implied = 0
+  let required = 0
+  let n = 0
+  for (const id of METHOD_IDS) {
+    const r = stock.signals?.impliedReturns[id] ?? null
+    const k = requiredReturn(stock, id)
+    if (r === null || k === null) continue
+    implied += r
+    required += k
+    n += 1
+  }
+  return n === 0 ? null : { implied: implied / n, required: required / n }
+}
+
 /** Whether any selected model could solve for this stock. */
 export function isRated(stock: Stock, methods: MethodId[] = []): boolean {
   return impliedAlpha(stock, methods) !== null

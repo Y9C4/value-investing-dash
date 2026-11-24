@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
   compress: true,
   // Nothing is gained by announcing the framework and version in a header.
   poweredByHeader: false,
+  // Retired routes: About became Methodology, and stocks are found by search.
+  async redirects() {
+    return [
+      { source: "/about", destination: "/methodology", permanent: true },
+      { source: "/stocks", destination: "/screener", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -223,7 +223,7 @@ function ScreenerGuide() {
         </p>
       ))}
       <Link
-        href="/about"
+        href="/methodology"
         className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground md:col-span-3"
       >
         How the models work, and what the backtest found

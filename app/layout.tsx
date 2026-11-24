@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/app-shell";
 import { MarketContext } from "@/components/market-context";
@@ -7,33 +7,28 @@ import { isDataPageEnabled } from "@/lib/market-data-service";
 import { loadUniverse } from "@/lib/universe";
 import { cn } from "@/lib/utils";
 
-// Two families, both consumed: Inter is --font-sans and --font-heading,
-// JetBrains Mono is --font-mono.
-//
-// Inter replaced Raleway, which is a display face — geometric, small-bodied
-// figures, a single-storey 1 that sits a stroke away from a lowercase l. That
-// is a poor trade on a page whose content is almost entirely numbers, and it
-// showed everywhere a figure is not in the mono column: the match count, the
-// stat readouts, the weights on the portfolio page. Inter was drawn for screen
-// UI at small sizes and has a proper tabular set, which the `td, th` rule in
-// globals.css switches on. The uppercase tracked-wide treatment that carries
-// the app's identity is unchanged — it lives in the type styles, not the face.
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-
-// The figures face, and most of what is on screen: every table cell, every
-// weight, every rate. Geist Mono was here and its digits are drawn narrow with
-// a small aperture, which is fine in a code editor at one figure per line and
-// costs real legibility in a 450-row column read by scanning down it. JetBrains
-// Mono was drawn for exactly that — a taller x-height, a slashed zero that
-// cannot be an O, and a 1 with a base serif that cannot be a 7.
-const mono = JetBrains_Mono({
-  variable: "--font-mono-face",
+// Newsreader for display (titles, stock names, verdict sentences): an
+// editorial serif, the broadsheet half of the look. IBM Plex Sans for the UI
+// and IBM Plex Mono for every figure: drawn as a pair, with tabular digits, a
+// slashed zero and a 1 that cannot be read as l or 7.
+const display = Newsreader({ subsets: ["latin"], variable: "--font-newsreader" });
+const sans = IBM_Plex_Sans({
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-plex-sans",
+});
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-plex-mono",
 });
 
-const TITLE = "Value-Investing-Dash";
+// Runs before first paint so a reader who chose light never sees a dark flash.
+const THEME_SCRIPT = `try{if(localStorage.getItem("theme")==="light")document.documentElement.dataset.theme="light"}catch(e){}`;
+
+const TITLE = "Value Investing Dash";
 const DESCRIPTION =
-  "Rank the S&P 500 on a backtested value and momentum signal, see the return each stock's price implies, then build an optimized portfolio out of the screen.";
+  "Rank the S&P 500 on what each price implies against what its risk requires, confirmed by trend, then build an optimised portfolio from the screen.";
 
 export const metadata: Metadata = {
   // Absolute URLs for the share card. Vercel injects the deployment host, so
@@ -44,13 +39,13 @@ export const metadata: Metadata = {
         ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
         : "http://localhost:3000")
   ),
-  title: { default: TITLE, template: "%s - Value-Investing-Dash" },
+  title: { default: TITLE, template: "%s · Value Investing Dash" },
   description: DESCRIPTION,
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
     type: "website",
-    siteName: "Value-Investing-Dash",
+    siteName: TITLE,
   },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
@@ -71,12 +66,13 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={cn(
-        "dark h-full antialiased font-sans",
-        inter.variable,
-        mono.variable
-      )}
+      // The theme script sets data-theme before React hydrates.
+      suppressHydrationWarning
+      className={cn("h-full antialiased font-sans", display.variable, sans.variable, mono.variable)}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col bg-background">
         {/* Read here rather than in the shell: the shell is a client
             component and this is a server-only variable. Evaluated at build,
@@ -92,7 +88,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               computedAt={computedAt}
               gatheredAt={gatheredAt}
               isStale={isStale}
-              universeSize={stocks.length}
+              stocks={stocks.map(({ ticker, name }) => ({ ticker, name }))}
               isBaseline={isBaseline}
             />
           }

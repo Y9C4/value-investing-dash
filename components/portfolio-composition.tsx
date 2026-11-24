@@ -253,7 +253,7 @@ export function HoldingsChart({
             <span>Risk shares arrive with a live solve.</span>
           )}
           {tail.length > 0 && (
-            <span className="tabular-figures">
+            <span>
               Remaining {tail.length} in the ledger ·{" "}
               {formatPercent(tailWeight)}
             </span>

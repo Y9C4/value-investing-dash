@@ -20,10 +20,10 @@ import { usePathname } from "next/navigation"
  */
 
 const LABELS: Record<string, string> = {
+  "/": "Overview",
   "/screener": "Screener",
-  "/stocks": "Analysis",
   "/portfolio": "Portfolio",
-  "/about": "About",
+  "/methodology": "Methodology",
   "/data": "Data",
 }
 
@@ -36,14 +36,14 @@ function labelFor(pathname: string): string {
   const stock = pathname.match(/^\/stocks\/([^/]+)$/)
   if (stock) return decodeURIComponent(stock[1]).toUpperCase()
 
-  return "Value-Investing-Dash"
+  return "Value Investing Dash"
 }
 
 export function PageLabel() {
   const pathname = usePathname()
 
   return (
-    <h1 className="font-heading text-xs font-semibold tracking-widest uppercase">
+    <h1 className="font-heading text-base leading-none">
       {labelFor(pathname)}
     </h1>
   )

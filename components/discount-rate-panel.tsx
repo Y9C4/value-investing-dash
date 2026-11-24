@@ -32,19 +32,19 @@ function Figure({
 }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="text-[0.6875rem] font-semibold tracking-widest text-muted-foreground uppercase">
+      <dt className="text-xs font-semibold text-muted-foreground">
         {label}
       </dt>
-      <dd className="font-mono text-base font-semibold tabular-figures">
+      <dd className="font-mono text-base font-semibold">
         {value}
       </dd>
       {formula && (
-        <span className="font-mono text-[0.6875rem] leading-tight text-muted-foreground">
+        <span className="font-mono text-xs leading-tight text-muted-foreground">
           {formula}
         </span>
       )}
       {note && (
-        <span className="text-[0.6875rem] leading-tight text-muted-foreground">
+        <span className="text-xs leading-tight text-muted-foreground">
           {note}
         </span>
       )}
@@ -52,7 +52,20 @@ function Figure({
   )
 }
 
-export function DiscountRatePanel({ rates }: { rates: DiscountRates }) {
+export function DiscountRatePanel({
+  rates,
+  beta,
+}: {
+  rates: DiscountRates
+  /** The shrunk beta kₑ uses, from the stock row. */
+  beta: number | null
+}) {
+  const coverage = rates.interestCoverage
+  const debtNote = rates.syntheticRating
+    ? `rf + the default spread for a ${rates.syntheticRating} synthetic rating (EBIT ÷ interest ${
+        coverage === null || coverage === undefined ? "—" : `${coverage.toFixed(1)}×`
+      })`
+    : "not measured: no interest expense reported"
   return (
     <Panel>
       <PanelHeader>
@@ -70,7 +83,20 @@ export function DiscountRatePanel({ rates }: { rates: DiscountRates }) {
             label="WACC"
             value={formatPercent(rates.wacc)}
             formula="ke(E/V) + kd(D/V)(1 − t)"
-            note="what FCFF and revenue must beat"
+            note={
+              rates.wacc === null
+                ? "none: financial firm, or no cost of debt"
+                : "what FCFF and revenue must beat"
+            }
+          />
+          <Figure
+            label="Beta"
+            value={beta === null ? "—" : beta.toFixed(2)}
+            note={
+              rates.betaRaw === null || rates.betaRaw === undefined
+                ? "shrunk (Levi & Welch 2017)"
+                : `shrunk from a raw ${rates.betaRaw.toFixed(2)} (Levi & Welch 2017)`
+            }
           />
           <Figure
             label="10Y Treasury"
@@ -80,7 +106,7 @@ export function DiscountRatePanel({ rates }: { rates: DiscountRates }) {
           <Figure
             label="Cost of debt"
             value={formatPercent(rates.costOfDebt)}
-            note="interest over debt ex leases, clamped to 2-15%"
+            note={debtNote}
           />
           <Figure
             label="Equity weight (E/V)"
@@ -95,10 +121,12 @@ export function DiscountRatePanel({ rates }: { rates: DiscountRates }) {
         </dl>
 
         <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-          Beta is the 252-day CAPM regression on Fama-French market excess
-          returns, and the premium is the long-run average of that series. CAPM
-          replaced the Fama-French regression after the backtest found it the
-          better required return.
+          Beta is the 252-day regression on Fama-French market excess
+          returns, shrunk toward the index mean by its own standard error
+          (Vasicek), then a quarter of the way toward 0.9 (Levi &amp; Welch
+          2017). The premium is the long-run average of that series. The cost
+          of debt follows Damodaran&rsquo;s synthetic rating table (January
+          2026).
         </p>
       </PanelBody>
     </Panel>

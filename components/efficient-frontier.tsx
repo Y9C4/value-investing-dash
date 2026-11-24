@@ -291,7 +291,7 @@ export function FrontierChart({
               ? "Solving…"
               : isBaseline
                 ? "Illustrative baseline"
-                : `Live · ${data.n_portfolios} portfolios${data.cached ? " · cached" : ""}`}
+                : `Live · ${data.n_portfolios} frontier points${data.cached ? " · cached" : ""}`}
         </PanelMeta>
       </PanelHeader>
       <PanelBody className="flex flex-col gap-4">

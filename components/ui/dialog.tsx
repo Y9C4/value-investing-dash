@@ -46,7 +46,7 @@ function DialogTitle({ className, ...props }: BaseDialog.Title.Props) {
   return (
     <BaseDialog.Title
       className={cn(
-        "font-heading text-xl font-semibold tracking-wider uppercase",
+        "font-heading text-xl font-semibold",
         className
       )}
       {...props}

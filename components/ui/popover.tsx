@@ -69,7 +69,7 @@ function PopoverTitle({ className, ...props }: BasePopover.Title.Props) {
   return (
     <BasePopover.Title
       className={cn(
-        "text-xs font-semibold tracking-widest text-muted-foreground uppercase",
+        "text-xs font-semibold text-muted-foreground",
         className
       )}
       {...props}
