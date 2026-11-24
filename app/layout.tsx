@@ -1,6 +1,6 @@
 import Script from "next/script";
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Inter } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/app-shell";
 import { MarketContext } from "@/components/market-context";
@@ -8,20 +8,27 @@ import { isDataPageEnabled } from "@/lib/market-data-service";
 import { loadUniverse } from "@/lib/universe";
 import { cn } from "@/lib/utils";
 
-// Newsreader for display (titles, stock names, verdict sentences): an
-// editorial serif, the broadsheet half of the look. IBM Plex Sans for the UI
-// and IBM Plex Mono for every figure: drawn as a pair, with tabular digits, a
-// slashed zero and a 1 that cannot be read as l or 7.
-const display = Newsreader({ subsets: ["latin"], variable: "--font-newsreader" });
-const sans = IBM_Plex_Sans({
+// IBM Plex Sans at 600 for display (titles, stock names, verdict sentences):
+// a sleek, slightly squared sans that reads as a heading beside the UI face
+// without changing voice. Inter for the UI and for every figure: with tabular
+// digits (globals.css) so columns align. Inter is a variable font with an
+// optical-size axis, so large figures get the display cut.
+const display = IBM_Plex_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: "600",
   variable: "--font-plex-sans",
 });
+const sans = Inter({
+  subsets: ["latin"],
+  axes: ["opsz"],
+  variable: "--font-inter",
+});
+// Real code only (the notebook pages), so it is not preloaded on the others.
 const mono = IBM_Plex_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500"],
   variable: "--font-plex-mono",
+  preload: false,
 });
 
 // Runs before first paint so a reader who chose light never sees a dark flash.

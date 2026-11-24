@@ -482,7 +482,7 @@ export function PortfolioBuilder({
                 zone's abbreviation between server and browser. */}
             <span
               suppressHydrationWarning
-              className="font-mono text-xs text-muted-foreground tabular-nums"
+              className="font-figure text-xs text-muted-foreground tabular-nums"
             >
               {screened
                 ? `${tickers.length} screened ${tickers.length === 1 ? "stock" : "stocks"}`
@@ -548,7 +548,7 @@ export function PortfolioBuilder({
       {unknownTickers.length > 0 && (
         <p role="status" className="border border-border bg-card px-4 py-2.5 text-sm">
           Not in the S&amp;P 500 dataset, so left out:{" "}
-          <span className="font-mono">{unknownTickers.join(", ")}</span>
+          <span className="font-figure">{unknownTickers.join(", ")}</span>
         </p>
       )}
 
@@ -638,7 +638,7 @@ export function PortfolioBuilder({
                   <h2 className="text-xs font-semibold text-muted-foreground">
                     {activeLabel}
                   </h2>
-                  <span className="font-mono text-xs text-muted-foreground">
+                  <span className="font-figure text-xs text-muted-foreground">
                     {heldCount} {heldCount === 1 ? "position" : "positions"}
                   </span>
                 </div>

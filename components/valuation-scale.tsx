@@ -96,7 +96,7 @@ export function ImpliedReturnBar({
         />
       </div>
       <div
-        className="relative mt-0.5 h-4 font-mono text-xs text-muted-foreground"
+        className="relative mt-0.5 h-4 font-figure text-xs text-muted-foreground"
         aria-hidden="true"
       >
         <span className={cn("absolute left-0", pinned && !positive && "text-foreground")}>

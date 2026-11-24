@@ -14,7 +14,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
 
 const NAV = [
-  { href: "/", label: "Market overview", hint: "Implied vs required return, by sector", icon: RiDashboardLine },
+  { href: "/", label: "Overview", hint: "The question, the evidence, the model", icon: RiDashboardLine },
   { href: "/screener", label: "Stock screener", hint: "Rank the S&P 500 by factor percentile", icon: RiFilter3Line },
   { href: "/portfolio", label: "Portfolio optimiser", hint: "Mean–variance efficient frontier", icon: RiPieChartLine },
   { href: "/research", label: "Backtest evidence", hint: "Out-of-sample ICs, notebooks", icon: RiFlaskLine },

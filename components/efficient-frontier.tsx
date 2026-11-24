@@ -142,7 +142,7 @@ function PointCard({ point }: { point: Partial<Point> }) {
       {rows.map(([label, value]) => (
         <span key={label} className="flex justify-between gap-4">
           <span className="text-muted-foreground">{label}</span>
-          <span className="font-mono tabular-nums">{value}</span>
+          <span className="font-figure tabular-nums">{value}</span>
         </span>
       ))}
     </div>

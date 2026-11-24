@@ -110,26 +110,26 @@ export function BackfillCard({
           <dl className="flex flex-col gap-1 text-sm">
             <div className="flex gap-2">
               <dt className="text-muted-foreground">Succeeded</dt>
-              <dd className="font-mono">
+              <dd className="font-figure">
                 {result.tickers_valued ?? result.tickers_succeeded} /{" "}
                 {result.tickers_requested}
               </dd>
             </div>
             <div className="flex gap-2">
               <dt className="text-muted-foreground">Rows</dt>
-              <dd className="font-mono">
+              <dd className="font-figure">
                 {result.rows_upserted.toLocaleString()} upserted (
                 {result.rows_fetched.toLocaleString()} fetched)
               </dd>
             </div>
             <div className="flex gap-2">
               <dt className="text-muted-foreground">Took</dt>
-              <dd className="font-mono">{result.duration_seconds}s</dd>
+              <dd className="font-figure">{result.duration_seconds}s</dd>
             </div>
             {result.tickers_failed.length > 0 && (
               <div className="flex gap-2">
                 <dt className="text-muted-foreground">Skipped</dt>
-                <dd className="font-mono">
+                <dd className="font-figure">
                   {result.tickers_failed.length} —{" "}
                   {result.tickers_failed.slice(0, 8).join(", ")}
                   {result.tickers_failed.length > 8 && " …"}

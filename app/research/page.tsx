@@ -6,6 +6,7 @@ import {
   CumulativeIcChart,
   QuintileChart,
 } from "@/components/research-charts"
+import { TStat } from "@/components/t-stat"
 import { Panel, PanelBody, PanelHeader, PanelMeta, PanelTitle } from "@/components/ui/panel"
 import {
   Table,
@@ -19,11 +20,12 @@ import {
   DEVELOPMENT_SPAN,
   EVIDENCE,
   HOLDOUT_SPAN,
+  cumulativeIc,
   STRATEGIES,
   type SampleStats,
   type StrategyKey,
+  formatStat,
 } from "@/lib/evidence"
-import { cn } from "@/lib/utils"
 import evidenceNotebook from "./_data/notebook-evidence.json"
 import backtestNotebook from "./_data/notebook-backtest.json"
 
@@ -55,23 +57,13 @@ const signed = (x: number, digits: number) =>
 
 const byId = (id: string) => EVIDENCE.signals.find((s) => s.id === id)!
 
-/** t-stats at the conventional bar are set in the foreground weight, with the reason in the footnote. */
-function TStat({ t }: { t: number }) {
-  return (
-    <span className={cn("font-mono", Math.abs(t) >= 2 ? "font-semibold text-foreground" : "text-muted-foreground")}>
-      {t.toFixed(2)}
-      {Math.abs(t) >= 3 ? "**" : Math.abs(t) >= 2 ? "*" : ""}
-    </span>
-  )
-}
-
 function SampleCells({ s }: { s: SampleStats }) {
   return (
     <>
-      <TableCell className="border-l border-border text-right font-mono">{s.ic.toFixed(3)}</TableCell>
+      <TableCell className="border-l border-border text-right font-figure">{s.ic.toFixed(3)}</TableCell>
       <TableCell className="text-right"><TStat t={s.t} /></TableCell>
-      <TableCell className="text-right font-mono text-muted-foreground">{Math.round(s.hit * 100)}%</TableCell>
-      <TableCell className="text-right font-mono">{signed(s.spread * 100, 2)}%</TableCell>
+      <TableCell className="text-right font-figure text-muted-foreground">{Math.round(s.hit * 100)}%</TableCell>
+      <TableCell className="text-right font-figure">{signed(s.spread * 100, 2)}%</TableCell>
     </>
   )
 }
@@ -81,18 +73,7 @@ export default function ResearchPage() {
   const passing = EVIDENCE.signals.filter((s) => s.holdout.t >= 2)
   const keptShare = vm.holdout.ic / vm.development.ic
 
-  // Cumulative IC per strategy, month by month; the embargo months carry no outcome and are absent.
-  const totals: Record<StrategyKey, number> = { vm: 0, ms: 0, value: 0 }
-  const cumulative = EVIDENCE.monthly.map((row) => {
-    const point = { date: row.date } as { date: string } & Record<StrategyKey, number>
-    for (const key of KEYS) {
-      const cell = row[STRATEGIES[key].id]
-      if (typeof cell === "object") totals[key] += cell.ic
-      point[key] = Math.round(totals[key] * 1000) / 1000
-    }
-    return point
-  })
-  const holdoutMonths = EVIDENCE.monthly.filter((m) => m.sample === "Holdout").map((m) => m.date)
+  const bestInDevelopment = EVIDENCE.signals.every((s) => s.development.ic <= vm.development.ic)
 
   const quintileRows = (key: StrategyKey) => {
     const s = byId(STRATEGIES[key].id)
@@ -124,25 +105,28 @@ export default function ResearchPage() {
           <dl className="grid grid-cols-3 gap-px border border-border bg-border [&>div]:bg-card [&>div]:px-3 [&>div]:py-2.5">
             <div>
               <dt className="text-xs text-muted-foreground">Development IC</dt>
-              <dd className="font-mono text-xl">{vm.development.ic.toFixed(3)}</dd>
-              <dd className="font-mono text-xs text-muted-foreground">t = {vm.development.t.toFixed(2)}</dd>
+              <dd className="font-figure text-xl">{vm.development.ic.toFixed(3)}</dd>
+              <dd className="font-figure text-xs text-muted-foreground">t = {vm.development.t.toFixed(2)}</dd>
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">Holdout IC</dt>
-              <dd className="font-mono text-xl">{vm.holdout.ic.toFixed(3)}</dd>
-              <dd className="font-mono text-xs text-muted-foreground">t = {vm.holdout.t.toFixed(2)}</dd>
+              <dd className="font-figure text-xl">{vm.holdout.ic.toFixed(3)}</dd>
+              <dd className="font-figure text-xs text-muted-foreground">t = {vm.holdout.t.toFixed(2)}</dd>
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">Positive-IC months</dt>
-              <dd className="font-mono text-xl">{Math.round(vm.holdout.hit * 100)}%</dd>
-              <dd className="font-mono text-xs text-muted-foreground">
+              <dd className="font-figure text-xl">{Math.round(vm.holdout.hit * 100)}%</dd>
+              <dd className="font-figure text-xs text-muted-foreground">
                 {Math.round(vm.holdout.hit * vm.holdout.months)} of {vm.holdout.months}, holdout
               </dd>
             </div>
           </dl>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Every design choice was made on {vm.development.months} development
-            months ({DEVELOPMENT_SPAN}). The specification was then frozen and
+            months ({DEVELOPMENT_SPAN}){bestInDevelopment && (
+              <>, and the composite is the default because it had the highest
+              development IC of the {EVIDENCE.signals.length} candidates</>
+            )}. The specification was then frozen and
             run once on {vm.holdout.months} months it had never seen ({HOLDOUT_SPAN}),
             after a three-month embargo so no return window spans both.{" "}
             {passing.length > 0 ? (
@@ -170,11 +154,7 @@ export default function ResearchPage() {
             <PanelMeta>{DEVELOPMENT_SPAN.split(" – ")[0]} – {HOLDOUT_SPAN.split(" – ")[1]}</PanelMeta>
           </PanelHeader>
           <PanelBody>
-            <CumulativeIcChart
-              rows={cumulative}
-              holdoutStart={holdoutMonths[0]}
-              holdoutEnd={holdoutMonths[holdoutMonths.length - 1]}
-            />
+            <CumulativeIcChart {...cumulativeIc()} />
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               Each month adds that month&rsquo;s Spearman correlation between the
               ranking and the next month&rsquo;s factor-adjusted returns. A steady
@@ -188,7 +168,7 @@ export default function ResearchPage() {
       <Panel>
         <PanelHeader>
           <PanelTitle>Rank IC by strategy and factor</PanelTitle>
-          <PanelMeta>target: {EVIDENCE.target.toLowerCase()}</PanelMeta>
+          <PanelMeta>target: {EVIDENCE.target[0].toLowerCase() + EVIDENCE.target.slice(1)}</PanelMeta>
         </PanelHeader>
         <div className="overflow-x-auto">
           <Table>
@@ -262,7 +242,7 @@ export default function ResearchPage() {
           <PanelHeader>
             <PanelTitle>Figure 3 · Calibration of value</PanelTitle>
             <PanelMeta>
-              slope {EVIDENCE.calibration.development.slope.toFixed(2)} / {EVIDENCE.calibration.holdout.slope.toFixed(2)}
+              slope {formatStat(EVIDENCE.calibration.development.slope)} / {formatStat(EVIDENCE.calibration.holdout.slope)}
             </PanelMeta>
           </PanelHeader>
           <PanelBody>
@@ -274,8 +254,8 @@ export default function ResearchPage() {
           <PanelBody className="border-t border-border text-xs leading-relaxed text-muted-foreground">
             Deciles of implied excess return against what they went on to earn,
             in pp a year. A forecast would follow the 45° line; the slope is{" "}
-            {EVIDENCE.calibration.development.slope.toFixed(2)} in development and{" "}
-            {EVIDENCE.calibration.holdout.slope.toFixed(2)} in the holdout. That is
+            {formatStat(EVIDENCE.calibration.development.slope)} in development and{" "}
+            {formatStat(EVIDENCE.calibration.holdout.slope)} in the holdout. That is
             why the site turns implied excess return into a percentile and
             never presents it as expected alpha.
           </PanelBody>
@@ -300,7 +280,7 @@ export default function ResearchPage() {
                     <RiArrowRightLine className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                   </span>
                   <span className="text-xs leading-relaxed text-muted-foreground">{blurb}</span>
-                  <span className="font-mono text-xs text-muted-foreground">
+                  <span className="font-figure text-xs text-muted-foreground">
                     {slug}.ipynb · {data.cells.length} cells · {figures} figures
                   </span>
                 </Link>
@@ -314,7 +294,7 @@ export default function ResearchPage() {
         Universe: today&rsquo;s S&amp;P 500 members (so survivorship-biased),
         month-end rebalancing, statements usable 60 days after period end.
         Generated {EVIDENCE.generated} from{" "}
-        <span className="font-mono">backtest/output/model_data.parquet</span>.{" "}
+        <span className="font-figure">backtest/output/model_data.parquet</span>.{" "}
         <Link href="/methodology" className="underline underline-offset-2 hover:text-foreground">
           Methodology
         </Link>

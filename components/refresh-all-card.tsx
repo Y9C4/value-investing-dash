@@ -158,7 +158,7 @@ export function RefreshAllCard() {
                   <dt className="min-w-52 text-muted-foreground">
                     {STAGE_LABELS[name] ?? name}
                   </dt>
-                  <dd className="font-mono">
+                  <dd className="font-figure">
                     {stage.failed || stage.skipped
                       ? `${stage.skipped ? "skipped" : "failed"} — ${stage.detail ?? ""}`
                       : `${(stage.tickers_valued ?? stage.tickers_succeeded ?? 0).toLocaleString()}/${(stage.tickers_requested ?? 0).toLocaleString()} ok, ` +

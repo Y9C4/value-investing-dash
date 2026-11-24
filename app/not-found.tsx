@@ -20,7 +20,7 @@ export default function NotFound() {
       <h2 className="max-w-2xl font-heading text-2xl leading-snug">
         {ticker ? (
           <>
-            <span className="font-mono">{decodeURIComponent(ticker).toUpperCase()}</span> is not a
+            <span className="font-figure">{decodeURIComponent(ticker).toUpperCase()}</span> is not a
             ticker in today&rsquo;s S&amp;P 500.
           </>
         ) : (
@@ -34,7 +34,7 @@ export default function NotFound() {
       </p>
       <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
         {[
-          ["/", "Market overview"],
+          ["/", "Overview"],
           ["/screener", "Stock screener"],
           ["/portfolio", "Portfolio optimiser"],
           ["/research", "Backtest evidence"],

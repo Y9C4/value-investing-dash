@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
+import { Suspense, useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import {
@@ -44,8 +44,10 @@ import { cn } from "@/lib/utils"
  * The width at which the filter rail and a full-width table both fit.
  *
  * Measured, not guessed: the table's natural width is a little over 1,000px,
- * the rail is 20rem, and the app chrome takes another 336px. Below this the
- * rail is an overlay sheet, so opening it never squeezes the table.
+ * the rail is 20rem, and the app chrome takes another 336px. From here up the
+ * rail is open by default; below it starts closed, and opening it docks it
+ * beside the table (which then scrolls sideways, ticker column frozen) or,
+ * under `lg`, stacks it above.
  */
 const RAIL_BREAKPOINT = 1700
 
@@ -275,66 +277,11 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
    * toggle reads the width once and takes over.
    */
   const [railOpen, setRailOpen] = useState<boolean | null>(null)
-  /** True while the open rail is an overlay (narrow viewports): a modal dialog. */
-  const [overlay, setOverlay] = useState(false)
-  const filtersButton = useRef<HTMLButtonElement>(null)
 
   function toggleRail() {
-    const narrow = window.innerWidth < RAIL_BREAKPOINT
     // The first press flips whatever the viewport chose.
-    setRailOpen((current) => (current === null ? narrow : !current))
-    setOverlay(narrow)
+    setRailOpen((current) => (current === null ? window.innerWidth < RAIL_BREAKPOINT : !current))
   }
-
-  function closeRail() {
-    setRailOpen(false)
-    filtersButton.current?.focus()
-  }
-
-  // As an overlay the rail behaves as a modal: focus moves in, Tab stays in,
-  // Escape closes from anywhere, and focus returns to the Filters button.
-  useEffect(() => {
-    if (!railOpen || !overlay) return
-    const rail = document.getElementById("screener-filters")
-    rail?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setRailOpen(false)
-        filtersButton.current?.focus()
-        return
-      }
-      if (event.key !== "Tab" || !rail) return
-      // Visible controls only: those inside a collapsed <details> cannot take focus.
-      const items = [
-        ...rail.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), select, summary, a[href], [tabindex]:not([tabindex="-1"])'
-        ),
-      ].filter((el) => el.getClientRects().length > 0 || el.classList.contains("sr-only"))
-      if (items.length === 0) return
-      const first = items[0]
-      const last = items[items.length - 1]
-      const active = document.activeElement
-      if (event.shiftKey && (active === first || active === rail)) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-    // Anything that still escapes (a popover's portal, a stray tab stop) is sent back.
-    const onFocus = (event: FocusEvent) => {
-      const target = event.target as Node
-      if (target === filtersButton.current) return // closing: focus is going home
-      if (rail && !rail.contains(target) && !(target as Element).closest?.("[data-base-ui-portal], [role='dialog'], [role='tooltip']")) rail.focus()
-    }
-    document.addEventListener("keydown", onKey)
-    document.addEventListener("focusin", onFocus)
-    return () => {
-      document.removeEventListener("keydown", onKey)
-      document.removeEventListener("focusin", onFocus)
-    }
-  }, [railOpen, overlay])
 
   const { ref: railRef, maxHeight: railMaxHeight } = useScrollPane<HTMLDivElement>()
 
@@ -455,36 +402,22 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
       </Suspense>
       <ScreenerGuide />
 
-      {/* Below the breakpoint an open rail is an overlay; this is its scrim. */}
-      {railOpen && (
-        <button
-          type="button"
-          tabIndex={-1}
-          aria-hidden="true"
-          onClick={closeRail}
-          className="fixed inset-0 z-40 bg-background/60 min-[1700px]:hidden"
-        />
-      )}
-
       <div
         className={cn(
           "grid gap-6",
-          railOpen !== false && "min-[1700px]:grid-cols-[20rem_minmax(0,1fr)]"
+          railOpen === null && "min-[1700px]:grid-cols-[20rem_minmax(0,1fr)]",
+          railOpen === true && "lg:grid-cols-[20rem_minmax(0,1fr)]"
         )}
       >
         <div
           id="screener-filters"
           ref={railRef}
           style={railMaxHeight ? { maxHeight: railMaxHeight } : undefined}
-          {...(railOpen && overlay
-            ? { role: "dialog", "aria-modal": true, "aria-label": "Filters", tabIndex: -1 }
-            : {})}
           className={cn(
             "flex-col gap-6 overflow-y-auto lg:max-h-[calc(100vh-14rem)]",
             railOpen === null && "hidden min-[1700px]:flex",
             railOpen === false && "hidden",
-            railOpen === true &&
-              "fixed inset-y-0 left-0 z-50 flex w-[22rem] max-w-[calc(100vw-2rem)] shadow-xl max-[1700px]:max-h-dvh! min-[1700px]:static min-[1700px]:z-auto min-[1700px]:w-auto min-[1700px]:max-w-none min-[1700px]:shadow-none"
+            railOpen === true && "flex"
           )}
         >
           <ScreenerFilterRail
@@ -503,7 +436,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
               }
             }}
             onReset={reset}
-            onClose={closeRail}
+            onClose={() => setRailOpen(false)}
           />
         </div>
 
@@ -515,13 +448,12 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
               className="px-3"
               aria-controls="screener-filters"
               aria-expanded={railOpen ?? undefined}
-              ref={filtersButton}
               onClick={toggleRail}
             >
               <RiEqualizerLine />
               Filters
               {activeFilters > 0 && (
-                <span className="ml-1 font-mono text-xs text-muted-foreground">{activeFilters}</span>
+                <span className="ml-1 font-figure text-xs text-muted-foreground">{activeFilters}</span>
               )}
             </Button>
 
@@ -569,7 +501,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
             {/* A fixed width from sm, sized to its widest state, so ticking a
                 row never re-wraps the toolbar and shifts the table. */}
             <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:ml-auto sm:w-96 sm:flex-nowrap sm:justify-end">
-              <span className="flex flex-col font-mono text-xs leading-4 whitespace-nowrap text-muted-foreground sm:text-right">
+              <span className="flex flex-col font-figure text-xs leading-4 whitespace-nowrap text-muted-foreground sm:text-right">
                 <span>
                   {filtered.length} of {stocks.length}
                 </span>

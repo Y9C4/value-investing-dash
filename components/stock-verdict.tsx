@@ -38,7 +38,7 @@ function Figure({
       <span className="text-xs font-semibold text-muted-foreground">{label}</span>
       <span
         className={cn(
-          "font-mono text-2xl leading-none font-semibold sm:text-4xl xl:text-5xl",
+          "font-figure text-2xl leading-none font-semibold sm:text-4xl xl:text-5xl",
           value === DASH ? "text-muted-foreground" : className
         )}
       >
@@ -56,7 +56,7 @@ function Operator({ children }: { children: string }) {
   return (
     <span
       aria-hidden="true"
-      className="hidden self-center pt-1 font-mono text-3xl text-muted-foreground sm:inline"
+      className="hidden self-center pt-1 font-figure text-3xl text-muted-foreground sm:inline"
     >
       {children}
     </span>
@@ -68,14 +68,19 @@ function Operator({ children }: { children: string }) {
  * distribution as a strip of bins (rust below zero, teal above), this stock's
  * bin at full strength and a marker on its reading.
  */
-function DistributionStrip({
+export function DistributionStrip({
   values,
   alpha,
   ticker,
+  className,
+  heightClass = "h-8",
 }: {
   values: number[]
   alpha: number
   ticker: string
+  className?: string
+  /** The strip's height; the stock page's is a thin one, the overview's a plot. */
+  heightClass?: string
 }) {
   const bins = histogram(values)
   if (bins.length < 2) return null
@@ -92,14 +97,14 @@ function DistributionStrip({
   const pp = (x: number) => formatPp(x).replace(" pp", "")
 
   return (
-    <figure className="flex w-full max-w-xl flex-col gap-1">
+    <figure className={cn("flex w-full max-w-xl flex-col gap-1", className)}>
       <figcaption className="text-xs text-muted-foreground">
         Implied excess return across the {values.length} valued S&amp;P 500 stocks, pp a year
       </figcaption>
       <div
         role="img"
         aria-label={`${ticker}'s implied excess return of ${formatPp(alpha)} is higher than ${below} of ${values.length} valued stocks.`}
-        className="relative mt-5 h-8"
+        className={cn("relative mt-5", heightClass)}
       >
         <div className="absolute inset-0 flex items-end gap-0.5">
           {bins.map((bin, i) => (
@@ -128,7 +133,7 @@ function DistributionStrip({
         <span
           aria-hidden="true"
           className={cn(
-            "absolute -top-6 font-mono text-xs font-semibold whitespace-nowrap",
+            "absolute -top-6 font-figure text-xs font-semibold whitespace-nowrap",
             where < 0.15 ? "" : where > 0.85 ? "-translate-x-full" : "-translate-x-1/2"
           )}
           style={{ left: at(alpha) }}
@@ -138,7 +143,7 @@ function DistributionStrip({
           {alpha > hi && " ▸"}
         </span>
       </div>
-      <div className="relative h-4 font-mono text-xs text-muted-foreground" aria-hidden="true">
+      <div className="relative h-4 font-figure text-xs text-muted-foreground" aria-hidden="true">
         <span className="absolute left-0">{pp(lo)}</span>
         {share(0) > 0.1 && share(0) < 0.9 && (
           <span className="absolute -translate-x-1/2" style={{ left: at(0) }}>
@@ -198,7 +203,7 @@ export function StockVerdict({
     >
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <h2 className="font-heading text-2xl">{stock.name}</h2>
-        <span className="font-mono text-sm text-muted-foreground">
+        <span className="font-figure text-sm text-muted-foreground">
           {stock.ticker} · {formatSharePrice(stock.price)}
           {stock.marketCap !== null && ` · ${formatMarketCap(stock.marketCap)}`}
         </span>

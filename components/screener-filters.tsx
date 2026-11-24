@@ -203,8 +203,8 @@ function MethodInfo({
         </div>
 
         <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-          Solves for <span className="font-mono">{coverage}</span> of the{" "}
-          <span className="font-mono">{total}</span> stocks
+          Solves for <span className="font-figure">{coverage}</span> of the{" "}
+          <span className="font-figure">{total}</span> stocks
           {total > 0 && <> ({((coverage / total) * 100).toFixed(0)}%)</>}.
         </p>
       </PopoverContent>
@@ -382,8 +382,8 @@ function SignalToggle({
               </div>
             </div>
             <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-              {evidence && describeEvidence(evidence)} Scores <span className="font-mono">{coverage}</span> of the{" "}
-              <span className="font-mono">{total}</span> stocks.
+              {evidence && describeEvidence(evidence)} Scores <span className="font-figure">{coverage}</span> of the{" "}
+              <span className="font-figure">{total}</span> stocks.
             </p>
           </PopoverContent>
         </Popover>
@@ -413,7 +413,10 @@ export function ScreenerFilterRail({
   signalCoverage: Record<SignalId, number>
   onChange: (next: ScreenerFilters) => void
   onReset: () => void
-  /** Closes the rail where it is an overlay; the button hides where it is docked. */
+  /**
+   * Closes the rail. Shown only under `lg`, where the open rail stacks above the
+   * table and the Filters toggle is below it; from `lg` up the toggle sits beside it.
+   */
   onClose: () => void
 }) {
   const evidence = evidenceFor(filters.signals)
@@ -453,14 +456,14 @@ export function ScreenerFilterRail({
             <Button variant="ghost" size="xs" onClick={onReset}>
               Reset all
             </Button>
-            <Button variant="ghost" size="xs" onClick={onClose} aria-label="Close filters" className="min-[1700px]:hidden">
+            <Button variant="ghost" size="xs" onClick={onClose} aria-label="Close filters" className="lg:hidden">
               <RiCloseLine />
             </Button>
           </span>
         </div>
         {/* Live count: the rail's whole purpose is narrowing this number. */}
         <p className="flex items-baseline gap-2" aria-live="polite">
-          <span className="font-mono text-2xl font-semibold tabular-nums">{matches}</span>
+          <span className="font-figure text-2xl font-semibold tabular-nums">{matches}</span>
           <span className="text-sm text-muted-foreground">of {total} stocks shown</span>
         </p>
       </div>
@@ -663,7 +666,7 @@ export function ScreenerFilterRail({
             />
             <span className="text-muted-foreground">Cap beta</span>
             {filters.maxBeta !== null && (
-              <span className="ml-auto font-mono tabular-nums">{filters.maxBeta.toFixed(2)}</span>
+              <span className="ml-auto font-figure tabular-nums">{filters.maxBeta.toFixed(2)}</span>
             )}
           </label>
           {filters.maxBeta !== null && (

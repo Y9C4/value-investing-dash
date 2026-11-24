@@ -43,7 +43,7 @@ function Field({
       <span className="text-xs font-semibold text-muted-foreground">
         {label}
       </span>
-      <span className="font-mono text-xs">{children}</span>
+      <span className="font-figure text-xs">{children}</span>
     </div>
   )
 }

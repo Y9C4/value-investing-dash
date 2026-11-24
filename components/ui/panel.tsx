@@ -69,7 +69,7 @@ function PanelMeta({ className, ...props }: React.ComponentProps<"span">) {
     <span
       data-slot="panel-meta"
       className={cn(
-        "font-mono text-xs text-muted-foreground",
+        "font-figure text-xs text-muted-foreground",
         className
       )}
       {...props}
@@ -117,8 +117,8 @@ function Stat({
       {value !== undefined && (
         <span
           className={cn(
-            "font-mono",
-            size === "lead" ? "text-xl font-semibold" : "text-sm"
+            "font-figure",
+            size === "lead" ? "text-xl font-semibold" : "text-sm font-medium"
           )}
         >
           {value}

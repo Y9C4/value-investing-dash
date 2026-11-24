@@ -59,13 +59,13 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
                     <Info title={field.label}>{field.help}</Info>
                   </span>
                 </TableCell>
-                <TableCell className="text-right font-mono text-sm">
+                <TableCell className="text-right font-figure text-sm">
                   {formatRatio(row.value, field.unit)}
                   <span className="block text-xs text-muted-foreground sm:hidden">
                     {formatRatio(row.sectorMedian, field.unit)}
                   </span>
                 </TableCell>
-                <TableCell className="hidden text-right font-mono text-sm text-muted-foreground sm:table-cell">
+                <TableCell className="hidden text-right font-figure text-sm text-muted-foreground sm:table-cell">
                   {formatRatio(row.sectorMedian, field.unit)}
                 </TableCell>
                 <TableCell>
@@ -82,7 +82,7 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
                           style={{ left: `${(pct * 100).toFixed(1)}%` }}
                         />
                       </div>
-                      <span className="font-mono text-xs text-muted-foreground sm:w-16 sm:text-right">
+                      <span className="font-figure text-xs text-muted-foreground sm:w-16 sm:text-right">
                         {Math.round(pct * row.peers)} of {row.peers}
                       </span>
                     </div>

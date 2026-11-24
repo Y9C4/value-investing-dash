@@ -27,11 +27,11 @@ function Figure({
       <dt className="text-xs font-semibold text-muted-foreground">
         {label}
       </dt>
-      <dd className="font-mono text-base font-semibold">
+      <dd className="font-figure text-base font-semibold">
         {value}
       </dd>
       {formula && (
-        <span className="font-mono text-xs leading-tight text-muted-foreground">
+        <span className="font-figure text-xs leading-tight text-muted-foreground">
           {formula}
         </span>
       )}

@@ -125,11 +125,11 @@ export function SignalPanel({
                   <span className="ml-2 hidden text-xs text-muted-foreground md:inline">
                     {component.full}
                   </span>
-                  <span className="block font-mono text-xs text-muted-foreground sm:hidden">
+                  <span className="block font-figure text-xs text-muted-foreground sm:hidden">
                     {raw}
                   </span>
                 </TableCell>
-                <TableCell className="hidden text-right font-mono text-sm sm:table-cell">
+                <TableCell className="hidden text-right font-figure text-sm sm:table-cell">
                   {raw}
                 </TableCell>
                 <TableCell>
@@ -139,7 +139,7 @@ export function SignalPanel({
                     ) : (
                       <SignalBar score={rank} className="flex-1" />
                     )}
-                    <span className="w-7 text-right font-mono text-sm">
+                    <span className="w-7 text-right font-figure text-sm">
                       {formatScore(rank)}
                     </span>
                   </div>

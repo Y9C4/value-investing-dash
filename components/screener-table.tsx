@@ -84,6 +84,17 @@ type Column = {
   cell: (stock: Stock, ctx: { ranking: Ranking; methods: MethodId[] }) => React.ReactNode
 }
 
+/**
+ * The checkbox and Stock columns stay put when the table scrolls sideways
+ * (it does whenever the docked filter rail narrows it). Opaque fills only: a
+ * translucent one would show the cells scrolling underneath. The hover fill
+ * is the row's `muted/50` pre-mixed onto the card.
+ */
+const FROZEN = "sticky z-[1] bg-card"
+const FROZEN_BODY = `${FROZEN} group-hover:bg-[color-mix(in_oklch,var(--color-card),var(--color-muted)_50%)]`
+/** The frozen block's right edge, so it reads as one pane when scrolled. */
+const FROZEN_EDGE = "shadow-[inset_-1px_0_0_var(--color-border)]"
+
 /** Rows in the server-rendered HTML: more than any viewport shows. */
 const INITIAL_ROWS = 60
 const multiple = (value: number | null) => (value === null ? DASH : `${value.toFixed(1)}×`)
@@ -103,7 +114,7 @@ const COLUMNS: Column[] = [
         href={`/stocks/${stock.ticker}`}
         className="flex flex-col group-hover:underline sm:flex-row sm:items-baseline sm:gap-2"
       >
-        <span className="font-mono font-medium">{stock.ticker}</span>
+        <span className="font-figure font-medium">{stock.ticker}</span>
         <span className="max-w-[6.5rem] truncate text-xs text-muted-foreground sm:max-w-[8rem] 2xl:max-w-[10rem]">{stock.name}</span>
       </Link>
     ),
@@ -126,7 +137,7 @@ const COLUMNS: Column[] = [
       return (
         <div className="flex items-center gap-2 sm:gap-3">
           <SignalBar score={score} className="w-10 shrink-0 sm:w-16" />
-          <span className="w-10 shrink-0 text-right font-mono text-sm tabular-nums">{formatComposite(score)}</span>
+          <span className="w-10 shrink-0 text-right font-figure text-sm tabular-nums">{formatComposite(score)}</span>
           <span className="hidden text-xs whitespace-nowrap text-muted-foreground min-[1920px]:inline">
             {score === null ? "" : SIGNAL_BAND_LABELS[signalBand(score)]}
           </span>
@@ -154,10 +165,10 @@ const COLUMNS: Column[] = [
       return (
         <div className="flex items-center gap-3" title={BAND_LABELS[band]}>
           <ValueBar percentile={rank} className="hidden w-16 shrink-0 sm:block" />
-          <span className={cn("w-7 shrink-0 text-right font-mono text-sm tabular-nums", BAND_TEXT_CLASS[band])}>
+          <span className={cn("w-7 shrink-0 text-right font-figure text-sm tabular-nums", BAND_TEXT_CLASS[band])}>
             {percentile(rank)}
           </span>
-          <span className={cn("hidden font-mono text-xs whitespace-nowrap sm:inline", gapTextClass(alpha))}>
+          <span className={cn("hidden font-figure text-xs whitespace-nowrap sm:inline", gapTextClass(alpha))}>
             {alpha === null ? "not valued" : formatPp(alpha)}
           </span>
         </div>
@@ -179,10 +190,10 @@ const COLUMNS: Column[] = [
     },
     cell: (stock) => (
       <div className="flex items-center gap-3">
-        <span className="w-7 shrink-0 text-right font-mono text-sm tabular-nums">
+        <span className="w-7 shrink-0 text-right font-figure text-sm tabular-nums">
           {percentile(warehouseRank(stock, "momentum"))}
         </span>
-        <span className="hidden font-mono text-xs whitespace-nowrap text-muted-foreground sm:inline">
+        <span className="hidden font-figure text-xs whitespace-nowrap text-muted-foreground sm:inline">
           {stock.signals?.momentum == null ? "" : formatSignedPct(stock.signals.momentum)}
         </span>
       </div>
@@ -402,7 +413,7 @@ export function ScreenerTable({
           {/* An inset shadow rather than a border: a sticky row's own border
               is painted with the cell and scrolls out from under it. */}
           <TableRow className="shadow-[inset_0_-1px_0_0_var(--color-border)] hover:bg-card">
-            <TableHead className="w-8 px-2">
+            <TableHead className={cn("left-0 w-8 px-2", FROZEN)}>
               <Checkbox
                 checked={allSelected}
                 ref={(el) => {
@@ -417,7 +428,11 @@ export function ScreenerTable({
               return (
                 <TableHead
                   key={column.key}
-                  className={cn("px-2", column.align === "right" && "text-right")}
+                  className={cn(
+                    "px-2",
+                    column.align === "right" && "text-right",
+                    column.key === "ticker" && cn("left-8", FROZEN, FROZEN_EDGE)
+                  )}
                   aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}
                 >
                   <button
@@ -457,7 +472,7 @@ export function ScreenerTable({
                 router.push(`/stocks/${stock.ticker}`)
               }}
             >
-              <TableCell className="px-2" onClick={(event) => event.stopPropagation()}>
+              <TableCell className={cn("left-0 px-2", FROZEN_BODY)} onClick={(event) => event.stopPropagation()}>
                 <Checkbox
                   checked={selected.has(stock.ticker)}
                   onChange={() => onToggleSelected(stock.ticker)}
@@ -467,7 +482,11 @@ export function ScreenerTable({
               {columns.map((column) => (
                 <TableCell
                   key={column.key}
-                  className={cn("px-2", column.align === "right" && "text-right font-mono tabular-nums")}
+                  className={cn(
+                    "px-2",
+                    column.align === "right" && "text-right font-figure tabular-nums",
+                    column.key === "ticker" && cn("left-8", FROZEN_BODY, FROZEN_EDGE)
+                  )}
                 >
                   {column.cell(stock, { ranking, methods })}
                 </TableCell>

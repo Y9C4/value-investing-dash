@@ -1,12 +1,17 @@
 import Link from "next/link"
-import { RiArrowRightLine } from "@remixicon/react"
 
-import { SignalBar } from "@/components/signal-scale"
+import { ExcessReturnHistogram } from "@/components/excess-return-histogram"
+import { CumulativeIcChart } from "@/components/research-charts"
+import { MoreLink } from "@/components/more-link"
+import { TStat } from "@/components/t-stat"
 import {
   Panel,
+  PanelBody,
   PanelHeader,
   PanelMeta,
   PanelTitle,
+  Stat,
+  StatStrip,
 } from "@/components/ui/panel"
 import {
   Table,
@@ -16,56 +21,55 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ExcessReturnHistogram } from "@/components/excess-return-histogram"
-import { ValueBar } from "@/components/valuation-scale"
+import { WorkedExample } from "@/components/worked-example"
+import type { FrontierResponse } from "@/lib/baseline-frontier"
+import { DEVELOPMENT_SPAN, EVIDENCE, HOLDOUT_SPAN, cumulativeIc, evidenceFor } from "@/lib/evidence"
 import { formatPct as percent, formatPp as pp } from "@/lib/format"
 import { median } from "@/lib/rank"
 import { rankUniverse } from "@/lib/screen"
-import { formatRatio, sectorRows } from "@/lib/sectors"
-import { DEFAULT_SIGNALS, formatComposite, formatScore } from "@/lib/signals"
-import { loadUniverse } from "@/lib/universe"
+import { DEFAULT_SIGNALS } from "@/lib/signals"
+import { selectSnapshotRow } from "@/lib/supabase"
+import { VALUATIONS_CACHE_TAG, loadUniverse } from "@/lib/universe"
 import { impliedAndRequired } from "@/lib/valuation"
 
 export const metadata = {
-  title: "Market overview",
+  title: "Overview",
 }
 
-/** What each page is for, named as in the sidebar. Step 2's link is filled in per render. */
-const STEPS = [
-  {
-    n: 1,
-    title: "Stock screener",
-    text: "Rank the S&P 500 by value, momentum and earnings-surprise percentiles; filter by strategy, sector or quintile.",
-    href: "/screener",
-  },
-  {
-    n: 2,
-    title: "Stock analysis",
-    text: "For one stock: the implied return under each reverse-DCF model, the growth its price assumes, and its multiples against sector medians. Open any row, or search above.",
-    href: "top",
-  },
-  {
-    n: 3,
-    title: "Portfolio optimiser",
-    text: "The mean–variance efficient frontier over the screened stocks, with shrunk means and covariance.",
-    href: "/portfolio",
-  },
-  {
-    n: 4,
-    title: "Backtest evidence",
-    text: "Monthly rank ICs of every factor and strategy, on development months and on a locked holdout, with the Jupyter notebooks.",
-    href: "/research",
-  },
-] as const
-
-
-/** Yahoo gives no sector for a handful of names; they are not a sector to rank. */
-const NO_SECTOR = "Unclassified"
+const EYEBROW = "text-xs font-semibold tracking-wider text-muted-foreground uppercase"
 
 export default async function OverviewPage() {
   const { stocks } = await loadUniverse()
   const ranking = rankUniverse(stocks, [], DEFAULT_SIGNALS)
 
+  // The backtest: the default composite against the other candidates.
+  const chosen = evidenceFor(DEFAULT_SIGNALS)!
+  const dev = chosen.development
+  const holdout = chosen.holdout
+  const bestInDevelopment = EVIDENCE.signals.every((s) => s.development.ic <= dev.ic)
+  const bestInHoldout = EVIDENCE.signals.reduce((a, b) => (b.holdout.t > a.holdout.t ? b : a))
+  const clearing = EVIDENCE.signals.filter((s) => s.holdout.t >= 3)
+  const kept = Math.round((holdout.ic / dev.ic) * 10) * 10
+  const verdict =
+    holdout.t >= 2
+      ? "Yes, and it held up out of sample."
+      : holdout.ic > 0
+        ? "Weakly: positive out of sample, but not significant."
+        : "Not out of sample."
+
+  // The worked example: today's top stock on the default composite.
+  const ranked = stocks
+    .filter((s) => ranking.score.has(s.ticker))
+    .sort((a, b) => ranking.score.get(b.ticker)! - ranking.score.get(a.ticker)!)
+  const top = ranked[0]
+  // The scheduled default solve, the same snapshot the portfolio page opens on.
+  const frontierRow = await selectSnapshotRow<{ payload: FrontierResponse }>(
+    "frontier_snapshot",
+    "select=payload&cache_key=eq.default",
+    { revalidate: process.env.NODE_ENV === "development" ? 0 : 3600, tags: [VALUATIONS_CACHE_TAG] }
+  )
+
+  // Today's market reading.
   const pairs = stocks.flatMap((s): [number, number][] => {
     const p = impliedAndRequired(s)
     return p ? [[p.implied, p.required]] : []
@@ -74,26 +78,159 @@ export default async function OverviewPage() {
   const requiredMedian = median(pairs.map(([, k]) => k))
   const gapMedian = median(pairs.map(([r, k]) => r - k))
   const above = pairs.filter(([r, k]) => r > k).length
-
-  const top = stocks
-    .filter((s) => ranking.score.has(s.ticker))
-    .sort((a, b) => ranking.score.get(b.ticker)! - ranking.score.get(a.ticker)!)
-    .slice(0, 10)
-
-  const allSectors = sectorRows(stocks, ranking)
-  const sectors = allSectors.filter((row) => row.sector !== NO_SECTOR)
-  const unclassified = stocks.filter((s) => s.sector === NO_SECTOR).map((s) => s.ticker)
   const notValued = stocks.length - pairs.length
 
   return (
-    <div className="flex flex-col gap-8 px-6 py-6 lg:px-10">
-      {/* The market gauge: the one question a value investor asks first. */}
-      <section aria-labelledby="gauge" className="grid gap-x-10 gap-y-5 xl:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]">
-        <div className="flex flex-col gap-3 xl:col-span-2">
-          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-            Market valuation · reverse DCF
+    <div className="flex flex-col gap-10 px-6 py-6 lg:px-10">
+      {/* The question and its answer, the way a paper's abstract gives them. */}
+      <section aria-labelledby="question" className="flex flex-col gap-5">
+        <div className="flex max-w-4xl flex-col gap-3">
+          <p className={EYEBROW}>Research question</p>
+          <h2 id="question" className="font-heading text-2xl leading-snug sm:text-3xl">
+            Can a reverse-DCF value signal, blended with 12–1 momentum, rank
+            S&amp;P 500 stocks by next-month risk-adjusted return?
+          </h2>
+          <p className="text-base leading-relaxed">
+            <span className="font-semibold">{verdict}</span>{" "}
+            <span className="text-muted-foreground">
+              {bestInDevelopment ? (
+                <>
+                  Of the {EVIDENCE.signals.length} signals tested on {dev.months}{" "}
+                  development months ({DEVELOPMENT_SPAN}), the value + momentum
+                  composite had the highest rank IC ({dev.ic.toFixed(3)}, t ={" "}
+                  {dev.t.toFixed(2)}), so it became the default.
+                </>
+              ) : (
+                <>
+                  The default, the value + momentum composite, had a rank IC of{" "}
+                  {dev.ic.toFixed(3)} (t = {dev.t.toFixed(2)}) over {dev.months}{" "}
+                  development months ({DEVELOPMENT_SPAN}).
+                </>
+              )}{" "}
+              The specification was then frozen and run once on {holdout.months}{" "}
+              months it had never seen ({HOLDOUT_SPAN}), where it kept {kept}% of
+              that IC ({holdout.ic.toFixed(3)}, t = {holdout.t.toFixed(2)}).{" "}
+              {clearing.length === 1 && clearing[0].id !== chosen.id && (
+                <>
+                  {clearing[0].label} was the only signal to clear the
+                  multiple-testing bar of t ≥ 3 out of sample (t ={" "}
+                  {clearing[0].holdout.t.toFixed(2)}). The default is not switched
+                  to it: choosing again on the holdout would leave nothing out of
+                  sample.
+                </>
+              )}
+            </span>
           </p>
-          <h2 id="gauge" className="max-w-4xl font-heading text-2xl leading-snug sm:text-3xl">
+        </div>
+        <StatStrip className="sm:grid-cols-4 xl:grid-cols-4">
+          <Stat
+            size="lead"
+            label="Development IC · default"
+            value={dev.ic.toFixed(3)}
+            hint={`t = ${dev.t.toFixed(2)}${bestInDevelopment ? `, best of ${EVIDENCE.signals.length}` : ""}`}
+          />
+          <Stat
+            size="lead"
+            label="Holdout IC · default"
+            value={holdout.ic.toFixed(3)}
+            hint={`t = ${holdout.t.toFixed(2)}, ${holdout.months} months`}
+          />
+          <Stat
+            size="lead"
+            label="Holdout months with IC > 0"
+            value={`${Math.round(holdout.hit * 100)}%`}
+            hint={`${Math.round(holdout.hit * holdout.months)} of ${holdout.months}`}
+          />
+          <Stat
+            size="lead"
+            label="Best holdout t-stat"
+            value={bestInHoldout.holdout.t.toFixed(2)}
+            hint={`${bestInHoldout.label.toLowerCase()}, IC ${bestInHoldout.holdout.ic.toFixed(3)}`}
+          />
+        </StatStrip>
+      </section>
+
+      <section aria-label="Backtest evidence" className="grid items-start gap-6 2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <Panel>
+          <PanelHeader>
+            <PanelTitle>Figure 1 · Cumulative monthly rank IC</PanelTitle>
+            <PanelMeta>holdout shaded</PanelMeta>
+          </PanelHeader>
+          <PanelBody>
+            <CumulativeIcChart {...cumulativeIc()} />
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Each month adds the Spearman correlation between that month&rsquo;s
+              ranking and the next month&rsquo;s factor-adjusted returns. A line
+              that keeps rising means the ranking kept working; a flat stretch
+              means it stopped.
+            </p>
+          </PanelBody>
+        </Panel>
+
+        <Panel>
+          <PanelHeader>
+            <PanelTitle>Rank IC · every candidate</PanelTitle>
+          </PanelHeader>
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead rowSpan={2} className="align-bottom">Signal</TableHead>
+                <TableHead colSpan={2} className="border-l border-border text-center">Development</TableHead>
+                <TableHead colSpan={2} className="border-l border-border text-center">Holdout</TableHead>
+              </TableRow>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="border-l border-border text-right">IC</TableHead>
+                <TableHead className="text-right">t</TableHead>
+                <TableHead className="border-l border-border text-right">IC</TableHead>
+                <TableHead className="text-right">t</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {EVIDENCE.signals.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell className="whitespace-normal">
+                    <span className="font-medium">{s.label}</span>
+                    {s.id === chosen.id && (
+                      <span className="ml-2 border border-border px-1 py-px text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+                        default
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="border-l border-border text-right font-figure">{s.development.ic.toFixed(3)}</TableCell>
+                  <TableCell className="text-right"><TStat t={s.development.t} /></TableCell>
+                  <TableCell className="border-l border-border text-right font-figure">{s.holdout.ic.toFixed(3)}</TableCell>
+                  <TableCell className="text-right"><TStat t={s.holdout.t} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <PanelBody className="flex flex-col gap-2 border-t border-border text-xs leading-relaxed text-muted-foreground">
+            <p>
+              Target: {EVIDENCE.target[0].toLowerCase() + EVIDENCE.target.slice(1)}. t is Fama–MacBeth over
+              months; * marks |t| ≥ 2, ** marks |t| ≥ 3, the bar Harvey, Liu
+              &amp; Zhu (2016) set once many factors have been tried.
+            </p>
+            <MoreLink href="/research">Quintile returns, calibration and the notebooks</MoreLink>
+          </PanelBody>
+        </Panel>
+      </section>
+
+      {top && (
+        <WorkedExample
+          stock={top}
+          stocks={stocks}
+          ranked={ranked}
+          ranking={ranking}
+          gaps={pairs.map(([r, k]) => r - k)}
+          frontier={frontierRow?.payload ?? null}
+        />
+      )}
+
+      {/* Today's reading: the live output of step 3 across the whole index. */}
+      <section aria-labelledby="gauge" className="grid gap-x-10 gap-y-5 xl:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]">
+        <div className="flex flex-col gap-1.5 xl:col-span-2">
+          <p className={EYEBROW}>Today&rsquo;s market reading · reverse DCF</p>
+          <h2 id="gauge" className="max-w-4xl font-heading text-xl leading-snug sm:text-2xl">
             {gapMedian === null ? (
               "No stock in the index could be valued at today's prices."
             ) : (
@@ -110,15 +247,15 @@ export default async function OverviewPage() {
             <dl className="grid grid-cols-3 gap-px border border-border bg-border [&>div]:bg-card [&>div]:px-3 [&>div]:py-2.5">
               <div>
                 <dt className="text-xs text-muted-foreground">Median implied return</dt>
-                <dd className="font-mono text-xl">{percent(impliedMedian)}</dd>
+                <dd className="font-figure text-xl">{percent(impliedMedian)}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">Median required return</dt>
-                <dd className="font-mono text-xl">{percent(requiredMedian)}</dd>
+                <dd className="font-figure text-xl">{percent(requiredMedian)}</dd>
               </div>
               <div>
                 <dt className="text-xs text-muted-foreground">Median stock&rsquo;s implied − required</dt>
-                <dd className={`font-mono text-xl ${gapMedian < 0 ? "text-overvalued" : gapMedian > 0 ? "text-undervalued" : ""}`}>
+                <dd className={`font-figure text-xl ${gapMedian < 0 ? "text-overvalued" : gapMedian > 0 ? "text-undervalued" : ""}`}>
                   {pp(gapMedian)}
                 </dd>
                 <dd className="text-xs leading-tight text-muted-foreground">
@@ -130,11 +267,9 @@ export default async function OverviewPage() {
           <p className="text-sm leading-relaxed text-muted-foreground">
             Medians over the {pairs.length} stocks at least one model can value
             ({notValued} cannot). {above} of them ({Math.round((above / Math.max(pairs.length, 1)) * 100)}%)
-            have an implied return above their required return. Implied return
-            is the discount rate that equates forecast cash flows with today&rsquo;s
-            price; required return is WACC or the CAPM cost of equity. The
-            backtest found the cross-sectional rank informative and the level
-            not, so this is a reading of relative pricing, not a forecast.{" "}
+            have an implied return above their required return. The backtest
+            found the cross-sectional rank informative and the level not, so
+            this is a reading of relative pricing, not a forecast.{" "}
             <Link href="/methodology" className="underline underline-offset-2 hover:text-foreground">
               Methodology
             </Link>
@@ -146,137 +281,6 @@ export default async function OverviewPage() {
           </div>
         )}
       </section>
-
-      {/* What each page is for, named as it is in the sidebar. */}
-      <ol className="grid gap-px border border-border bg-border sm:grid-cols-2 xl:grid-cols-4">
-        {STEPS.map((step) => {
-          const body = (
-            <>
-              <span className="flex items-center gap-2 text-sm font-semibold">
-                <span className="font-mono text-muted-foreground">{step.n}</span>
-                {step.title}
-                <RiArrowRightLine className="size-4 text-muted-foreground" aria-hidden="true" />
-              </span>
-              <span className="text-xs leading-relaxed text-muted-foreground">{step.text}</span>
-            </>
-          )
-          const href = step.href === "top" ? (top[0] ? `/stocks/${top[0].ticker}` : "/screener") : step.href
-          return (
-            <li key={step.n} className="bg-card">
-              <Link href={href} className="flex h-full flex-col gap-1 px-4 py-3 transition-colors hover:bg-muted/50">
-                {body}
-                {step.href === "top" && top[0] && (
-                  <span className="text-xs text-muted-foreground">
-                    Example: <span className="font-mono text-foreground">{top[0].ticker}</span>, today&rsquo;s top composite.
-                  </span>
-                )}
-              </Link>
-            </li>
-          )
-        })}
-      </ol>
-
-      <div className="grid items-start gap-6 2xl:grid-cols-2">
-        <Panel>
-          <PanelHeader>
-            <PanelTitle>Top 10 · value + momentum composite</PanelTitle>
-            <Link href="/screener" className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
-              All {stocks.length} in the screener
-            </Link>
-          </PanelHeader>
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-8">#</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead className="w-[30%]">Composite</TableHead>
-                <TableHead className="text-right">Value <span className="hidden sm:inline">percentile</span></TableHead>
-                <TableHead className="text-right">Momentum <span className="hidden sm:inline">(12–1)</span></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {top.map((stock, i) => {
-                const score = ranking.score.get(stock.ticker) ?? null
-                const value = ranking.value.get(stock.ticker) ?? null
-                const momentum = stock.signals?.momentumRank ?? null
-                return (
-                  <TableRow key={stock.ticker}>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{i + 1}</TableCell>
-                    <TableCell>
-                      <Link href={`/stocks/${stock.ticker}`} className="flex flex-col hover:underline">
-                        <span className="font-mono text-sm font-semibold">{stock.ticker}</span>
-                        <span className="hidden max-w-[14rem] truncate text-xs text-muted-foreground sm:block">{stock.name}</span>
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <SignalBar score={score} className="w-20 sm:w-40" />
-                        <span className="w-10 text-right font-mono text-sm">{formatComposite(score)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm">{formatScore(value)}</TableCell>
-                    <TableCell className="text-right font-mono text-sm">{formatScore(momentum)}</TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-          <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
-            Percentiles are 0–100 across the index (100 = cheapest on value,
-            strongest on 12–1 momentum). The composite averages the two and
-            re-ranks, so a composite of 100 is the index&rsquo;s top stock on the blend.
-          </p>
-        </Panel>
-
-        <Panel>
-          <PanelHeader>
-            <PanelTitle>Sector valuation · medians</PanelTitle>
-            <PanelMeta>cheapest first</PanelMeta>
-          </PanelHeader>
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Sector (stocks)</TableHead>
-                <TableHead className="w-[30%]">Median value <span className="hidden sm:inline">percentile</span></TableHead>
-                <TableHead className="text-right">P/E</TableHead>
-                <TableHead className="hidden text-right sm:table-cell">EV/EBITDA</TableHead>
-                <TableHead className="hidden text-right sm:table-cell">FCF yield</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sectors.map((row) => (
-                <TableRow key={row.sector}>
-                  <TableCell>
-                    <Link
-                      href={`/screener?sector=${encodeURIComponent(row.sector)}`}
-                      className="flex items-baseline gap-2 whitespace-normal hover:underline"
-                    >
-                      <span className="text-sm">{row.sector}</span>
-                      <span className="font-mono text-xs text-muted-foreground">{row.count}</span>
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <ValueBar percentile={row.value} className="w-12 sm:w-auto sm:flex-1" />
-                      <span className="w-7 text-right font-mono text-sm">{formatScore(row.value)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">{formatRatio(row.peRatio, "multiple")}</TableCell>
-                  <TableCell className="hidden text-right font-mono text-sm sm:table-cell">{formatRatio(row.evEbitda, "multiple")}</TableCell>
-                  <TableCell className="hidden text-right font-mono text-sm sm:table-cell">{formatRatio(row.fcfYield, "percent")}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
-            Sectors are ordered by the median value percentile of their
-            stocks. Click a sector to open it in the screener.
-            {unclassified.length > 0 && (
-              <> Not shown: {unclassified.join(", ")} ({unclassified.length === 1 ? "no sector" : "no sectors"} in the source data).</>
-            )}
-          </p>
-        </Panel>
-      </div>
     </div>
   )
 }

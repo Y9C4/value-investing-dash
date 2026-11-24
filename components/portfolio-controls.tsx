@@ -94,7 +94,7 @@ function SliderField({
         className="flex items-baseline justify-between text-xs font-normal"
       >
         <span className="text-muted-foreground">{label}</span>
-        <span className="font-mono text-sm tabular-nums">{display}</span>
+        <span className="font-figure text-sm tabular-nums">{display}</span>
       </Label>
       <input
         id={id}
@@ -107,7 +107,7 @@ function SliderField({
         className="w-full accent-foreground"
       />
       {(minLabel ?? maxLabel) && (
-        <span className="flex justify-between font-mono text-xs text-muted-foreground tabular-nums">
+        <span className="flex justify-between font-figure text-xs text-muted-foreground tabular-nums">
           <span>{minLabel}</span>
           <span>{maxLabel}</span>
         </span>
@@ -159,7 +159,7 @@ function NumberField({
         <Input
           id={id}
           inputMode="decimal"
-          className="h-8 font-mono tabular-nums"
+          className="h-8 font-figure tabular-nums"
           aria-invalid={Boolean(error)}
           placeholder={resolved ?? "auto"}
           {...props}
@@ -326,7 +326,7 @@ export function PortfolioControls({
         </p>
         {solved !== null && (
           <p className="text-xs leading-relaxed text-muted-foreground">
-            <span className="font-mono text-foreground tabular-nums">
+            <span className="font-figure text-foreground tabular-nums">
               {solved} of {requested}
             </span>{" "}
             solved
@@ -334,7 +334,7 @@ export function PortfolioControls({
               <>
                 {" "}
                 · {excluded.length} excluded for short price history:{" "}
-                <span className="font-mono">{excluded.join(", ")}</span>
+                <span className="font-figure">{excluded.join(", ")}</span>
               </>
             )}
           </p>

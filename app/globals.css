@@ -9,9 +9,12 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-plex-sans);
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-plex-sans);
+  /* Figures are set in the UI face with tabular digits (see html below).
+     `mono` is for code only: the notebook pages. */
+  --font-figure: var(--font-inter);
   --font-mono: var(--font-plex-mono);
-  --font-heading: var(--font-newsreader);
   --color-sidebar-border: var(--border);
   --color-sidebar-accent-foreground: var(--foreground);
   --color-sidebar-accent: var(--accent);
@@ -203,10 +206,19 @@
   html {
     @apply font-sans;
   }
-  /* Every figure in the app sits in a column or beside one, so digits are
-     tabular everywhere. */
-  html {
+  /* Tabular digits where figures line up: the figure class and right-aligned
+     table columns. Not on the page: Inter's tnum feature also widens the
+     hyphen, which put a gap in every "re-ranked" and "out-of-sample". */
+  .font-figure,
+  td.text-right,
+  th.text-right {
     font-variant-numeric: tabular-nums;
+  }
+  /* Display type: 600, the only weight of the display face that is loaded,
+     with a touch of negative tracking, which a sans wants at headline size. */
+  .font-heading {
+    font-weight: 600;
+    letter-spacing: -0.015em;
   }
 
   /* Scrollbars are chrome, and this app has a lot of them: the screener is two
@@ -267,8 +279,8 @@
   font-size: 0.875rem;
   line-height: 1.7;
 }
-.notebook-prose h1 { font-family: var(--font-heading); font-size: 1.75rem; line-height: 1.25; margin: 0 0 1rem; }
-.notebook-prose h2 { font-family: var(--font-heading); font-size: 1.35rem; margin: 2.5rem 0 0.75rem; }
+.notebook-prose h1 { font-family: var(--font-heading); font-weight: 600; letter-spacing: -0.015em; font-size: 1.75rem; line-height: 1.25; margin: 0 0 1rem; }
+.notebook-prose h2 { font-family: var(--font-heading); font-weight: 600; letter-spacing: -0.015em; font-size: 1.35rem; margin: 2.5rem 0 0.75rem; }
 .notebook-prose h3 { font-weight: 600; font-size: 1rem; margin: 1.75rem 0 0.5rem; }
 .notebook-prose p, .notebook-prose ul, .notebook-prose ol { margin: 0 0 0.85rem; }
 .notebook-prose ul { list-style: disc; padding-left: 1.25rem; }
@@ -282,7 +294,9 @@
 .notebook-prose th, .notebook-prose td,
 .notebook-output th, .notebook-output td { border-bottom: 1px solid var(--border); padding: 0.3rem 0.6rem; text-align: left; vertical-align: top; }
 .notebook-prose th, .notebook-output thead th { color: var(--muted-foreground); font-weight: 600; font-size: 0.75rem; }
-.notebook-output table { font-family: var(--font-mono); white-space: nowrap; }
+.notebook-output table { font-family: var(--font-figure); white-space: nowrap; }
+/* A table wider than the column scrolls inside it instead of the page. */
+.notebook-prose table { display: block; max-width: 100%; overflow-x: auto; }
 .notebook-output td { text-align: right; }
 .notebook-output tbody th { color: var(--foreground); font-weight: 500; }
 

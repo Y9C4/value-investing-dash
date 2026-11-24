@@ -205,17 +205,17 @@ export function PortfolioList({
                     </span>
                   </TableCell>
                   <TableCell
-                    className="text-right font-mono tabular-nums"
+                    className="text-right font-figure tabular-nums"
                   >
                     {formatPercent(row.portfolio.return)}
                   </TableCell>
                   <TableCell
-                    className="text-right font-mono tabular-nums"
+                    className="text-right font-figure tabular-nums"
                   >
                     {formatPercent(row.portfolio.volatility)}
                   </TableCell>
                   <TableCell
-                    className="text-right font-mono tabular-nums"
+                    className="text-right font-figure tabular-nums"
                   >
                     {row.portfolio.sharpe.toFixed(2)}
                   </TableCell>
@@ -241,13 +241,13 @@ export function PortfolioList({
                 <TableCell className="font-medium text-muted-foreground">
                   S&amp;P 500
                 </TableCell>
-                <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
+                <TableCell className="text-right font-figure tabular-nums text-muted-foreground">
                   {formatPercent(market.return)}
                 </TableCell>
-                <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
+                <TableCell className="text-right font-figure tabular-nums text-muted-foreground">
                   {formatPercent(market.volatility)}
                 </TableCell>
-                <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
+                <TableCell className="text-right font-figure tabular-nums text-muted-foreground">
                   {market.sharpe.toFixed(2)}
                 </TableCell>
               </TableRow>

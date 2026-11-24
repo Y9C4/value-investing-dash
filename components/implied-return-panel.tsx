@@ -140,7 +140,7 @@ export function ImpliedReturnPanel({
                   <span className="ml-2 hidden text-xs text-muted-foreground lg:inline">
                     {method.full}
                   </span>
-                  <span className="block font-mono text-xs text-muted-foreground sm:hidden">
+                  <span className="block font-figure text-xs text-muted-foreground sm:hidden">
                     {implied} implied · {required} {against}
                   </span>
                   {reason && (
@@ -149,14 +149,14 @@ export function ImpliedReturnPanel({
                     </span>
                   )}
                 </TableCell>
-                <TableCell className="hidden text-right font-mono text-sm sm:table-cell">
+                <TableCell className="hidden text-right font-figure text-sm sm:table-cell">
                   {implied}
                 </TableCell>
-                <TableCell className="hidden text-right font-mono text-sm text-muted-foreground sm:table-cell">
+                <TableCell className="hidden text-right font-figure text-sm text-muted-foreground sm:table-cell">
                   {required} <span className="text-xs">{against}</span>
                 </TableCell>
                 <TableCell
-                  className={`text-right font-mono text-sm ${gapTextClass(excess)}`}
+                  className={`text-right font-figure text-sm ${gapTextClass(excess)}`}
                 >
                   {formatPp(excess)}
                 </TableCell>

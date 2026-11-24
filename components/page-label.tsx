@@ -20,7 +20,7 @@ import { usePathname } from "next/navigation"
  */
 
 const LABELS: Record<string, string> = {
-  "/": "Market overview",
+  "/": "Overview",
   "/screener": "Stock screener",
   "/portfolio": "Portfolio optimiser",
   "/research": "Backtest evidence",

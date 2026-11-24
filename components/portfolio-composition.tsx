@@ -204,7 +204,7 @@ export function HoldingsChart({
               axisLine={false}
               width={72}
               tickMargin={6}
-              className="font-mono text-xs"
+              className="font-figure text-xs"
             />
             <ChartTooltip
               cursor={{ fill: "var(--color-grid)", fillOpacity: 0.4 }}
@@ -216,7 +216,7 @@ export function HoldingsChart({
                         {holdingsConfig[name as keyof typeof holdingsConfig]
                           ?.label ?? name}
                       </span>
-                      <span className="font-mono tabular-nums">
+                      <span className="font-figure tabular-nums">
                         {formatSignedPercent(Number(value))}
                       </span>
                     </div>
@@ -237,7 +237,7 @@ export function HoldingsChart({
                   dataKey="weight"
                   position="right"
                   offset={8}
-                  className="fill-muted-foreground font-mono text-xs"
+                  className="fill-muted-foreground font-figure text-xs"
                   formatter={(value) => formatPercent(Number(value))}
                 />
               )}
@@ -360,7 +360,7 @@ export function HoldingsTable({
                 <TableCell>
                   <Link
                     href={`/stocks/${row.ticker}`}
-                    className="font-mono font-medium group-hover:underline"
+                    className="font-figure font-medium group-hover:underline"
                   >
                     {row.ticker}
                   </Link>
@@ -387,13 +387,13 @@ export function HoldingsTable({
                         }}
                       />
                     </span>
-                    <span className="font-mono tabular-nums">
+                    <span className="font-figure tabular-nums">
                       {formatSignedPercent(row.weight)}
                     </span>
                   </span>
                 </TableCell>
                 {hasRisk && (
-                  <TableCell className="text-right font-mono tabular-nums">
+                  <TableCell className="text-right font-figure tabular-nums">
                     {row.risk === null ? "—" : formatSignedPercent(row.risk)}
                   </TableCell>
                 )}
@@ -485,7 +485,7 @@ export function SectorExposure({
               content={
                 <ChartTooltipContent
                   formatter={(value) => (
-                    <span className="font-mono tabular-nums">
+                    <span className="font-figure tabular-nums">
                       {formatSignedPercent(Number(value))}
                     </span>
                   )}
@@ -506,7 +506,7 @@ export function SectorExposure({
                 dataKey="weight"
                 position="right"
                 offset={8}
-                className="fill-muted-foreground font-mono text-xs"
+                className="fill-muted-foreground font-figure text-xs"
                 formatter={(value) => formatPercent(Number(value))}
               />
             </Bar>
@@ -519,7 +519,7 @@ export function SectorExposure({
             thing the chart cannot show: weight that is missing from it. */}
         {covered < 0.995 && (
           <p className="text-xs text-muted-foreground">
-            <span className="font-mono tabular-nums">
+            <span className="font-figure tabular-nums">
               {formatPercent(1 - covered)}
             </span>{" "}
             of the portfolio has no sector on file and is not shown.

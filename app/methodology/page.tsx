@@ -3,7 +3,7 @@ import { RiGithubFill, RiLinkedinBoxFill, RiMailLine } from "@remixicon/react"
 
 import Link from "next/link"
 
-import { DEVELOPMENT_SPAN, EVIDENCE, HOLDOUT_SPAN } from "@/lib/evidence"
+import { DEVELOPMENT_SPAN, EVIDENCE, HOLDOUT_SPAN, formatStat } from "@/lib/evidence"
 import { SIGNAL_COMPONENTS, SIGNAL_EVIDENCE } from "@/lib/signals"
 import { GRAHAM_NOTE } from "@/lib/screen"
 
@@ -187,9 +187,9 @@ export default function MethodologyPage() {
           {EVIDENCE.signals.map((r) => (
             <tr key={r.id}>
               <td>{r.label}</td>
-              <td className="text-right font-mono">{r.development.ic.toFixed(3)} <span className="text-muted-foreground">(t {r.development.t.toFixed(2)})</span></td>
-              <td className="text-right font-mono">{r.holdout.ic.toFixed(3)} <span className="text-muted-foreground">(t {r.holdout.t.toFixed(2)})</span></td>
-              <td className="text-right font-mono">{(r.holdout.spread * 100).toFixed(2)}%</td>
+              <td className="text-right font-figure">{r.development.ic.toFixed(3)} <span className="text-muted-foreground">(t {r.development.t.toFixed(2)})</span></td>
+              <td className="text-right font-figure">{r.holdout.ic.toFixed(3)} <span className="text-muted-foreground">(t {r.holdout.t.toFixed(2)})</span></td>
+              <td className="text-right font-figure">{(r.holdout.spread * 100).toFixed(2)}%</td>
             </tr>
           ))}
         </tbody>
@@ -214,8 +214,8 @@ export default function MethodologyPage() {
             <tr key={`${r.model}-${r.ratio}`}>
               <td>{r.model}</td>
               <td>{r.ratio}</td>
-              <td className="text-right font-mono">{r.modelIc}</td>
-              <td className="text-right font-mono">{r.ratioIc}</td>
+              <td className="text-right font-figure">{r.modelIc}</td>
+              <td className="text-right font-figure">{r.ratioIc}</td>
             </tr>
           ))}
         </tbody>
@@ -233,7 +233,7 @@ export default function MethodologyPage() {
         <li><strong>The default strategy is not significant.</strong> Value + momentum reached t = {EVIDENCE.signals[0].development.t.toFixed(2)} in development ({DEVELOPMENT_SPAN}) and t = {EVIDENCE.signals[0].holdout.t.toFixed(2)} in the holdout ({HOLDOUT_SPAN}); about 2 is the usual bar. It stays the default because it was chosen before the holdout, and re-choosing on the holdout would leave no out-of-sample test.</li>
         <li><strong>Short samples.</strong> {EVIDENCE.signals[0].development.months} development and {EVIDENCE.signals[0].holdout.months} holdout months. A single factor needs a t-stat near 3 to be convincing once many have been tried (Harvey, Liu &amp; Zhu 2016).</li>
         <li><strong>Value alone did not make money as a raw long–short.</strong> Over development, the top value quintile minus the bottom lost 0.7% a month before factor adjustment; regressed on the five Fama–French factors its alpha is −4.3% a year (t = −0.76), with large value (HML) and profitability (RMW) loadings. Its ranking information is mostly known factor exposure.</li>
-        <li><strong>The size of the gap is not a forecast.</strong> A stock whose price implies 5 pp more than required did not go on to earn 5 pp more: the calibration slope is {EVIDENCE.calibration.development.slope.toFixed(2)} in development and {EVIDENCE.calibration.holdout.slope.toFixed(2)} in the holdout. The site ranks on it; it does not forecast with it.</li>
+        <li><strong>The size of the gap is not a forecast.</strong> A stock whose price implies 5 pp more than required did not go on to earn 5 pp more: the calibration slope is {formatStat(EVIDENCE.calibration.development.slope)} in development and {formatStat(EVIDENCE.calibration.holdout.slope)} in the holdout. The site ranks on it; it does not forecast with it.</li>
         <li><strong>Survivorship bias.</strong> The universe is today&rsquo;s S&amp;P 500, so stocks that left the index are missing.</li>
         <li><strong>One regime.</strong> 2023–2026 was led by mega-cap growth, a poor stretch for value.</li>
       </ul>

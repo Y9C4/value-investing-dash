@@ -137,7 +137,7 @@ export function StockSearch({
                 i === active && "bg-accent"
               )}
             >
-              <span className="w-14 shrink-0 font-mono font-semibold">{stock.ticker}</span>
+              <span className="w-14 shrink-0 font-figure font-semibold">{stock.ticker}</span>
               <span className="truncate text-muted-foreground">{stock.name}</span>
             </li>
           ))}

@@ -86,7 +86,7 @@ export function CumulativeIcChart({
                   <span className="text-muted-foreground">
                     {STRATEGIES[name as StrategyKey]?.label}
                   </span>
-                  <span className="font-mono">{Number(value).toFixed(2)}</span>
+                  <span className="font-figure">{Number(value).toFixed(2)}</span>
                 </span>
               )}
             />
@@ -155,7 +155,7 @@ export function QuintileChart({
                   <span className="text-muted-foreground">
                     {SAMPLE_LABELS[name as keyof typeof SAMPLE_LABELS]}
                   </span>
-                  <span className="font-mono">{signed(Number(value) * 100, 2)}% / month</span>
+                  <span className="font-figure">{signed(Number(value) * 100, 2)}% / month</span>
                 </span>
               )}
             />
@@ -246,8 +246,8 @@ export function CalibrationChart({
                   <span className="flex flex-col gap-0.5">
                     <span className="font-medium">Decile {p.decile}</span>
                     <span className="text-muted-foreground">
-                      Predicted <span className="font-mono text-foreground">{signed(p.predicted * 100, 1)} pp</span>, realised{" "}
-                      <span className="font-mono text-foreground">{signed(p.realised * 100, 1)} pp</span>
+                      Predicted <span className="font-figure text-foreground">{signed(p.predicted * 100, 1)} pp</span>, realised{" "}
+                      <span className="font-figure text-foreground">{signed(p.realised * 100, 1)} pp</span>
                     </span>
                   </span>
                 )

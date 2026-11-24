@@ -58,6 +58,9 @@ export function evidenceFor(ids: string[]): SignalEvidence | null {
   return EVIDENCE.signals.find((s) => s.id === key) ?? null
 }
 
+/** A slope or t-stat to two decimals, with a true minus. */
+export const formatStat = (x: number) => x.toFixed(2).replace("-", "\u2212")
+
 const MONTH = new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric", timeZone: "UTC" })
 
 /** "2023-03" → "Mar 2023". */
@@ -79,3 +82,24 @@ export const STRATEGIES = {
 } as const
 
 export type StrategyKey = keyof typeof STRATEGIES
+
+/**
+ * Figure 1's data: each strategy's monthly IC as a running sum, plus the
+ * holdout's first and last month for the shading. The embargo months carry no
+ * outcome and are absent.
+ */
+export function cumulativeIc() {
+  const keys = Object.keys(STRATEGIES) as StrategyKey[]
+  const totals: Record<StrategyKey, number> = { vm: 0, ms: 0, value: 0 }
+  const rows = EVIDENCE.monthly.map((row) => {
+    const point = { date: row.date } as { date: string } & Record<StrategyKey, number>
+    for (const key of keys) {
+      const cell = row[STRATEGIES[key].id]
+      if (typeof cell === "object") totals[key] += cell.ic
+      point[key] = Math.round(totals[key] * 1000) / 1000
+    }
+    return point
+  })
+  const holdout = EVIDENCE.monthly.filter((m) => m.sample === "Holdout").map((m) => m.date)
+  return { rows, holdoutStart: holdout[0], holdoutEnd: holdout[holdout.length - 1] }
+}

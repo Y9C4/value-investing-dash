@@ -67,7 +67,7 @@ export function ExcessReturnHistogram({
           aria-hidden="true"
         />
         <span
-          className="absolute -top-5 -translate-x-1/2 font-mono text-xs whitespace-nowrap"
+          className="absolute -top-5 -translate-x-1/2 font-figure text-xs whitespace-nowrap"
           style={{ left: at(median) }}
           aria-hidden="true"
         >
@@ -75,7 +75,7 @@ export function ExcessReturnHistogram({
         </span>
       </div>
 
-      <div className="relative h-4 font-mono text-xs text-muted-foreground" aria-hidden="true">
+      <div className="relative h-4 font-figure text-xs text-muted-foreground" aria-hidden="true">
         <span className="absolute left-0">{pp(lo)}</span>
         <span className="absolute -translate-x-1/2" style={{ left: at(0) }}>0</span>
         <span className="absolute right-0">{pp(hi)}</span>

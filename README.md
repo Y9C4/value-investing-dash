@@ -30,7 +30,7 @@ The reason for screening first is that a portfolio optimizer estimates expected 
 
 | | Page | What it does |
 |---|---|---|
-| | **Market overview** | The median implied vs required return and its distribution across the index, sectors ranked by median value percentile, and the top ten on the value + momentum composite. |
+| | **Overview** | The research question and its out-of-sample answer (cumulative rank IC, every candidate on development and holdout), today's top stock followed through each step of the model, and the median implied vs required return across the index. |
 | **1** | **Stock screener** | Rank the index on the value + momentum composite (or the Value Q5 · cheapest, momentum + earnings surprise and partial Graham strategies), filter by sector and quintile, and add fundamentals, factor-input and risk columns. Stocks that pass or are ticked go to the portfolio page. |
 | **2** | **Stock analysis** | A one-sentence verdict, the four implied returns and the growth the price assumes, multiples against the sector, momentum and earnings surprise, the price chart, and the required-return inputs. Reached from the search bar on every page. |
 | **3** | **Portfolio optimiser** | Solve the efficient frontier over the screened stocks, setting position bounds, short selling and L2 regularisation, and see the portfolio’s weighted implied excess return. |
