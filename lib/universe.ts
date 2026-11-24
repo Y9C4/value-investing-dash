@@ -1,3 +1,5 @@
+import { cache } from "react"
+
 import { SAMPLE_UNIVERSE } from "@/lib/sample-universe"
 import { isSupabaseConfigured, selectRows } from "@/lib/supabase"
 import {
@@ -362,7 +364,12 @@ const NO_RATIOS: StockRatios = {
   revenueBn: null,
 }
 
-export async function loadUniverse(): Promise<Universe> {
+/**
+ * Memoised per request with React `cache`: the layout and the page both read
+ * it, and the fetch cache only dedupes the network call, not the mapping of
+ * 500 rows.
+ */
+export const loadUniverse = cache(async (): Promise<Universe> => {
   if (isSupabaseConfigured()) return fromWarehouse()
 
   return {
@@ -377,4 +384,4 @@ export async function loadUniverse(): Promise<Universe> {
     index: null,
     isStale: false,
   }
-}
+})

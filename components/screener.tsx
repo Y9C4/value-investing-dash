@@ -1,7 +1,8 @@
 "use client"
 
-import { useMemo, useState, useSyncExternalStore } from "react"
+import { Suspense, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import {
   RiArrowRightLine,
   RiCloseLine,
@@ -34,6 +35,7 @@ import {
   type Ranking,
   type ScreenerFilters,
 } from "@/lib/screen"
+import { MIN_FRONTIER_TICKERS } from "@/lib/portfolio-settings"
 import { portfolioHref } from "@/lib/ticker-set"
 import { useScrollPane } from "@/lib/use-scroll-pane"
 import { cn } from "@/lib/utils"
@@ -151,7 +153,8 @@ function downloadCsv(
   anchor.href = url
   anchor.download = `value-investing-dash-screen-${new Date().toISOString().slice(0, 10)}.csv`
   anchor.click()
-  URL.revokeObjectURL(url)
+  // Revoked after the click has been handled: Safari cancels a download whose URL dies first.
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 const GUIDE_KEY = "vid:screener-guide-dismissed"
@@ -202,12 +205,12 @@ function ScreenerGuide() {
       text: "Rank on implied excess return: the annual return today's price implies (reverse DCF) minus the return the stock's risk requires. 100 is the cheapest stock in the index.",
     },
     {
-      term: "Momentum percentile",
+      term: "Momentum (12–1) percentile",
       text: "Rank on 12–1 month price momentum: the return from twelve months ago to one month ago (Jegadeesh & Titman 1993).",
     },
     {
       term: "Composite",
-      text: "The equal-weight average of the selected factor percentiles, re-ranked 0–100. Value + momentum had the highest backtest IC, though not yet significant.",
+      text: "The equal-weight average of the selected factor percentiles, re-ranked 0–100. Value + momentum is the default: the best blend in development, weaker and not significant in the holdout.",
     },
   ]
 
@@ -232,7 +235,7 @@ function ScreenerGuide() {
         type="button"
         onClick={dismiss}
         aria-label="Hide this guide"
-        className="absolute top-2 right-2 p-1 text-muted-foreground hover:text-foreground"
+        className="absolute top-2 right-2 p-1 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
       >
         <RiCloseLine className="size-4" />
       </button>
@@ -240,18 +243,27 @@ function ScreenerGuide() {
   )
 }
 
-export function Screener({
-  stocks,
-  initialSectors = [],
-}: {
-  stocks: Stock[]
-  /** Opens the screen filtered to these sectors (from the overview's links). */
-  initialSectors?: string[]
-}) {
-  const [filters, setFilters] = useState<ScreenerFilters>({
-    ...DEFAULT_FILTERS,
-    sectors: initialSectors,
-  })
+/**
+ * `?sector=` (repeatable) opens the screen filtered: how the overview's sector
+ * rows link here. Read on the client, inside Suspense, so the page itself can
+ * be prerendered rather than rendered per request.
+ */
+function SectorsFromUrl({ known, onSectors }: { known: Set<string>; onSectors: (sectors: string[]) => void }) {
+  const params = useSearchParams()
+  const key = params.getAll("sector").join("|")
+  useEffect(() => {
+    const sectors = key ? key.split("|").filter((name) => known.has(name)) : []
+    if (sectors.length > 0) onSectors(sectors)
+    // Keyed on the query string alone: `known` and `onSectors` are stable for the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
+  return null
+}
+
+export function Screener({ stocks }: { stocks: Stock[] }) {
+  const [filters, setFilters] = useState<ScreenerFilters>(DEFAULT_FILTERS)
+  // Typing in the search box stays responsive; the 500-row filter catches up.
+  const deferredFilters = useDeferredValue(filters)
   const [sort, setSort] = useState<SortKey>("score")
   const [direction, setDirection] = useState<"asc" | "desc">("desc")
   const [selected, setSelected] = useState<string[]>([])
@@ -263,6 +275,66 @@ export function Screener({
    * toggle reads the width once and takes over.
    */
   const [railOpen, setRailOpen] = useState<boolean | null>(null)
+  /** True while the open rail is an overlay (narrow viewports): a modal dialog. */
+  const [overlay, setOverlay] = useState(false)
+  const filtersButton = useRef<HTMLButtonElement>(null)
+
+  function toggleRail() {
+    const narrow = window.innerWidth < RAIL_BREAKPOINT
+    // The first press flips whatever the viewport chose.
+    setRailOpen((current) => (current === null ? narrow : !current))
+    setOverlay(narrow)
+  }
+
+  function closeRail() {
+    setRailOpen(false)
+    filtersButton.current?.focus()
+  }
+
+  // As an overlay the rail behaves as a modal: focus moves in, Tab stays in,
+  // Escape closes from anywhere, and focus returns to the Filters button.
+  useEffect(() => {
+    if (!railOpen || !overlay) return
+    const rail = document.getElementById("screener-filters")
+    rail?.focus()
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setRailOpen(false)
+        filtersButton.current?.focus()
+        return
+      }
+      if (event.key !== "Tab" || !rail) return
+      // Visible controls only: those inside a collapsed <details> cannot take focus.
+      const items = [
+        ...rail.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select, summary, a[href], [tabindex]:not([tabindex="-1"])'
+        ),
+      ].filter((el) => el.getClientRects().length > 0 || el.classList.contains("sr-only"))
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      const active = document.activeElement
+      if (event.shiftKey && (active === first || active === rail)) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    // Anything that still escapes (a popover's portal, a stray tab stop) is sent back.
+    const onFocus = (event: FocusEvent) => {
+      const target = event.target as Node
+      if (target === filtersButton.current) return // closing: focus is going home
+      if (rail && !rail.contains(target) && !(target as Element).closest?.("[data-base-ui-portal], [role='dialog'], [role='tooltip']")) rail.focus()
+    }
+    document.addEventListener("keydown", onKey)
+    document.addEventListener("focusin", onFocus)
+    return () => {
+      document.removeEventListener("keydown", onKey)
+      document.removeEventListener("focusin", onFocus)
+    }
+  }, [railOpen, overlay])
 
   const { ref: railRef, maxHeight: railMaxHeight } = useScrollPane<HTMLDivElement>()
 
@@ -272,13 +344,22 @@ export function Screener({
   )
 
   const ranking = useMemo(
-    () => rankUniverse(stocks, filters.methods, filters.signals),
-    [stocks, filters.methods, filters.signals]
+    () => rankUniverse(stocks, deferredFilters.methods, deferredFilters.signals),
+    [stocks, deferredFilters.methods, deferredFilters.signals]
   )
 
+  const knownSectors = useMemo(() => new Set(stocks.map((stock) => stock.sector)), [stocks])
+
+  // The sector filter lives in the URL too, so a reload or a shared link keeps it.
+  useEffect(() => {
+    const query = filters.sectors.map((name) => `sector=${encodeURIComponent(name)}`).join("&")
+    if (window.location.search.replace(/^\?/, "") === query) return
+    window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname)
+  }, [filters.sectors])
+
   const filtered = useMemo(
-    () => applyFilters(stocks, filters, ranking),
-    [stocks, filters, ranking]
+    () => applyFilters(stocks, deferredFilters, ranking),
+    [stocks, deferredFilters, ranking]
   )
 
   // Coverage is counted over the whole universe, so the number beside each
@@ -325,6 +406,8 @@ export function Screener({
     setDirection(ASCENDING_FIRST.includes(key) ? "asc" : "desc")
   }
 
+  const selectedSet = useMemo(() => new Set(selected), [selected])
+
   function toggleSelected(ticker: string) {
     setSelected((current) =>
       current.includes(ticker) ? current.filter((item) => item !== ticker) : [...current, ticker]
@@ -354,16 +437,31 @@ export function Screener({
 
   const activeFilters = activeFilterCount(filters)
 
+  // The optimiser solves over MIN_FRONTIER_TICKERS or more, so a smaller set is
+  // never offered: below it the slot says what is missing instead.
+  const canOptimiseAll = filtered.length >= MIN_FRONTIER_TICKERS && !allVisibleSelected
+  const canOptimiseTicked = selected.length >= MIN_FRONTIER_TICKERS
+  const optimiseHint =
+    selected.length > 0 && !canOptimiseTicked
+      ? `Tick at least ${MIN_FRONTIER_TICKERS} to optimise them`
+      : !canOptimiseAll && !canOptimiseTicked && filtered.length > 0
+        ? `The optimiser needs at least ${MIN_FRONTIER_TICKERS} stocks`
+        : null
+
   return (
     <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 lg:px-10">
+      <Suspense fallback={null}>
+        <SectorsFromUrl known={knownSectors} onSectors={(sectors) => setFilters((f) => ({ ...f, sectors }))} />
+      </Suspense>
       <ScreenerGuide />
 
       {/* Below the breakpoint an open rail is an overlay; this is its scrim. */}
       {railOpen && (
         <button
           type="button"
-          aria-label="Close filters"
-          onClick={() => setRailOpen(false)}
+          tabIndex={-1}
+          aria-hidden="true"
+          onClick={closeRail}
           className="fixed inset-0 z-40 bg-background/60 min-[1700px]:hidden"
         />
       )}
@@ -378,9 +476,9 @@ export function Screener({
           id="screener-filters"
           ref={railRef}
           style={railMaxHeight ? { maxHeight: railMaxHeight } : undefined}
-          onKeyDown={(event) => {
-            if (event.key === "Escape" && window.innerWidth < RAIL_BREAKPOINT) setRailOpen(false)
-          }}
+          {...(railOpen && overlay
+            ? { role: "dialog", "aria-modal": true, "aria-label": "Filters", tabIndex: -1 }
+            : {})}
           className={cn(
             "flex-col gap-6 overflow-y-auto lg:max-h-[calc(100vh-14rem)]",
             railOpen === null && "hidden min-[1700px]:flex",
@@ -405,23 +503,20 @@ export function Screener({
               }
             }}
             onReset={reset}
-            onClose={() => setRailOpen(false)}
+            onClose={closeRail}
           />
         </div>
 
         <div className="flex min-w-0 flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               size="sm"
               variant="outline"
+              className="px-3"
               aria-controls="screener-filters"
               aria-expanded={railOpen ?? undefined}
-              onClick={() =>
-                setRailOpen((current) =>
-                  // The first press flips whatever the viewport chose.
-                  current === null ? !(window.innerWidth >= RAIL_BREAKPOINT) : !current
-                )
-              }
+              ref={filtersButton}
+              onClick={toggleRail}
             >
               <RiEqualizerLine />
               Filters
@@ -430,9 +525,20 @@ export function Screener({
               )}
             </Button>
 
+            {/* Beside Filters, so on a phone the two share the first row. */}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="px-3"
+              onClick={() => downloadCsv(sorted, ranking, filters.methods, filters.signals)}
+            >
+              <RiDownloadLine />
+              CSV
+            </Button>
+
             {/* Column groups beyond the defaults: what a reader adds, not hunts for. */}
-            <div role="group" aria-label="Extra columns" className="flex items-center gap-1">
-              <span className="mr-1 text-xs text-muted-foreground">Columns</span>
+            <div role="group" aria-label="Extra columns" className="flex flex-wrap items-center gap-1">
+              <span className="mr-0.5 text-xs text-muted-foreground">Columns</span>
               {COLUMN_GROUPS.map((group) => {
                 const on = groups.includes(group.id)
                 return (
@@ -447,10 +553,10 @@ export function Screener({
                       )
                     }
                     className={cn(
-                      "border px-2.5 py-1.5 text-xs whitespace-nowrap transition-colors",
+                      "border px-2 py-1.5 text-xs whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
                       on
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "border-border text-muted-foreground hover:text-foreground"
+                        ? "border-foreground/60 bg-foreground/10 text-foreground"
+                        : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
                     )}
                   >
                     {on ? "− " : "+ "}
@@ -460,37 +566,37 @@ export function Screener({
               })}
             </div>
 
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => downloadCsv(sorted, ranking, filters.methods, filters.signals)}
-            >
-              <RiDownloadLine />
-              CSV
-            </Button>
-
-            <div className="ml-auto flex items-center gap-3">
-              <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">
-                {filtered.length} of {stocks.length}
-                {selected.length > 0 && ` · ${selected.length} ticked`}
+            {/* A fixed width from sm, sized to its widest state, so ticking a
+                row never re-wraps the toolbar and shifts the table. */}
+            <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:ml-auto sm:w-96 sm:flex-nowrap sm:justify-end">
+              <span className="flex flex-col font-mono text-xs leading-4 whitespace-nowrap text-muted-foreground sm:text-right">
+                <span>
+                  {filtered.length} of {stocks.length}
+                </span>
+                {selected.length > 0 && <span>{selected.length} ticked</span>}
               </span>
+
+              {optimiseHint && (
+                <span className="text-xs leading-4 text-muted-foreground sm:max-w-[8rem]">{optimiseHint}</span>
+              )}
 
               {/* Hand the whole screened set over, not just ticked rows: the
                   frontier is built from what survived the filters. */}
-              {filtered.length > 1 && !allVisibleSelected && (
+              {canOptimiseAll && (
                 <Button
                   size="sm"
-                  variant={selected.length > 1 ? "outline" : "default"}
+                  variant={canOptimiseTicked ? "outline" : "default"}
+                  className="px-3"
                   nativeButton={false}
                   render={<Link href={portfolioHref(filtered.map((stock) => stock.ticker))} />}
                 >
                   Optimise these {filtered.length}
-                  <RiArrowRightLine />
+                  {!canOptimiseTicked && <RiArrowRightLine />}
                 </Button>
               )}
 
-              {selected.length > 1 && (
-                <Button size="sm" nativeButton={false} render={<Link href={portfolioHref(selected)} />}>
+              {canOptimiseTicked && (
+                <Button size="sm" className="px-3" nativeButton={false} render={<Link href={portfolioHref(selected)} />}>
                   Optimise {selected.length} ticked
                   <RiArrowRightLine />
                 </Button>
@@ -506,7 +612,7 @@ export function Screener({
             sort={sort}
             direction={direction}
             onSort={handleSort}
-            selected={selected}
+            selected={selectedSet}
             onToggleSelected={toggleSelected}
             onToggleAll={toggleAllVisible}
             onReset={reset}

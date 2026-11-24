@@ -20,7 +20,8 @@ import { chromium } from "playwright";
  * click. Every page here is a first visit, so mark it seen before navigating.
  */
 async function newPage(browser) {
-  const page = await browser.newPage();
+  // Wide enough that the settings rail is docked (it docks at 1700px).
+  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
   await page.addInitScript(() => localStorage.setItem("margin:intro-seen", "1"));
   return page;
 }
@@ -328,7 +329,10 @@ async function runUiSweep(cases) {
 
       const problems = [];
       if (errorText && !declined) problems.push(`error shown: ${errorText.trim().slice(0, 100)}`);
-      if (!hasChart) problems.push("no chart rendered");
+      // A refused set shows a stated empty state, never a chart (the baseline
+      // must not pass for an answer), so a missing chart is only a failure
+      // when the solve was accepted.
+      if (!hasChart && !declined) problems.push("no chart rendered");
       if (stillBaseline && !declined) problems.push("still showing the baseline — live solve did not land");
       if (pageErrors.length) problems.push(`page error: ${pageErrors[0].slice(0, 100)}`);
       if (declined) {
@@ -336,14 +340,14 @@ async function runUiSweep(cases) {
           .getByText("not a result for this set")
           .isVisible()
           .catch(() => false);
-        if (!disclaimed) problems.push("refusal shown but the stale chart is not disclaimed");
+        if (!disclaimed) problems.push("refusal shown without saying the page holds no result for this set");
       }
 
       if (problems.length) {
         console.log(`  FAIL  ${testCase.name.padEnd(28)} ${problems.join("; ")}`);
         failures.push({ ...testCase, reason: problems.join("; ") });
       } else if (declined) {
-        console.log(`  decl  ${testCase.name.padEnd(28)} refused with a reason, stale chart disclaimed`);
+        console.log(`  decl  ${testCase.name.padEnd(28)} refused with a reason, no stale result shown`);
       } else {
         console.log(`  pass  ${testCase.name.padEnd(28)} chart rendered, no errors`);
       }
@@ -460,7 +464,7 @@ async function runHandoffCheck() {
   const page = await newPage(browser);
   try {
     await page.goto(`${WEB_URL}/screener`, { waitUntil: "networkidle", timeout: 90_000 });
-    const link = page.locator('a[href*="/portfolio?"]').filter({ hasText: /Optimise all/i }).first();
+    const link = page.locator('a[href*="/portfolio?"]').filter({ hasText: /Optimise (these|all)/i }).first();
     await link.waitFor({ state: "attached", timeout: 20_000 });
     const href = await link.getAttribute("href");
     const label = (await link.innerText()).trim().replace(/\s+/g, " ");
@@ -481,12 +485,14 @@ async function runHandoffCheck() {
     // The scope line in the optimiser header, which is now the only place the
     // decoded size is stated — the standalone "screened universe" card that
     // used to repeat it was removed as preamble.
+    // The rail's scope line: "<n> screened of 503 stocks" (or "<n> / 503
+    // stocks · full S&P 500" when the set is the whole index).
     const handed = await page
-      .locator("text=/Solving over/i")
+      .locator("p", { hasText: /screened of \d+ stocks|stocks · full S&P 500/ })
       .first()
       .innerText()
       .catch(() => "");
-    const count = Number(handed.match(/(\d+)\s+screened/)?.[1] ?? 0);
+    const count = Number(handed.match(/^\s*(\d+)/)?.[1] ?? 0);
     const expected = Number(label.match(/(\d+)/)?.[1] ?? -1);
     if (count !== expected) {
       console.log(`  FAIL  handed over ${count} stocks, link promised ${expected}`);
@@ -636,7 +642,9 @@ async function runControlsCheck(stocks) {
     );
 
     // And the browser must not even send a request it can already tell is bad.
-    await page.locator("#n-portfolios").fill("999");
+    // The points control is a bounded slider now, so an out-of-range value
+    // goes in a free-text field instead: a weight cap above 100%.
+    await page.locator("#max-weight").fill("250");
     record(
       await page.getByRole("button", { name: /Run optimisation/i }).isDisabled(),
       "invalid field blocks the run"

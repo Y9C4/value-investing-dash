@@ -7,6 +7,13 @@
  */
 
 export const MIN_PORTFOLIOS = 2
+
+/**
+ * The fewest known tickers the optimiser will solve over: `MIN_FRONTIER_TICKERS`
+ * in python-api/frontier.py. Below it the service answers 422, so no control
+ * should offer a solve over fewer.
+ */
+export const MIN_FRONTIER_TICKERS = 5
 // Each point is a real solve, so the ceiling tracks solver cost. Must stay in
 // step with MAX_ENVELOPE_POINTS in api/frontier.py.
 //

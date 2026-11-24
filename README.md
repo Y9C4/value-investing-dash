@@ -31,14 +31,17 @@ The reason for screening first is that a portfolio optimizer estimates expected 
 | | Page | What it does |
 |---|---|---|
 | | **Market overview** | The median implied vs required return and its distribution across the index, sectors ranked by median value percentile, and the top ten on the value + momentum composite. |
-| **1** | **Stock screener** | Rank the index on the value + momentum composite (or the value quintile 5, momentum + earnings surprise and partial Graham strategies), filter by sector and quintile, and add fundamentals, factor-input and risk columns. Stocks that pass or are ticked go to the portfolio page. |
+| **1** | **Stock screener** | Rank the index on the value + momentum composite (or the Value Q5 · cheapest, momentum + earnings surprise and partial Graham strategies), filter by sector and quintile, and add fundamentals, factor-input and risk columns. Stocks that pass or are ticked go to the portfolio page. |
 | **2** | **Stock analysis** | A one-sentence verdict, the four implied returns and the growth the price assumes, multiples against the sector, momentum and earnings surprise, the price chart, and the required-return inputs. Reached from the search bar on every page. |
 | **3** | **Portfolio optimiser** | Solve the efficient frontier over the screened stocks, setting position bounds, short selling and L2 regularisation, and see the portfolio’s weighted implied excess return. |
-| | **Methodology** | Why reverse DCF, the backtest tables, every assumption with its source, and a glossary. |
+| **4** | **Backtest evidence** | Monthly rank ICs, quintile returns and calibration for every factor and strategy, on development months and on the locked holdout, plus both Jupyter notebooks rendered in the site’s theme. |
+| | **Methodology** | Why reverse DCF, the evidence in brief, every assumption with its source, and a glossary. |
 
 ![The screener](public/screener.png)
 
 ![Frontier](public/frontier.png)
+
+![Backtest evidence](public/research.png)
 
 ## Infrastructure
 
@@ -62,17 +65,17 @@ The frontend and the Data API talk over HTTP and deploy separately. The browser 
 
 ## The signal
 
-The [backtest](python-api/notebooks/backtests.md) tested each model against the next month’s factor-adjusted return over 23 development months. Three components ranked stocks better than the classic fair-value models (which were then removed, see below), and the screener ranks on them:
+The [backtest](python-api/notebooks/backtests.md) tested each factor against the next month’s Fama–French five-factor-adjusted return. Every design choice was made on 23 development months (Mar 2023 – Jan 2025); the frozen specification was then run once on a locked holdout (May 2025 – Aug 2026, 16 months with an outcome). The screener ranks on three factors and two composites:
 
-| Component | What it is | Development IC |
-|---|---|---|
-| **Value** | Reverse DCF: the return today’s price implies, minus the return the stock’s risk requires, averaged over reverse FCFF, residual income, revenue and shareholder-yield models | 0.032 |
-| **Momentum** | 12–1 momentum: the return from 12 months to 1 month ago (Jegadeesh & Titman 1993) | 0.029 |
-| **Earnings** | Latest EPS beat or miss against the analyst consensus, scaled by price (Livnat & Mendenhall 2006) | 0.024 |
-| *Value + momentum* | The default composite, equal-weighted (Asness, Moskowitz & Pedersen 2013) | *0.054* |
-| *Momentum + earnings surprise* | | *0.035* |
+| Factor or composite | What it is | Rank IC, development | Rank IC, holdout |
+|---|---|---|---|
+| **Value** | Reverse DCF: the return today’s price implies, minus the return the stock’s risk requires, averaged over reverse FCFF, residual income, revenue and shareholder-yield models | 0.032 (t 1.18) | 0.023 (t 0.61) |
+| **Momentum (12–1)** | The return from 12 months to 1 month ago (Jegadeesh & Titman 1993) | 0.029 (t 1.18) | 0.014 (t 0.30) |
+| **Earnings surprise** | Latest EPS beat or miss against the analyst consensus, scaled by price (Livnat & Mendenhall 2006) | 0.024 (t 1.45) | 0.066 (t 3.31) |
+| *Value + momentum composite* | The default, equal-weighted (Asness, Moskowitz & Pedersen 2013) | *0.054 (t 1.92)* | *0.033 (t 1.04)* |
+| *Momentum + earnings surprise* | Equal-weighted | *0.035 (t 1.47)* | *0.057 (t 2.01)* |
 
-Each is shown as a percentile of today’s universe, and the composite is the mean of the selected percentiles, re-ranked so its quintiles hold equal numbers of stocks. The backtest found the size of expected alpha meaningless, so no component is shown as a return forecast. None of these results is statistically significant on 23 months yet, and the locked holdout hasn’t been run; the screener says so beside the controls.
+Each is shown as a percentile of today’s universe, and a composite is the mean of its factors’ percentiles, re-ranked so its quintiles hold equal numbers of stocks. The size of expected alpha is not a forecast (calibration slope 0.17 in development, −0.44 in the holdout), so no factor is shown as an expected return. The default stays value + momentum, chosen before the holdout: re-choosing on the holdout would leave no out-of-sample test. The site’s **Backtest evidence** page draws these results and renders both notebooks; every IC on the site is read from the export of [`evidence.ipynb`](python-api/notebooks/evidence.ipynb).
 
 ## Valuation models
 
@@ -93,7 +96,7 @@ VID used to run five forward models (DDM, FCFE, FCFF, RIM, comps) and screen on 
 
 ### Valuation is relative
 
-Value is shown as a percentile (100 = cheapest), sorted into quintiles recomputed from the live cross-section at every refresh, as in a Fama-French sort. “Value quintile 5” means exactly that (the cheapest 20%), not that a stock will beat its required return by the number shown. The classic ratios (P/E, P/B, EV/EBITDA, FCF and shareholder yield, ROE) appear as context: in the backtest each lost to the reverse-DCF model built on the same figures.
+Value is shown as a percentile (100 = cheapest), sorted into quintiles recomputed from the live cross-section at every refresh, as in a Fama-French sort. “Value Q5 · cheapest” means exactly that (the cheapest 20%), not that a stock will beat its required return by the number shown. The classic ratios (P/E, P/B, EV/EBITDA, FCF and shareholder yield, ROE) appear as context: in the backtest each had a lower mean IC than the reverse-DCF model built on the same figures, though no difference was significant.
 
 ## Decisions worth explaining
 
@@ -103,7 +106,7 @@ Value is shown as a percentile (100 = cheapest), sorted into quintiles recompute
 
 **Bad constraints get caught before the solver.** A 10% max position means at least 10 stocks are needed for the weights to add up to 100%, but the screener can hand over 5. Bounds are checked before any solve and the error tells you the minimum cap that would work, rather than showing a vague solver failure. The default cap is the UCITS 10% single-issuer limit, lifted for sets under 10 stocks.
 
-**Screened sets fit in a short URL.** Passing ~500 tickers as `?tickers=A,AAPL,…` made a URL big enough to hit `431 Request Header Fields Too Large`. Since every screened set is a subset of the same index, it’s encoded as one bit per stock, which is 84 characters no matter how many stocks are selected. See [`lib/ticker-set.ts`](lib/ticker-set.ts).
+**Screened sets fit in a short URL.** Passing ~500 tickers as `?tickers=A,AAPL,…` made a URL big enough to hit `431 Request Header Fields Too Large`. Since every screened set is a subset of the same index, it’s encoded as one bit per stock, which is an 84-character payload (96 with its version prefix and index fingerprint) no matter how many stocks are selected. See [`lib/ticker-set.ts`](lib/ticker-set.ts).
 
 **Estimates are kept in check.** Over three years of dividend-adjusted prices, covariance uses Ledoit-Wolf shrinkage, expected returns are Bayes-Stein shrunk toward the minimum-variance portfolio (Jorion 1986), and stocks with less than 90% of the price history (e.g. recent spin-offs) are left out rather than guessed.
 

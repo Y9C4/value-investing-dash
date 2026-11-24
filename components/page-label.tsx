@@ -23,6 +23,7 @@ const LABELS: Record<string, string> = {
   "/": "Market overview",
   "/screener": "Stock screener",
   "/portfolio": "Portfolio optimiser",
+  "/research": "Backtest evidence",
   "/methodology": "Methodology",
   "/data": "Data maintenance",
 }
@@ -36,6 +37,8 @@ function labelFor(pathname: string): string {
   const stock = pathname.match(/^\/stocks\/([^/]+)$/)
   if (stock) return decodeURIComponent(stock[1]).toUpperCase()
 
+  if (pathname.startsWith("/research/")) return "Backtest notebook"
+
   return "Value Investing Dash"
 }
 
@@ -43,7 +46,7 @@ export function PageLabel() {
   const pathname = usePathname()
 
   return (
-    <h1 className="font-heading text-base leading-none">
+    <h1 className="font-heading text-base leading-none whitespace-nowrap">
       {labelFor(pathname)}
     </h1>
   )

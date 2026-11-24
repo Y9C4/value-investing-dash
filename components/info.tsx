@@ -34,7 +34,7 @@ export function Info({
       <PopoverTrigger
         openOnHover
         delay={200}
-        aria-label={`About ${title.toLowerCase()}`}
+        aria-label={`About ${title}`}
         className={cn("size-4 shrink-0", className)}
       >
         <RiInformationLine className="size-3.5" aria-hidden="true" />

@@ -28,7 +28,7 @@ export type RatioField = {
 }
 
 export const RATIO_FIELDS: RatioField[] = [
-  { key: "peRatio", label: "P/E", unit: "multiple", help: "Price over trailing earnings per share. Positive earnings only." },
+  { key: "peRatio", label: "P/E", unit: "multiple", help: "Market capitalisation over trailing-twelve-month net income (Damodaran). Shown only when all four quarters report and the total is positive." },
   { key: "pbRatio", label: "P/B", unit: "multiple", help: "Market cap over book equity. Positive book only." },
   { key: "evEbitda", label: "EV/EBITDA", unit: "multiple", help: "Enterprise value over EBITDA. Positive EBITDA only." },
   { key: "fcfYield", label: "FCF yield", unit: "percent", help: "Free cash flow to the firm over enterprise value." },
@@ -40,7 +40,8 @@ export const RATIO_FIELDS: RatioField[] = [
 
 export function formatRatio(value: number | null, unit: RatioField["unit"]): string {
   if (value === null) return "—"
-  return unit === "multiple" ? `${value.toFixed(1)}×` : `${(value * 100).toFixed(1)}%`
+  // A true minus, as every other signed figure on the site.
+  return (unit === "multiple" ? `${value.toFixed(1)}×` : `${(value * 100).toFixed(1)}%`).replace("-", "−")
 }
 
 export type SectorRow = {

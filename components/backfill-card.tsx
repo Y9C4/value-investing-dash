@@ -31,7 +31,10 @@ export function BackfillCard({
   endpoint,
   buttonLabel,
   estimate,
+  confirm,
 }: {
+  /** Asked before a long job starts; omit for jobs that take seconds. */
+  confirm?: string
   title: string
   description: string
   endpoint: string
@@ -40,6 +43,7 @@ export function BackfillCard({
   estimate: string
 }) {
   const [loading, setLoading] = useState(false)
+  const [armed, setArmed] = useState(false)
   const [result, setResult] = useState<BackfillResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -77,10 +81,22 @@ export function BackfillCard({
           {description}
         </p>
 
-        <div className="flex items-center gap-4">
-          <Button onClick={handleClick} disabled={loading}>
-            {loading ? "Running…" : buttonLabel}
-          </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {armed ? (
+            <>
+              <span className="text-sm">{confirm}</span>
+              <Button variant="outline" onClick={() => { setArmed(false); void handleClick() }}>
+                Start
+              </Button>
+              <Button variant="ghost" onClick={() => setArmed(false)}>
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" onClick={confirm ? () => setArmed(true) : handleClick} disabled={loading}>
+              {loading ? "Running…" : buttonLabel}
+            </Button>
+          )}
           {loading && (
             <p className="text-sm text-muted-foreground">
               Working — this takes {estimate}.

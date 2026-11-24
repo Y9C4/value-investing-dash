@@ -35,6 +35,11 @@ const Checkbox = React.forwardRef<
     setIsChecked(props.checked || false)
   }, [props.checked])
 
+  // Mirror onto the real input, so assistive tech announces "mixed".
+  React.useEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = isIndeterminate
+  }, [isIndeterminate])
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setIsChecked(e.target.checked)
     if (isIndeterminate) {
@@ -48,14 +53,14 @@ const Checkbox = React.forwardRef<
       <input
         ref={inputRef}
         type="checkbox"
-        className="sr-only"
+        className="peer sr-only"
         {...props}
         checked={isChecked}
         onChange={handleChange}
       />
       <div
         className={cn(
-          "size-4 border transition-all duration-150",
+          "size-4 border transition-all duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-background",
           isChecked || isIndeterminate
             ? "bg-primary border-border"
             : "border-border hover:border-muted-foreground"

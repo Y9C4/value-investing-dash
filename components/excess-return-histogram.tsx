@@ -1,6 +1,7 @@
+import { formatPp } from "@/lib/format"
 import { histogram } from "@/lib/rank"
 
-const pp = (x: number) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x * 100).toFixed(1)}`
+const pp = (x: number) => formatPp(x).replace(" pp", "")
 
 /**
  * How the index's implied excess returns are distributed: one bar per bin,
@@ -16,7 +17,8 @@ export function ExcessReturnHistogram({
   median: number
 }) {
   const bins = histogram(values)
-  if (bins.length === 0) return null
+  // One bin of identical values has no width to place a marker along.
+  if (bins.length === 0 || bins[bins.length - 1].hi === bins[0].lo) return null
   const peak = Math.max(...bins.map((b) => b.count))
   const lo = bins[0].lo
   const hi = bins[bins.length - 1].hi
@@ -78,9 +80,9 @@ export function ExcessReturnHistogram({
         <span className="absolute -translate-x-1/2" style={{ left: at(0) }}>0</span>
         <span className="absolute right-0">{pp(hi)}</span>
       </div>
-      <div className="flex justify-between text-xs text-muted-foreground" aria-hidden="true">
-        <span>implied &lt; required: priced dear</span>
-        <span>implied &gt; required: priced cheap</span>
+      <div className="flex flex-col gap-0.5 text-xs text-muted-foreground sm:flex-row sm:justify-between sm:gap-4" aria-hidden="true">
+        <span>← implied &lt; required: priced dear</span>
+        <span className="sm:text-right">implied &gt; required: priced cheap →</span>
       </div>
     </figure>
   )

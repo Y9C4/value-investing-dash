@@ -1,23 +1,15 @@
-import {
-  Panel,
-  PanelBody,
-  PanelHeader,
-  PanelTitle,
-} from "@/components/ui/panel"
-import type { DiscountRates } from "@/lib/valuation"
+import { noWaccReason } from "@/components/stock-readings"
+import { formatPct } from "@/lib/format"
+import type { DiscountRates, Stock } from "@/lib/valuation"
 
 /**
  * The required returns each implied return on this page is measured against.
  *
  * The numbers come from `warehouse.discount_rates`, which reads the same
  * `warehouse.inputs` row the signal solves from, so the panel cannot drift
- * from the rates the comparison used.
+ * from the rates the comparison used. Rendered inside the page's collapsed
+ * "Required return and risk inputs" section, which is its title.
  */
-
-function formatPercent(value: number | null | undefined) {
-  if (value === null || value === undefined) return "—"
-  return `${(value * 100).toFixed(2)}%`
-}
 
 function Figure({
   label,
@@ -53,13 +45,14 @@ function Figure({
 }
 
 export function DiscountRatePanel({
+  stock,
   rates,
-  beta,
 }: {
+  /** The shrunk beta kₑ uses, and what a missing WACC is explained from. */
+  stock: Stock
   rates: DiscountRates
-  /** The shrunk beta kₑ uses, from the stock row. */
-  beta: number | null
 }) {
+  const beta = stock.beta
   const coverage = rates.interestCoverage
   const debtNote = rates.syntheticRating
     ? `rf + the default spread for a ${rates.syntheticRating} synthetic rating (EBIT ÷ interest ${
@@ -67,68 +60,65 @@ export function DiscountRatePanel({
       })`
     : "not measured: no interest expense reported"
   return (
-    <Panel>
-      <PanelHeader>
-        <PanelTitle>Required returns</PanelTitle>
-      </PanelHeader>
-      <PanelBody className="flex flex-col gap-3">
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
-          <Figure
-            label="Cost of equity"
-            value={formatPercent(rates.costOfEquity)}
-            formula="rf + β × market premium"
-            note="CAPM. what RIM and shareholder yield must beat"
-          />
-          <Figure
-            label="WACC"
-            value={formatPercent(rates.wacc)}
-            formula="ke(E/V) + kd(D/V)(1 − t)"
-            note={
-              rates.wacc === null
-                ? "none: financial firm, or no cost of debt"
-                : "what FCFF and revenue must beat"
-            }
-          />
-          <Figure
-            label="Beta"
-            value={beta === null ? "—" : beta.toFixed(2)}
-            note={
-              rates.betaRaw === null || rates.betaRaw === undefined
-                ? "shrunk (Levi & Welch 2017)"
-                : `shrunk from a raw ${rates.betaRaw.toFixed(2)} (Levi & Welch 2017)`
-            }
-          />
-          <Figure
-            label="10Y Treasury"
-            value={formatPercent(rates.riskFree)}
-            note="10-year Treasury (^TNX), spot"
-          />
-          <Figure
-            label="Cost of debt"
-            value={formatPercent(rates.costOfDebt)}
-            note={debtNote}
-          />
-          <Figure
-            label="Equity weight (E/V)"
-            value={formatPercent(rates.equityWeight)}
-            note="market cap over market cap plus debt"
-          />
-          <Figure
-            label="Tax rate"
-            value={formatPercent(rates.taxRate)}
-            note="from the latest annual statement"
-          />
-        </dl>
+    <div className="flex flex-col gap-3 px-4 py-3">
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+        <Figure
+          label="Cost of equity"
+          value={formatPct(rates.costOfEquity)}
+          formula="rf + β × market premium"
+          note={
+            rates.costOfEquity === null
+              ? "none: no beta measured"
+              : "CAPM; what residual income and shareholder yield must beat"
+          }
+        />
+        <Figure
+          label="WACC"
+          value={formatPct(rates.wacc)}
+          formula="ke(E/V) + kd(D/V)(1 − t)"
+          note={noWaccReason(stock) ?? "what FCFF and revenue must beat"}
+        />
+        <Figure
+          label="Beta"
+          value={beta === null ? "—" : beta.toFixed(2)}
+          note={
+            rates.betaRaw === null || rates.betaRaw === undefined
+              ? "shrunk (Levi & Welch 2017)"
+              : `shrunk from a raw ${rates.betaRaw.toFixed(2)} (Levi & Welch 2017)`
+          }
+        />
+        <Figure
+          label="Risk-free rate, 10-year Treasury"
+          value={formatPct(rates.riskFree)}
+          note="spot (^TNX): the rf in CAPM and under the cost of debt"
+        />
+        <Figure
+          label="Cost of debt"
+          value={formatPct(rates.costOfDebt)}
+          note={debtNote}
+        />
+        <Figure
+          label="Equity weight (E/V)"
+          value={formatPct(rates.equityWeight)}
+          note="market cap over market cap plus debt"
+        />
+        <Figure
+          label="Tax rate"
+          value={formatPct(rates.taxRate)}
+          note="from the latest annual statement"
+        />
+      </dl>
 
-        <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-          Beta is the 252-day regression on Fama-French market excess
-          returns, shrunk toward the index mean by its own standard error
-          (Vasicek), then a quarter of the way toward 0.9 (Levi &amp; Welch
-          2017). The premium is the long-run average of that series. The cost
-          of debt follows Damodaran&rsquo;s synthetic rating table (January
-          2026).
-        </p>
-      </PanelBody>
-    </Panel>
+      <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
+        Beta is the 252-day regression on Fama-French market excess
+        returns, shrunk toward the index mean by its own standard error
+        (Vasicek), then a quarter of the way toward 0.9 (Levi &amp; Welch
+        2017). The premium is the long-run average of that series. The cost
+        of debt follows Damodaran&rsquo;s synthetic rating table (January
+        2026). The risk-free rate here is the 10-year Treasury because a DCF
+        discounts cash flows over decades; the 3-month T-bill under Key
+        statistics is the cash rate for the realised 252-day window.
+      </p>
+    </div>
   )
 }

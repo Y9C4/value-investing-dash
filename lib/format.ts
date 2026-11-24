@@ -67,23 +67,45 @@ export function nicePercentAxis(
   return { domain: [low, high], ticks }
 }
 
+/** The one placeholder for a value that is absent. Never a zero. */
+export const DASH = "—"
+
+/** No sign on a value that rounds to zero; a true minus otherwise. */
+function signOf(rounded: number) {
+  return rounded > 0 ? "+" : rounded < 0 ? "−" : ""
+}
+
 /**
- * Keeps the sign visible on values that can go negative — a short position, or
- * a holding whose risk contribution is negative because it hedges the rest.
- * Without the explicit "+" a reader has to scan for minus signs to notice that
- * some rows are on the other side of zero.
+ * Signed percentage points, the unit of every implied excess return and
+ * percent-vs-percent comparison on the site: "+1.5 pp", "−0.3 pp", "0.0 pp".
  */
+export function formatPp(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return DASH
+  const rounded = Number((value * 100).toFixed(digits))
+  return `${signOf(rounded)}${Math.abs(rounded).toFixed(digits)} pp`
+}
+
+/** A plain percentage with fixed decimals: "6.7%". */
+export function formatPct(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return DASH
+  return `${(value * 100).toFixed(digits)}%`
+}
+
+/**
+ * A percentage where the sign is the reading (a return, a surprise, a
+ * momentum): explicit "+", true "−", none on a value that rounds to zero.
+ */
+export function formatSignedPct(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return DASH
+  const rounded = Number((value * 100).toFixed(digits))
+  return `${signOf(rounded)}${Math.abs(rounded).toFixed(digits)}%`
+}
+
 /**
  * A signed percentage for returns and weights: two decimals, and a minus sign
  * only where there is something to subtract.
  *
- * NOT for margins of safety. `valuation-scale.tsx` exports a function of the
- * same name that prints one decimal and an explicit `+`, because on a margin
- * the sign IS the reading — cheap or expensive — and a bare `65.8%` beside a
- * `−25.4%` reads as a magnitude rather than a direction. The two names
- * colliding is a trap: importing the wrong one puts two spellings of the same
- * quantity on adjacent panels, which is exactly how this note came to be
- * written.
+ * Where the sign is the reading, use `formatSignedPct` instead.
  */
 export function formatSignedPercent(value: number) {
   const formatted = formatPercent(Math.abs(value))
@@ -104,12 +126,6 @@ export function formatSharpeDelta(value: number) {
 
 
 /**
- * Market capitalisation, given in billions, rendered the way it is spoken.
- *
- * `$4.52T` and `$743B`, never `4520.31` — a column of raw billions makes the
- * reader do the magnitude arithmetic that the unit exists to do for them.
- */
-/**
  * A share price, always to two decimals.
  *
  * Two decimals even at four figures, unlike market cap above, which switches to
@@ -118,7 +134,7 @@ export function formatSharpeDelta(value: number) {
  * breaks the decimal alignment `tabular-nums` exists to keep.
  */
 export function formatSharePrice(price: number) {
-  if (!Number.isFinite(price) || price <= 0) return "-"
+  if (!Number.isFinite(price) || price <= 0) return DASH
   return price.toLocaleString("en-US", {
     style: "currency",
     currency: "USD",
@@ -127,9 +143,16 @@ export function formatSharePrice(price: number) {
   })
 }
 
+/**
+ * Market capitalisation, given in billions, rendered the way it is spoken.
+ *
+ * `$4.52T` and `$743B`, never `4520.31` — a column of raw billions makes the
+ * reader do the magnitude arithmetic that the unit exists to do for them.
+ */
 export function formatMarketCap(billions: number) {
-  if (!billions || billions <= 0) return "—"
-  if (billions >= 1000) return `$${(billions / 1000).toFixed(2)}T`
+  if (!billions || billions <= 0) return DASH
+  // 999.5 would otherwise round to "$1000B".
+  if (billions >= 999.5) return `$${(billions / 1000).toFixed(2)}T`
   if (billions >= 100) return `$${billions.toFixed(0)}B`
   if (billions >= 1) return `$${billions.toFixed(1)}B`
   return `$${(billions * 1000).toFixed(0)}M`

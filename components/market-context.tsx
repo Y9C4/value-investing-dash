@@ -39,7 +39,7 @@ function Field({
   className?: string
 }) {
   return (
-    <div className={cn("flex items-baseline gap-2", className)}>
+    <div className={cn("flex items-baseline gap-2 whitespace-nowrap", className)}>
       <span className="text-xs font-semibold text-muted-foreground">
         {label}
       </span>
@@ -75,7 +75,7 @@ export function MarketContext({
   const stamp = gatheredAt ?? computedAt
 
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b lg:flex-nowrap border-border bg-card px-6 py-2.5 lg:px-10">
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border xl:flex-nowrap bg-card px-6 py-2.5 lg:px-10">
       {/* First, and set apart from the fields: this names the page rather than
           reporting a number about the market, so it does not take the
           label-over-value form the rest of the strip uses. */}
@@ -102,6 +102,7 @@ export function MarketContext({
               ) : (
                 <RiArrowDownSFill className="size-3 self-center" aria-hidden="true" />
               )}
+              <span className="sr-only">{index.change >= 0 ? "up" : "down"} </span>
               {Math.abs(index.change * 100).toFixed(2)}%
             </span>
           )}
@@ -121,7 +122,7 @@ export function MarketContext({
       >
         {isBaseline ? (
           <span className="text-status-warning">
-            illustrative — service unreachable
+            illustrative — database not configured
           </span>
         ) : stamp ? (
           <span className={cn(isStale && "text-status-warning")}>
@@ -132,7 +133,8 @@ export function MarketContext({
         )}
       </Field>
 
-      <div className="ml-auto">
+      {/* Full width on its own row on a phone; the right end of the strip above. */}
+      <div className="order-last w-full sm:order-none sm:ml-auto sm:w-auto">
         <StockSearch stocks={stocks} />
       </div>
     </div>

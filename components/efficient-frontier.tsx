@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   CartesianGrid,
   ComposedChart,
@@ -23,11 +24,15 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
 } from "@/components/ui/chart"
 import type { FrontierResponse } from "@/lib/baseline-frontier"
-import type { SelectedPortfolio } from "@/lib/portfolio-selection"
-import { formatPercent, percentTickFormatter } from "@/lib/format"
+import {
+  MIN_VARIANCE_LABEL,
+  pointLabel,
+  TANGENCY_LABEL,
+  type SelectedPortfolio,
+} from "@/lib/portfolio-selection"
+import { formatPercent } from "@/lib/format"
 
 /**
  * The two views of a solved frontier: the curve itself, and the Sharpe ratio
@@ -62,30 +67,86 @@ const chartConfig = {
  */
 const MARKER_LIMIT = 40
 
-/** The dot every solved portfolio gets, on both charts here. */
+/**
+ * The dot every solved portfolio gets, on both charts here. Inert: recharts
+ * re-stacks these above the hover layer after a re-render, where they would
+ * swallow the pointer meant for the disc beneath.
+ */
 const pointDot = (color: string) => ({
+  className: "pointer-events-none",
   r: 3,
   fill: "var(--color-card)",
   stroke: color,
   strokeWidth: 1.75,
 })
 
+// Round steps a reader can do arithmetic on; recharts' own placement printed
+// axes like 3% / 18% / 33% / 49%.
+const NICE_STEPS = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5]
+
 /**
- * A domain that frames the values, with a margin either side.
+ * A percent axis framed on the values, with round ticks.
  *
- * Both charts here plot a frontier whose whole span is often three percentage
- * points wide, so an axis anchored at zero — or run flush to the data, which
- * clips the marker on the last point in half — wastes the panel. The margin is
- * a fraction of the span, so it scales with whatever was solved.
+ * Unlike `nicePercentAxis` it does not force zero into view: a screened
+ * frontier is often three percentage points wide, and an axis anchored at zero
+ * squeezes it into a sliver. The values are padded before rounding so the
+ * marker on the last point is never cut in half by the plot edge.
  */
-function framed(values: number[]): [number, number] {
-  const low = Math.min(...values)
-  const high = Math.max(...values)
-  // A one-point envelope has no span of its own to pad against, so the pad
-  // falls back to a fraction of the value itself.
-  const spread = high - low || Math.abs(high) || 0.02
-  const pad = spread * 0.14
-  return [low - pad, high + pad]
+function niceAxis(values: number[], floor?: number) {
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const span = max - min || Math.abs(max) * 0.1 || 0.01
+  const step = NICE_STEPS.find((s) => s >= span / 5) ?? 1
+  let low = Math.floor((min - span * 0.04) / step) * step
+  const high = Math.ceil((max + span * 0.04) / step) * step
+  if (floor !== undefined) low = Math.max(floor, low)
+
+  const ticks: number[] = []
+  for (let tick = low; tick <= high + step / 2; tick += step) {
+    ticks.push(Number(tick.toFixed(6)))
+  }
+  const digits = step < 0.01 ? 1 : 0
+  return {
+    domain: [Number(low.toFixed(6)), Number(high.toFixed(6))] as [number, number],
+    ticks,
+    format: (value: number) => `${(value * 100).toFixed(digits)}%`,
+  }
+}
+
+/** What the frontier tooltip reads off whichever mark is hovered. */
+type Point = { name: string; volatility: number; return: number; sharpe: number }
+type HoverPoint = Point & { select?: SelectedPortfolio }
+
+function PointTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean
+  payload?: { payload?: Partial<Point> }[]
+}) {
+  const point = payload?.find((item) => item.payload?.name)?.payload
+  if (!active || !point) return null
+  return <PointCard point={point} />
+}
+
+function PointCard({ point }: { point: Partial<Point> }) {
+  const rows: [string, string][] = [
+    ["Return", formatPercent(point.return ?? 0)],
+    ["Volatility", formatPercent(point.volatility ?? 0)],
+  ]
+  if (typeof point.sharpe === "number") rows.push(["Sharpe", point.sharpe.toFixed(2)])
+
+  return (
+    <div className="grid min-w-36 gap-1 bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-sm ring-1 ring-foreground/10">
+      <span className="font-medium">{point.name}</span>
+      {rows.map(([label, value]) => (
+        <span key={label} className="flex justify-between gap-4">
+          <span className="text-muted-foreground">{label}</span>
+          <span className="font-mono tabular-nums">{value}</span>
+        </span>
+      ))}
+    </div>
+  )
 }
 
 function LegendLine({ dashed, color }: { dashed?: boolean; color: string }) {
@@ -154,101 +215,70 @@ export function hasTangency(data: FrontierResponse) {
 export function FrontierChart({
   data,
   isBaseline,
-  loading,
-  solving,
   selected,
   onSelect,
 }: {
   data: FrontierResponse
   isBaseline: boolean
-  loading: boolean
-  /** What the in-flight solve was asked for, for the progress readout. */
-  solving?: { portfolios: number; assets: number; seconds: number }
-  /** Which portfolio the page is describing; drawn here as a filled mark. */
+  /** Which portfolio the page is describing; drawn here as a ring. */
   selected: SelectedPortfolio
   onSelect: (next: SelectedPortfolio) => void
 }) {
-  // The index rides along in the datum so a click can say which point it hit.
-  // Recharts hands the whole payload back to the handler, so anything the
-  // selection needs has to be in here rather than recovered by position.
+  // The index rides along in the datum so a click can say which point it hit,
+  // and the name and Sharpe so the tooltip can say which portfolio it is.
   const envelopeData = data.envelope.map((point, index) => ({
+    name: pointLabel(index),
     volatility: point.volatility,
     return: point.return,
+    sharpe: point.sharpe,
     index,
     selectable: Boolean(point.weights),
   }))
-
-  // The API extends the CML well into levered territory. Past a little beyond
-  // the tangency point it only stretches the axes and flattens the frontier's
-  // hook, so the line is clipped to the plotted range.
-  const maxEnvelopeVol = Math.max(
-    ...data.envelope.map((point) => point.volatility)
-  )
-  const cmlLimit = maxEnvelopeVol * 1.08
-  const cmlSlope =
-    data.max_sharpe.volatility > 0
-      ? (data.max_sharpe.return - data.risk_free_rate) /
-        data.max_sharpe.volatility
-      : 0
-  // A screened set can contain no portfolio that beats the risk-free asset,
-  // routine when the filters select on cheapness rather than momentum. The
-  // frontier is still real, but a line tangent to it would slope downwards and
-  // claim that risk is paid negatively, so it is withheld and said out loud.
-  const drawCml = hasTangency(data)
-  const cmlData = drawCml
-    ? [
-        { volatility: 0, return: data.risk_free_rate },
-        {
-          volatility: cmlLimit,
-          return: data.risk_free_rate + cmlSlope * cmlLimit,
-        },
-      ]
-    : []
-
-  const anchors = [
-    { key: "maxSharpe" as const, title: "Tangency (max Sharpe)", portfolio: data.max_sharpe },
-    {
-      key: "minVolatility" as const,
-      title: "Minimum variance",
-      portfolio: data.min_volatility,
-    },
-  ]
 
   /**
    * The window is the frontier, not the origin.
    *
    * Anchoring x at 0 so the CML's risk-free intercept stayed on screen spent
-   * four fifths of the plot on empty space and squeezed the curve — the only
-   * thing here anyone is reading — into a sliver at the right-hand edge. The
-   * axes are framed on the solved points instead, and the CML is clipped where
-   * it leaves the window (`allowDataOverflow`) rather than being allowed to
-   * dictate the scale.
+   * four fifths of the plot on empty space for a narrow screened frontier. The
+   * axes are framed on the solved points (and the benchmark, so a "no" is
+   * shown rather than clipped away), and the CML is cut where it leaves them.
    */
-  // The market is folded into the framing, not just plotted inside it: the
-  // whole point of drawing it is to show whether the curve beats it, and a
-  // benchmark the axes silently clipped would answer that question by hiding
-  // it rather than by showing a "no".
   const volatilities = data.envelope.map((point) => point.volatility)
   const returns = data.envelope.map((point) => point.return)
   if (data.market) {
     volatilities.push(data.market.volatility)
     returns.push(data.market.return)
   }
-  const volatilityDomain = framed(volatilities)
-  const returnDomain = framed(returns)
-  // Volatility cannot be negative, and a tick at -1% on a small-span frontier
-  // is a claim rather than a margin.
-  volatilityDomain[0] = Math.max(0, volatilityDomain[0])
+  // Volatility cannot be negative, and a tick at -1% is a claim, not a margin.
+  const xAxis = niceAxis(volatilities, 0)
+  const yAxis = niceAxis(returns)
 
-  // Framing on the curve makes both axes narrow — a frontier is often three
-  // percentage points wide — and whole-percent ticks then print "13%" twice
-  // running. The formatter takes its precision from the span it is labelling.
-  const formatVolatilityTick = percentTickFormatter(
-    volatilityDomain[1] - volatilityDomain[0]
-  )
-  const formatReturnTick = percentTickFormatter(
-    returnDomain[1] - returnDomain[0]
-  )
+  // A screened set can contain no portfolio that beats the risk-free asset,
+  // routine when the filters select on cheapness rather than momentum. The
+  // frontier is still real, but a line tangent to it would slope downwards and
+  // claim that risk is paid negatively, so it is withheld and said out loud.
+  const drawCml = hasTangency(data)
+  const cmlSlope =
+    data.max_sharpe.volatility > 0
+      ? (data.max_sharpe.return - data.risk_free_rate) / data.max_sharpe.volatility
+      : 0
+  // The line clipped to the plot analytically: recharts lets a line run past
+  // the top of the plot even with `allowDataOverflow`.
+  const cmlAt = (volatility: number) => ({
+    volatility,
+    return: data.risk_free_rate + cmlSlope * volatility,
+  })
+  const volatilityAtReturn = (target: number) =>
+    (target - data.risk_free_rate) / cmlSlope
+  const cmlStart = Math.max(xAxis.domain[0], volatilityAtReturn(yAxis.domain[0]))
+  const cmlEnd = Math.min(xAxis.domain[1], volatilityAtReturn(yAxis.domain[1]))
+  const cmlData =
+    drawCml && cmlEnd > cmlStart ? [cmlAt(cmlStart), cmlAt(cmlEnd)] : []
+
+  const anchors = [
+    { key: "maxSharpe" as const, title: TANGENCY_LABEL, portfolio: data.max_sharpe },
+    { key: "minVolatility" as const, title: MIN_VARIANCE_LABEL, portfolio: data.min_volatility },
+  ]
 
   // Every solved portfolio gets a marker; the anchors are two of these points
   // restated larger, not separate things.
@@ -258,9 +288,22 @@ export function FrontierChart({
   // the shipped baseline and any pre-selection cached solve carry none — and
   // only while their markers are visible, so a click never has to be aimed at
   // something that is not drawn.
-  const pickable = showPoints
-    ? envelopeData.filter((point) => point.selectable)
-    : []
+  //
+  // The tangency and the benchmark ride in the same layer, which is what every
+  // tooltip on this chart is read from (see `hovered` below).
+  const pickable: HoverPoint[] = [
+    ...(showPoints ? envelopeData.filter((p) => p.selectable && p.index > 0) : []).map(
+      (p) => ({ ...p, select: { kind: "envelope", index: p.index } as const })
+    ),
+    ...anchors.map(({ key, title, portfolio }) => ({
+      name: title,
+      volatility: portfolio.volatility,
+      return: portfolio.return,
+      sharpe: portfolio.sharpe,
+      select: { kind: key },
+    })),
+    ...(data.market ? [{ name: "S&P 500", ...data.market }] : []),
+  ]
 
   // Where to draw the selection ring. The anchors resolve to their own exact
   // coordinates rather than to an envelope index, because the tangency is a
@@ -275,31 +318,56 @@ export function FrontierChart({
           }
         : (envelopeData[selected.index] ?? null)
 
+  // Recharts 3 hands a single-point Scatter (the tangency, the benchmark) an
+  // empty tooltip payload, so this chart draws its own: the hovered disc and
+  // where it sits, read straight off the hover layer below.
+  const [hovered, setHovered] = useState<{ point: HoverPoint; x: number; y: number } | null>(null)
+  const flip = hovered !== null && hovered.point.volatility > (xAxis.domain[0] + xAxis.domain[1]) / 2
+
+  const summary =
+    `Efficient frontier of ${data.envelope.length} portfolios, volatility ` +
+    `${formatPercent(Math.min(...data.envelope.map((p) => p.volatility)))} to ` +
+    `${formatPercent(Math.max(...data.envelope.map((p) => p.volatility)))}. ` +
+    `${TANGENCY_LABEL}: ${formatPercent(data.max_sharpe.return)} return at ` +
+    `${formatPercent(data.max_sharpe.volatility)} volatility, Sharpe ${data.max_sharpe.sharpe.toFixed(2)}. ` +
+    (data.market
+      ? `S&P 500: ${formatPercent(data.market.return)} return at ${formatPercent(data.market.volatility)} volatility, Sharpe ${data.market.sharpe.toFixed(2)}.`
+      : "")
+
   return (
     <Panel>
       <PanelHeader>
         <PanelTitle>Efficient frontier</PanelTitle>
-        {/* The provenance of what's on screen is never ambiguous. */}
-        {/* A solve is five to twenty seconds of real work. Saying what is
-            being solved, over how many names, and how long it has been going
-            is the difference between a page that is working and a page that
-            looks stuck. */}
+        {/* Provenance (live, nightly, restored) is stated once, in the
+            toolbar; this says only what the curve is made of. */}
         <PanelMeta>
-          {loading && solving
-            ? `Solving ${solving.portfolios} portfolios over ${solving.assets} names · ${solving.seconds}s`
-            : loading
-              ? "Solving…"
-              : isBaseline
-                ? "Illustrative baseline"
-                : `Live · ${data.n_portfolios} frontier points${data.cached ? " · cached" : ""}`}
+          {isBaseline
+            ? "Illustrative baseline"
+            : `${data.n_portfolios} solved points${data.resolution_capped ? ` (capped from ${data.n_portfolios_requested})` : ""}`}
         </PanelMeta>
       </PanelHeader>
       <PanelBody className="flex flex-col gap-4">
-        {/* Dimming while a solve is in flight is applied once, to every panel
-            below the toolbar, by the results column that wraps this one — not
-            here, so the frontier and the tables it sits beside fade together
-            rather than each finding its own opacity. */}
-        <ChartContainer config={chartConfig} className="aspect-auto h-[26rem] w-full">
+        <figure className="flex flex-col">
+          <figcaption className="sr-only">{summary}</figcaption>
+          {/* Wide rather than tall: the frontier is the page's hero, and a
+              2:1 plot is where the hook of the curve reads. */}
+          <div className="relative">
+          {hovered && (
+            <div
+              className="pointer-events-none absolute z-10"
+              style={{
+                left: hovered.x,
+                top: hovered.y,
+                transform: `translate(${flip ? "calc(-100% - 14px)" : "14px"}, -50%)`,
+              }}
+            >
+              <PointCard point={hovered.point} />
+            </div>
+          )}
+          <ChartContainer
+            config={chartConfig}
+            className="aspect-auto h-80 w-full sm:aspect-[2/1] sm:h-auto"
+          >
           <ComposedChart margin={{ left: 12, right: 16, top: 12, bottom: 28 }}>
             <CartesianGrid vertical={false} stroke="var(--color-grid)" />
             <XAxis
@@ -309,9 +377,10 @@ export function FrontierChart({
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              domain={volatilityDomain}
+              domain={xAxis.domain}
+              ticks={xAxis.ticks}
               allowDataOverflow
-              tickFormatter={formatVolatilityTick}
+              tickFormatter={xAxis.format}
             >
               <Label
                 value="Volatility (annualised)"
@@ -328,9 +397,10 @@ export function FrontierChart({
               axisLine={false}
               tickMargin={8}
               width={68}
-              domain={returnDomain}
+              domain={yAxis.domain}
+              ticks={yAxis.ticks}
               allowDataOverflow
-              tickFormatter={formatReturnTick}
+              tickFormatter={yAxis.format}
             >
               <Label
                 value="Expected return (annualised)"
@@ -342,68 +412,30 @@ export function FrontierChart({
             </YAxis>
             <ZAxis range={[18, 18]} />
             <ZAxis zAxisId="anchor" range={[150, 150]} />
-            {/* A click target has to be bigger than a 3px dot to be hittable
-                with a mouse, and bigger than the mark it selects so the two
-                never fight over the same pixel. */}
-            <ZAxis zAxisId="pick" range={[220, 220]} />
             {/* The selection ring sits outside whatever mark it is ringing —
                 at the anchors' own size it just filled the hollow one in. */}
             <ZAxis zAxisId="selected" range={[420, 420]} />
-            <ChartTooltip
-              cursor={{ strokeDasharray: "3 3" }}
-              content={
-                <ChartTooltipContent
-                  hideIndicator
-                  labelFormatter={(_, payload) => {
-                    const point = payload?.[0]?.payload as
-                      | { volatility: number; return: number }
-                      | undefined
-                    if (!point) return null
-
-                    return (
-                      <div className="grid gap-1">
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">
-                            Volatility
-                          </span>
-                          <span className="font-mono tabular-nums">
-                            {formatPercent(point.volatility)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">Return</span>
-                          <span className="font-mono tabular-nums">
-                            {formatPercent(point.return)}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  }}
-                  formatter={() => null}
-                />
-              }
-            />
-            <Line
-              data={cmlData}
-              dataKey="return"
-              name="Capital market line"
-              stroke="var(--color-cml)"
-              strokeWidth={2}
-              strokeDasharray="5 4"
-              dot={false}
-              activeDot={false}
-              isAnimationActive={false}
-              legendType="none"
-              tooltipType="none"
-            />
+            {cmlData.length > 0 && (
+              <Line
+                data={cmlData}
+                dataKey="return"
+                name="Capital market line"
+                stroke="var(--color-cml)"
+                strokeWidth={2}
+                strokeDasharray="5 4"
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+                legendType="none"
+                tooltipType="none"
+              />
+            )}
             {/* Monotone interpolation, not straight segments. The frontier is
                 a concave curve, so joining solved points with chords draws it
                 fractionally inside itself and the seams show at low point
                 counts. Monotone cubic preserves the ordering it is given and
                 cannot invent a peak between two points, which is what makes it
-                safe to use on a curve the reader is meant to trust, and it is
-                what lets a budget-capped 24-point solve look like a 200-point
-                one. */}
+                safe to use on a curve the reader is meant to trust. */}
             <Line
               data={envelopeData}
               dataKey="return"
@@ -427,9 +459,13 @@ export function FrontierChart({
             {anchors.map(({ key, title, portfolio }) => (
               <Scatter
                 key={key}
-                name={title}
                 data={[
-                  { volatility: portfolio.volatility, return: portfolio.return },
+                  {
+                    name: title,
+                    volatility: portfolio.volatility,
+                    return: portfolio.return,
+                    sharpe: portfolio.sharpe,
+                  },
                 ]}
                 zAxisId="anchor"
                 shape="circle"
@@ -441,8 +477,9 @@ export function FrontierChart({
                 stroke="var(--color-anchor)"
                 strokeWidth={2}
                 isAnimationActive={false}
-                onClick={() => onSelect({ kind: key })}
-                className="cursor-pointer"
+                tooltipType="none"
+                // Inert like the line dots: the hover layer handles the pointer.
+                className="pointer-events-none"
               />
             ))}
             {/* The benchmark every point on this curve is implicitly
@@ -451,11 +488,12 @@ export function FrontierChart({
                 not a portfolio and not something to click. */}
             {data.market && (
               <Scatter
-                name="S&P 500"
                 data={[
                   {
+                    name: "S&P 500",
                     volatility: data.market.volatility,
                     return: data.market.return,
+                    sharpe: data.market.sharpe,
                   },
                 ]}
                 zAxisId="anchor"
@@ -465,12 +503,13 @@ export function FrontierChart({
                 strokeWidth={2}
                 isAnimationActive={false}
                 legendType="none"
+                tooltipType="none"
+                className="pointer-events-none"
               />
             )}
             {/* The ring around whichever portfolio the page is describing.
                 Drawn before the click layer so the transparent hit targets
-                still sit on top of it, and drawn at all only once there is a
-                curve of real portfolios to move between. */}
+                still sit on top of it. */}
             {selectedPoint && (
               <Scatter
                 data={[selectedPoint]}
@@ -482,36 +521,48 @@ export function FrontierChart({
                 isAnimationActive={false}
                 tooltipType="none"
                 legendType="none"
+                className="pointer-events-none"
               />
             )}
-            {/* The selection surface: one transparent disc per solved point,
-                larger than the mark under it. Gated on the same threshold as
-                the visible dots, so the chart is never clickable where it does
-                not look clickable — past that density the list beside it is
-                how a portfolio gets picked. */}
-            {pickable.length > 0 && (
-              <Scatter
-                data={pickable}
-                zAxisId="pick"
-                shape="circle"
-                fill="transparent"
-                isAnimationActive={false}
-                tooltipType="none"
-                legendType="none"
-                className="cursor-pointer"
-                onClick={(entry) => {
-                  const index = (entry as unknown as { index?: number })?.index
-                  if (typeof index === "number") {
-                    onSelect({ kind: "envelope", index })
-                  }
-                }}
-              />
-            )}
+            {/* The selection and tooltip surface: one transparent disc per
+                solved point, larger than the mark under it. Points are gated on
+                the same threshold as the visible dots, so the chart is never
+                clickable where it does not look clickable — past that density
+                the list beside it is how a portfolio gets picked. */}
+            <Scatter
+              data={pickable}
+              isAnimationActive={false}
+              legendType="none"
+              tooltipType="none"
+              shape={(props: unknown) => {
+                const { cx, cy, payload } = props as { cx: number; cy: number; payload: HoverPoint }
+                return (
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={9}
+                    fill="transparent"
+                    className={payload.select ? "cursor-pointer" : undefined}
+                    onClick={() => payload.select && onSelect(payload.select)}
+                    // Same-name guard: the datum is rebuilt every render, and a
+                    // new object here would re-render forever under a still pointer.
+                    onMouseEnter={() =>
+                      setHovered((current) =>
+                        current?.point.name === payload.name ? current : { point: payload, x: cx, y: cy }
+                      )
+                    }
+                    onMouseLeave={() => setHovered(null)}
+                  />
+                )
+              }}
+            />
           </ComposedChart>
-        </ChartContainer>
+          </ChartContainer>
+          </div>
+        </figure>
 
         {/* Legend is always present for >= 2 series. */}
-        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <LegendLine color="var(--color-series-1)" />
             Efficient frontier
@@ -524,11 +575,11 @@ export function FrontierChart({
           )}
           <span className="flex items-center gap-1.5">
             <LegendDot />
-            Tangency (max Sharpe)
+            {TANGENCY_LABEL}
           </span>
           <span className="flex items-center gap-1.5">
             <LegendDot hollow />
-            Minimum variance
+            {MIN_VARIANCE_LABEL}
           </span>
           {data.market && (
             <span className="flex items-center gap-1.5">
@@ -539,10 +590,7 @@ export function FrontierChart({
         </div>
 
         {/* The one thing here a reader cannot see for themselves: a line that
-            is missing rather than merely off screen. The panel meta already
-            says when the curve is the shipped baseline, and the rail already
-            states the penalty the solve ran under, so both of those notes are
-            gone. */}
+            is missing rather than merely off screen. */}
         {!isBaseline && !drawCml && (
           <p className="text-xs leading-relaxed text-muted-foreground">
             No capital market line: nothing the constraints allow out-earned
@@ -569,8 +617,10 @@ export function SharpeCurve({
   data: FrontierResponse
   isBaseline: boolean
 }) {
-  const points = data.envelope.map((point) => ({
+  const points = data.envelope.map((point, index) => ({
+    name: pointLabel(index),
     volatility: point.volatility,
+    return: point.return,
     sharpe: point.sharpe,
   }))
 
@@ -580,11 +630,9 @@ export function SharpeCurve({
     point.sharpe > best.sharpe ? point : best
   )
   const anyNegative = points.some((point) => point.sharpe < 0)
-  // Framed rather than run flush to the data: the marker on the first and last
-  // point sat half outside the plot.
-  const volatilityDomain = framed(points.map((point) => point.volatility))
-  const formatVolatilityTick = percentTickFormatter(
-    volatilityDomain[1] - volatilityDomain[0]
+  const xAxis = niceAxis(
+    points.map((point) => point.volatility),
+    0
   )
 
   return (
@@ -600,6 +648,11 @@ export function SharpeCurve({
         </PanelMeta>
       </PanelHeader>
       <PanelBody className="flex flex-col gap-4">
+        <figure>
+        <figcaption className="sr-only">
+          Sharpe ratio along the efficient frontier, peaking at{" "}
+          {peak.sharpe.toFixed(2)} at {formatPercent(peak.volatility)} volatility.
+        </figcaption>
         <ChartContainer
           // A single plotted series, so no legend box — the title names it.
           // The peak marker is direct-labelled instead.
@@ -614,9 +667,10 @@ export function SharpeCurve({
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              domain={volatilityDomain}
+              domain={xAxis.domain}
+              ticks={xAxis.ticks}
               allowDataOverflow
-              tickFormatter={formatVolatilityTick}
+              tickFormatter={xAxis.format}
             >
               <Label
                 value="Volatility (annualised)"
@@ -643,36 +697,7 @@ export function SharpeCurve({
             )}
             <ChartTooltip
               cursor={{ strokeDasharray: "3 3" }}
-              content={
-                <ChartTooltipContent
-                  hideIndicator
-                  labelFormatter={(_, payload) => {
-                    const point = payload?.[0]?.payload as
-                      | { volatility: number; sharpe: number }
-                      | undefined
-                    if (!point) return null
-                    return (
-                      <div className="grid gap-1">
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">
-                            Volatility
-                          </span>
-                          <span className="font-mono tabular-nums">
-                            {formatPercent(point.volatility)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">Sharpe</span>
-                          <span className="font-mono tabular-nums">
-                            {point.sharpe.toFixed(3)}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  }}
-                  formatter={() => null}
-                />
-              }
+              content={<PointTooltip />}
             />
             <Line
               data={points}
@@ -703,10 +728,11 @@ export function SharpeCurve({
             />
           </ComposedChart>
         </ChartContainer>
+        </figure>
 
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <LegendDot />
-          Tangency (max Sharpe)
+          {TANGENCY_LABEL}
           {isBaseline && " · illustrative baseline"}
         </div>
       </PanelBody>

@@ -195,8 +195,13 @@ const AGAINST: Record<MethodId, ValuationMethod["against"]> = Object.fromEntries
   VALUATION_METHODS.map((method) => [method.id, method.against])
 ) as Record<MethodId, ValuationMethod["against"]>
 
+/** The fields the implied-return helpers read: all a valuation reading needs. */
+export type Valued = {
+  signals?: Pick<StockSignals, "impliedReturns" | "requiredReturnEquity" | "requiredReturnFirm">
+}
+
 /** The required return one model is measured against, or null. */
-export function requiredReturn(stock: Stock, method: MethodId): number | null {
+export function requiredReturn(stock: Valued, method: MethodId): number | null {
   const signals = stock.signals
   if (!signals) return null
   return AGAINST[method] === "wacc"
@@ -205,7 +210,7 @@ export function requiredReturn(stock: Stock, method: MethodId): number | null {
 }
 
 /** One model's implied return minus its required return, per year, or null. */
-export function methodAlpha(stock: Stock, method: MethodId): number | null {
+export function methodAlpha(stock: Valued, method: MethodId): number | null {
   const implied = stock.signals?.impliedReturns[method] ?? null
   const required = requiredReturn(stock, method)
   return implied === null || required === null ? null : implied - required
@@ -218,7 +223,7 @@ export function methodAlpha(stock: Stock, method: MethodId): number | null {
  * (test 3 averages whichever models are available).
  */
 export function impliedAlpha(
-  stock: Stock,
+  stock: Valued,
   methods: MethodId[] = []
 ): number | null {
   const selected = methods.length === 0 ? METHOD_IDS : methods
@@ -238,7 +243,7 @@ export function impliedAlpha(
  * year. Their difference is `impliedAlpha(stock)`; shown apart because two
  * plain rates read more easily than their gap.
  */
-export function impliedAndRequired(stock: Stock): { implied: number; required: number } | null {
+export function impliedAndRequired(stock: Valued): { implied: number; required: number } | null {
   let implied = 0
   let required = 0
   let n = 0
@@ -251,11 +256,6 @@ export function impliedAndRequired(stock: Stock): { implied: number; required: n
     n += 1
   }
   return n === 0 ? null : { implied: implied / n, required: required / n }
-}
-
-/** Whether any selected model could solve for this stock. */
-export function isRated(stock: Stock, methods: MethodId[] = []): boolean {
-  return impliedAlpha(stock, methods) !== null
 }
 
 export type ValuationBand =
@@ -374,7 +374,7 @@ export type PortfolioConsensus = {
  */
 export function portfolioConsensus(
   weights: Record<string, number>,
-  stocksByTicker: Map<string, Stock>,
+  stocksByTicker: Map<string, Valued>,
   methods: MethodId[] = []
 ): PortfolioConsensus {
   const entries = Object.entries(weights)

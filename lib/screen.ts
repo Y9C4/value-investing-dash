@@ -8,9 +8,12 @@
  * warehouse percentiles; both sides use the same `cume_dist` arithmetic.
  */
 
+import { evidenceFor } from "@/lib/evidence"
 import { cumeDist } from "@/lib/rank"
 import {
   DEFAULT_SIGNALS,
+  describeEvidence,
+  formatIc,
   signalBand,
   warehouseRank,
   type SignalBand,
@@ -116,7 +119,11 @@ export function passesGraham(stock: Stock): boolean {
 // Filters and presets
 // ---------------------------------------------------------------------------
 
-export type PresetId = "cheap-improving" | "deep-value" | "earnings-momentum" | "graham"
+const VM = evidenceFor(["value", "momentum"])!
+const MS = evidenceFor(["momentum", "surprise"])!
+const VALUE = evidenceFor(["value"])!
+
+export type PresetId = "value-momentum" | "value-q5" | "momentum-surprise" | "graham"
 
 export type ScreenerFilters = {
   preset: PresetId | null
@@ -137,7 +144,7 @@ export type ScreenerFilters = {
 
 /** Everything ranked on value + momentum, nothing cut. */
 export const DEFAULT_FILTERS: ScreenerFilters = {
-  preset: "cheap-improving",
+  preset: "value-momentum",
   search: "",
   signals: DEFAULT_SIGNALS,
   signalBands: [],
@@ -155,36 +162,42 @@ export type Preset = {
   blurb: string
   /** Where its rule comes from. */
   basis: string
+  /** One short line for the rail; the blurb and basis sit behind its info popover. */
+  short: string
   apply: Pick<ScreenerFilters, "signals" | "signalBands" | "bands" | "graham">
 }
 
 export const PRESETS: Preset[] = [
   {
-    id: "cheap-improving",
+    id: "value-momentum",
     label: "Value + momentum composite",
     blurb: "Every stock, ranked by the equal-weight average of its value and momentum percentiles (Asness, Moskowitz & Pedersen 2013).",
-    basis: "Highest IC of the combinations backtested: 0.054 (t = 1.92).",
+    basis: `The best blend in development, ${formatIc(VM.development)}, chosen before the holdout; ${formatIc(VM.holdout)} in the holdout.`,
+    short: `Every stock · holdout IC ${VM.holdout.ic.toFixed(3)}`,
     apply: { signals: ["value", "momentum"], signalBands: [], bands: [], graham: false },
   },
   {
-    id: "deep-value",
-    label: "Value quintile 5",
+    id: "value-q5",
+    label: "Value Q5 · cheapest",
     blurb: "Only the cheapest 20% of the index on implied excess return, ranked by value percentile.",
-    basis: "The long leg of the backtest's quintile sort. Value alone: IC 0.032 (t = 1.18).",
+    basis: `The long leg of the backtest's quintile sort. Value alone: ${describeEvidence(VALUE)}`,
+    short: `Cheapest fifth only · holdout IC ${VALUE.holdout.ic.toFixed(3)}`,
     apply: { signals: ["value"], signalBands: [], bands: ["deep-value"], graham: false },
   },
   {
-    id: "earnings-momentum",
+    id: "momentum-surprise",
     label: "Momentum + earnings surprise",
     blurb: "Every stock, ranked by the equal-weight average of its momentum and earnings-surprise percentiles. No valuation input.",
-    basis: "IC 0.035 (t = 1.47) in the backtest.",
+    basis: describeEvidence(MS),
+    short: `No valuation input · holdout IC ${MS.holdout.ic.toFixed(3)}`,
     apply: { signals: ["momentum", "surprise"], signalBands: [], bands: [], graham: false },
   },
   {
     id: "graham",
     label: "Graham defensive (partial)",
     blurb: "Stocks passing the testable parts of Graham's defensive-investor criteria (1973), ranked by value percentile.",
-    basis: "4 of 7 criteria testable on this data. Not backtested.",
+    basis: "3 of Graham's 7 criteria tested, 2 approximated, 2 not testable on this data. Not backtested.",
+    short: "3 of 7 criteria tested · not backtested",
     apply: { signals: ["value"], signalBands: [], bands: [], graham: true },
   },
 ]
@@ -243,7 +256,8 @@ export function activeFilterCount(filters: ScreenerFilters): number {
   const same = <T,>(a: T[], b: T[]) =>
     a.length === b.length && a.every((x) => b.includes(x))
   let count = 0
-  if (filters.preset !== DEFAULT_FILTERS.preset) count += 1
+  // A strategy other than the default counts once; "Custom" counts its parts below.
+  if (filters.preset !== null && filters.preset !== DEFAULT_FILTERS.preset) count += 1
   if (filters.search.trim()) count += 1
   count += filters.sectors.length
   if (filters.preset === null) {

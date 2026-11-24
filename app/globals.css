@@ -95,6 +95,11 @@
 
   /* The frontier and price lines: identity, not a value reading. */
   --series-1: #6f93e8;
+  /* Categorical, three slots (the backtest's strategies). Validated with the
+     dataviz skill's validate_palette.js against each theme's card surface. */
+  --cat-1: #6389e4;
+  --cat-2: #b08c3e;
+  --cat-3: #0ea48c;
 
   /* Sequential (score, weight): one indigo hue. In dark the light end is the
      emphatic one, so the top fifth is the brightest step, not near-white. */
@@ -116,7 +121,9 @@
   --overvalued: #d6683c;
   --expensive: #eb9a78;
   --fair: var(--muted-foreground);
-  --valuation-neutral: #4a453d;
+  /* The middle value quintile. ≥3:1 against the bar track (--muted), the
+     WCAG floor for graphics; it was 1.6:1 and the bars vanished. */
+  --valuation-neutral: #7d766b;
 
   /* Status: reserved, always with an icon or label. Distinct from the teal. */
   --status-good: #8fb35a;
@@ -153,6 +160,9 @@
   --ring: #8a6516;
 
   --series-1: #2f6fd6;
+  --cat-1: #2f6fd6;
+  --cat-2: #8a6516;
+  --cat-3: #00907a;
 
   --seq-1: #a3b2ea;
   --seq-2: #8094dc;
@@ -166,11 +176,12 @@
   --signal-q2: var(--seq-2);
   --signal-q1: var(--seq-1);
 
-  --undervalued: #00907a;
+  /* 5.0:1 on the card, so small teal figures pass AA (it was 3.9:1). */
+  --undervalued: #007d6a;
   --deep-value: #006b5a;
   --overvalued: #bb4f22;
   --expensive: #8f3814;
-  --valuation-neutral: #d9d2c4;
+  --valuation-neutral: #867e72;
 
   --status-good: #4f7a1f;
   --status-warning: #a86f00;
@@ -249,3 +260,37 @@
     linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
   background-size: 4rem 4rem;
 }
+/* Rendered notebooks (/research/[notebook]): markdown exported by
+   python-api/notebooks/export_site.py, and Pygments' token classes mapped onto
+   the theme so code reads in either mode. */
+.notebook-prose {
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+.notebook-prose h1 { font-family: var(--font-heading); font-size: 1.75rem; line-height: 1.25; margin: 0 0 1rem; }
+.notebook-prose h2 { font-family: var(--font-heading); font-size: 1.35rem; margin: 2.5rem 0 0.75rem; }
+.notebook-prose h3 { font-weight: 600; font-size: 1rem; margin: 1.75rem 0 0.5rem; }
+.notebook-prose p, .notebook-prose ul, .notebook-prose ol { margin: 0 0 0.85rem; }
+.notebook-prose ul { list-style: disc; padding-left: 1.25rem; }
+.notebook-prose ol { list-style: decimal; padding-left: 1.25rem; }
+.notebook-prose li { margin-bottom: 0.3rem; }
+.notebook-prose a { text-decoration: underline; text-underline-offset: 2px; }
+.notebook-prose strong { font-weight: 600; color: var(--foreground); }
+.notebook-prose code { font-family: var(--font-mono); font-size: 0.8em; background: var(--muted); padding: 0.05em 0.3em; }
+.notebook-prose table,
+.notebook-output table { border-collapse: collapse; margin: 0 0 1rem; font-size: 0.8rem; }
+.notebook-prose th, .notebook-prose td,
+.notebook-output th, .notebook-output td { border-bottom: 1px solid var(--border); padding: 0.3rem 0.6rem; text-align: left; vertical-align: top; }
+.notebook-prose th, .notebook-output thead th { color: var(--muted-foreground); font-weight: 600; font-size: 0.75rem; }
+.notebook-output table { font-family: var(--font-mono); white-space: nowrap; }
+.notebook-output td { text-align: right; }
+.notebook-output tbody th { color: var(--foreground); font-weight: 500; }
+
+.notebook-code { color: var(--foreground); }
+.notebook-code :is(.k, .kn, .kc, .kd, .kr, .ow) { color: var(--primary); }
+.notebook-code :is(.s, .s1, .s2, .sa, .sd, .se, .si, .sb, .dl) { color: var(--undervalued); }
+.notebook-code :is(.c, .c1, .cm, .ch) { color: var(--muted-foreground); font-style: italic; }
+.notebook-code :is(.m, .mi, .mf, .mh) { color: var(--series-1); }
+.notebook-code :is(.nf, .nc, .fm) { color: var(--overvalued); }
+.notebook-code :is(.bp, .nb) { color: var(--seq-2); }
+.notebook-prose .anchor-link { display: none; }

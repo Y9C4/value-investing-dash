@@ -67,21 +67,33 @@ import {
 const CHART_ROWS = 10
 const ROW_HEIGHT = 46
 
-// Weight and risk are two measurements of the same holding, always plotted as
-// an adjacent pair in a fixed order — so they are two steps of the one blue
-// ramp rather than two hues. The orange that used to carry risk was a second
-// identity for something that is not a second entity, and it was the loudest
-// thing on a page whose palette is otherwise blue and ink.
+/**
+ * Weight and risk share, as a validated pair per theme.
+ *
+ * They used to be two steps of the indigo ramp, which is the composite score's
+ * colour everywhere else and too close a pair to tell apart at a glance. Blue
+ * (the series identity) for weight, magenta for risk share; the pair passes the
+ * dataviz validator in both themes against the card surface (light #2f6fd6 /
+ * #c2477f on #fffdf8, dark #5f8be6 / #d55181 on #1c1a17: lightness band,
+ * chroma, CVD ΔE ≥ 14, normal-vision ΔE ≥ 24, contrast ≥ 3:1). Risk also wears
+ * a hatch, so the pair never rests on hue alone. Set on each panel, since a
+ * chart config cannot follow this app's `data-theme` switch.
+ */
+const PAIR_COLORS =
+  "[--weight-fill:#2f6fd6] [--risk-fill:#c2477f] dark:[--weight-fill:#5f8be6] dark:[--risk-fill:#d55181]"
+
+const RISK_HATCH = "repeating-linear-gradient(-45deg, var(--risk-fill) 0 3px, var(--color-card) 3px 4.5px)"
+
 const holdingsConfig = {
-  weight: { label: "Weight", color: "var(--color-seq-4)" },
-  risk: { label: "Risk contribution", color: "var(--color-seq-2)" },
+  weight: { label: "Weight", color: "var(--weight-fill)" },
+  risk: { label: "Risk share", color: "var(--risk-fill)" },
 } satisfies ChartConfig
 
 // Sector exposure is magnitude by category, not identity: the axis labels name
 // the sectors, so a second hue per sector would encode nothing the reader
-// cannot already read. One sequential hue, sorted, is the whole design.
+// cannot already read. The weight colour, sorted, is the whole design.
 const sectorConfig = {
-  weight: { label: "Weight", color: "var(--color-seq-3)" },
+  weight: { label: "Weight", color: "var(--weight-fill)" },
 } satisfies ChartConfig
 
 type Row = {
@@ -136,7 +148,7 @@ export function HoldingsChart({
   )
 
   return (
-    <Panel>
+    <Panel className={PAIR_COLORS}>
       <PanelHeader>
         <PanelTitle>{title}</PanelTitle>
         <PanelMeta>
@@ -144,6 +156,18 @@ export function HoldingsChart({
         </PanelMeta>
       </PanelHeader>
       <PanelBody className="flex flex-col gap-4">
+        <figure>
+        <figcaption className="sr-only">
+          Weight{hasRisk ? " and share of portfolio risk" : ""} for the{" "}
+          {chartData.length} largest positions:{" "}
+          {chartData
+            .map(
+              (row) =>
+                `${row.ticker} ${formatPercent(row.weight)}${row.risk === null ? "" : ` weight, ${formatPercent(row.risk)} risk`}`
+            )
+            .join("; ")}
+          .
+        </figcaption>
         <ChartContainer
           config={holdingsConfig}
           className="aspect-auto w-full"
@@ -221,13 +245,27 @@ export function HoldingsChart({
             {hasRisk && (
               <Bar
                 dataKey="risk"
-                fill="var(--color-risk)"
+                fill="url(#risk-hatch)"
                 radius={[0, 3, 3, 0]}
                 isAnimationActive={false}
               />
             )}
+            {/* The texture half of the pair's encoding; see PAIR_COLORS. */}
+            <defs>
+              <pattern
+                id="risk-hatch"
+                width="4.5"
+                height="4.5"
+                patternUnits="userSpaceOnUse"
+                patternTransform="rotate(45)"
+              >
+                <rect width="4.5" height="4.5" fill="var(--risk-fill)" />
+                <rect width="1.5" height="4.5" fill="var(--color-card)" />
+              </pattern>
+            </defs>
           </BarChart>
         </ChartContainer>
+        </figure>
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
           {hasRisk ? (
@@ -235,7 +273,7 @@ export function HoldingsChart({
               <span className="flex items-center gap-1.5">
                 <span
                   className="size-2.5 shrink-0"
-                  style={{ background: "var(--color-seq-4)" }}
+                  style={{ background: "var(--weight-fill)" }}
                   aria-hidden="true"
                 />
                 Weight
@@ -243,7 +281,7 @@ export function HoldingsChart({
               <span className="flex items-center gap-1.5">
                 <span
                   className="size-2.5 shrink-0"
-                  style={{ background: "var(--color-seq-2)" }}
+                  style={{ background: RISK_HATCH }}
                   aria-hidden="true"
                 />
                 Risk share
@@ -293,7 +331,7 @@ export function HoldingsTable({
   )
 
   return (
-    <Panel>
+    <Panel className={PAIR_COLORS}>
       <PanelHeader>
         <PanelTitle>{title}</PanelTitle>
         <PanelMeta>
@@ -308,7 +346,8 @@ export function HoldingsTable({
                 is painted with the cell and scrolls out from under it. */}
             <TableRow className="shadow-[inset_0_-1px_0_0_var(--color-border)] hover:bg-card">
               <TableHead>Ticker</TableHead>
-              <TableHead>Sector</TableHead>
+              {/* Dropped on a phone so the risk share stays on screen. */}
+              <TableHead className="hidden sm:table-cell">Sector</TableHead>
               <TableHead className="text-right">Weight</TableHead>
               {hasRisk && (
                 <TableHead className="text-right">Risk share</TableHead>
@@ -326,13 +365,15 @@ export function HoldingsTable({
                     {row.ticker}
                   </Link>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="hidden text-muted-foreground sm:table-cell">
                   {row.sector ?? "—"}
                 </TableCell>
                 <TableCell>
                   <span className="flex items-center justify-end gap-2.5">
                     <span
-                      className="hidden h-1.5 w-20 shrink-0 bg-muted sm:block"
+                      // Only where the table has the width for it; in a
+                      // half-width column it pushed the risk share off.
+                      className="hidden h-1.5 w-20 shrink-0 bg-muted @5xl:block"
                       aria-hidden="true"
                     >
                       <span
@@ -342,7 +383,7 @@ export function HoldingsTable({
                           background:
                             row.weight < 0
                               ? "var(--color-overvalued)"
-                              : "var(--color-seq-4)",
+                              : "var(--weight-fill)",
                         }}
                       />
                     </span>
@@ -392,7 +433,7 @@ export function SectorExposure({
   const axis = nicePercentAxis(data.map((row) => row.weight))
 
   return (
-    <Panel>
+    <Panel className={PAIR_COLORS}>
       <PanelHeader>
         <PanelTitle>Sector exposure</PanelTitle>
         <PanelMeta>
@@ -400,6 +441,11 @@ export function SectorExposure({
         </PanelMeta>
       </PanelHeader>
       <PanelBody className="flex flex-col gap-4">
+        <figure>
+        <figcaption className="sr-only">
+          Portfolio weight by sector:{" "}
+          {data.map((row) => `${row.sector} ${formatPercent(row.weight)}`).join("; ")}.
+        </figcaption>
         <ChartContainer
           config={sectorConfig}
           className="aspect-auto w-full"
@@ -428,9 +474,9 @@ export function SectorExposure({
               dataKey="sector"
               tickLine={false}
               axisLine={false}
-              // Wide enough for "Communication Services", the longest GICS
-              // label the profile table emits.
-              width={170}
+              // Narrow enough to leave a phone room for the bars; recharts
+              // wraps "Communication Services" onto two lines within it.
+              width={124}
               tickMargin={6}
               className="text-xs"
             />
@@ -466,6 +512,7 @@ export function SectorExposure({
             </Bar>
           </BarChart>
         </ChartContainer>
+        </figure>
 
         {/* The bars already say which sector is largest and by how much, so
             the sentence that restated it is gone. What survives is the one

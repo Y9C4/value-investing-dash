@@ -53,7 +53,9 @@ function PanelTitle({ className, ...props }: React.ComponentProps<"h2">) {
     <h2
       data-slot="panel-title"
       className={cn(
-        "flex items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase",
+        // Foreground, not muted: the title is the panel's anchor, and in the
+        // muted ink it read the same as every label and caption beneath it.
+        "flex items-center gap-1.5 text-xs font-semibold tracking-wider text-foreground uppercase",
         className
       )}
       {...props}

@@ -16,11 +16,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
-  ImpliedReturnBar,
-  formatSignedPercent,
-} from "@/components/valuation-scale"
+  missingReason,
+  noGrowthReason,
+  valueQuintileLabel,
+} from "@/components/stock-readings"
+import { ImpliedReturnBar } from "@/components/valuation-scale"
+import { formatPct, formatPp, formatSignedPct } from "@/lib/format"
 import {
-  BAND_LABELS,
   gapTextClass,
   IMPLIED_BASIS,
   VALUATION_METHODS,
@@ -31,28 +33,17 @@ import {
   type Stock,
 } from "@/lib/valuation"
 
-function percent(value: number | null | undefined) {
-  if (value === null || value === undefined) return "—"
-  return `${(value * 100).toFixed(1)}%`
-}
-
 /**
  * The same reverse FCFF solved the other way: the growth the price assumes at
  * the WACC, beside the growth the company has delivered. Display only.
  */
 function ImpliedGrowth({ stock }: { stock: Stock }) {
   const { impliedGrowth = null, impliedGrowthAboveMax = null } = stock.signals ?? {}
-  const assumed = impliedGrowthAboveMax
-    ? "over 100%"
-    : impliedGrowth === null
-      ? "—"
-      : `${(impliedGrowth * 100).toFixed(1)}%`
+  const assumed = impliedGrowthAboveMax ? "over 100%" : formatPct(impliedGrowth)
   const why = impliedGrowthAboveMax
-    ? "No five-year growth path from today's cash flow reaches this price."
+    ? "a year: no five-year growth path up to 100% a year from today's cash flow reaches this price."
     : impliedGrowth === null
-      ? stock.discountRates?.wacc === null
-        ? "No WACC (financial firms, or no cost of debt), so FCFF does not apply."
-        : "Needs positive free cash flow to the firm."
+      ? noGrowthReason(stock)
       : "a year, fading to 2.5% over five years. Solved at WACC, so it is sensitive when WACC is near long-run growth."
 
   return (
@@ -60,7 +51,7 @@ function ImpliedGrowth({ stock }: { stock: Stock }) {
       <Stat label="Implied FCFF growth" value={assumed} hint={why} />
       <Stat
         label="Trailing revenue growth"
-        value={stock.revenueGrowth === null ? "—" : `${(stock.revenueGrowth * 100).toFixed(1)}%`}
+        value={formatSignedPct(stock.revenueGrowth)}
         hint={stock.revenueGrowth === null ? "no growth history" : "a year, trailing, as reported"}
       />
     </div>
@@ -84,6 +75,7 @@ export function ImpliedReturnPanel({
 
   const alpha = impliedAlpha(stock)
   const band = valuationBand(valuePercentile)
+  const counted = VALUATION_METHODS.filter((method) => methodAlpha(stock, method.id) !== null).length
 
   return (
     <Panel>
@@ -99,61 +91,74 @@ export function ImpliedReturnPanel({
 
       <div className="border-b border-border px-4 py-3">
         <Stat
-          label="Implied excess return (implied − required), averaged over models"
+          label={
+            counted > 0
+              ? `Implied excess return (implied − required), mean of ${counted} of 4 models`
+              : "Implied excess return (implied − required): no model has both readings"
+          }
           className={gapTextClass(alpha)}
           value={
             <span className="flex items-baseline gap-2">
-              <span>{alpha === null ? "—" : `${formatSignedPercent(alpha).replace("%", "")} pp`}</span>
+              <span>{alpha === null ? "—" : formatPp(alpha)}</span>
               <span className="font-sans text-xs font-normal">
-                {BAND_LABELS[band]}
+                {valueQuintileLabel(band)}
               </span>
             </span>
           }
           size="lead"
         >
           {alpha !== null && (
-            <ImpliedReturnBar alpha={alpha} className="mt-1 w-full" />
+            <ImpliedReturnBar alpha={alpha} className="mt-1 w-full max-w-xl" />
           )}
         </Stat>
       </div>
 
       <ImpliedGrowth stock={stock} />
 
+      {/* Under 640px the Implied and Required columns fold into the model
+          cell, so the headline column survives on a phone. */}
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>Model</TableHead>
-            <TableHead className="text-right">Implied</TableHead>
-            <TableHead className="text-right">Required</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">Implied</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">Required</TableHead>
             <TableHead className="text-right">Implied − required</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {VALUATION_METHODS.map((method) => {
             const excess = methodAlpha(stock, method.id)
+            const implied = formatPct(stock.signals?.impliedReturns[method.id])
+            const required = formatPct(requiredReturn(stock, method.id))
+            const against = method.against === "wacc" ? "WACC" : "kₑ"
+            const reason = missingReason(stock, method)
             return (
               <TableRow key={method.id} className="hover:bg-transparent">
-                <TableCell>
-                  <span className="text-sm font-medium">
-                    {method.label}
-                  </span>
-                  <span className="ml-2 hidden text-xs text-muted-foreground sm:inline">
+                <TableCell className="whitespace-normal">
+                  <span className="text-sm font-medium">{method.label}</span>
+                  <span className="ml-2 hidden text-xs text-muted-foreground lg:inline">
                     {method.full}
                   </span>
-                </TableCell>
-                <TableCell className="text-right font-mono text-sm">
-                  {percent(stock.signals?.impliedReturns[method.id])}
-                </TableCell>
-                <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                  {percent(requiredReturn(stock, method.id))}{" "}
-                  <span className="text-xs">
-                    {method.against === "wacc" ? "WACC" : "kₑ"}
+                  <span className="block font-mono text-xs text-muted-foreground sm:hidden">
+                    {implied} implied · {required} {against}
                   </span>
+                  {reason && (
+                    <span className="block text-xs leading-snug text-muted-foreground">
+                      {reason}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="hidden text-right font-mono text-sm sm:table-cell">
+                  {implied}
+                </TableCell>
+                <TableCell className="hidden text-right font-mono text-sm text-muted-foreground sm:table-cell">
+                  {required} <span className="text-xs">{against}</span>
                 </TableCell>
                 <TableCell
                   className={`text-right font-mono text-sm ${gapTextClass(excess)}`}
                 >
-                  {excess === null ? "—" : `${formatSignedPercent(excess).replace("%", "")} pp`}
+                  {formatPp(excess)}
                 </TableCell>
               </TableRow>
             )
@@ -164,11 +169,16 @@ export function ImpliedReturnPanel({
       <PanelBody className="border-t border-border">
         <p className="text-xs leading-relaxed text-muted-foreground">
           Each model solves for the return that makes five years of its cash
-          flow, then a perpetuity, worth today&rsquo;s price. The headline
-          averages whichever solved. A dash means no solution at this price (no
-          positive cash flow, or an implied return above 100%). The band is
-          this stock&rsquo;s value quintile; the backtest found the ranking
-          useful and the size not.
+          flow, then a perpetuity, worth today&rsquo;s price, searching from
+          long-run growth (2.5%) to 100% a year. The headline is the mean over
+          the models with both an implied and a required return. A dash under
+          Implied means the model did not solve (an input it needs is missing
+          or not positive, or no rate in that range fits); a dash under
+          Required means there is no WACC (not computed for financial firms,
+          or no cost of debt because no interest expense is reported). Each
+          such row says which. The quintile ranks this stock&rsquo;s reading
+          against the index; the backtest found the ranking useful and the
+          size not.
         </p>
       </PanelBody>
     </Panel>

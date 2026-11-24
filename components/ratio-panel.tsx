@@ -28,11 +28,14 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>Ratio</TableHead>
-            <TableHead className="text-right">Stock</TableHead>
-            <TableHead className="text-right">Sector median</TableHead>
-            <TableHead className="w-[30%]">
+            <TableHead className="text-right">
+              Stock<span className="sm:hidden"> / median</span>
+            </TableHead>
+            <TableHead className="hidden text-right sm:table-cell">Sector median</TableHead>
+            <TableHead className="w-[38%] sm:w-[30%]">
               <span className="flex items-center gap-1">
-                Position in sector (low → high)
+                <span className="sm:hidden">Rank in sector</span>
+                <span className="hidden sm:inline">Position in sector (low → high)</span>
                 <Info title="Position in sector">
                   The stock&rsquo;s rank among sector peers that report the
                   figure, counted from the lowest. For P/E, P/B and EV/EBITDA
@@ -48,7 +51,9 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
             const pct = row.sectorPercentile
             return (
               <TableRow key={row.key} className="hover:bg-transparent">
-                <TableCell>
+                {/* Under 640px the median folds under the stock's figure and the
+                    rank count under the dot, so all four readings stay. */}
+                <TableCell className="whitespace-normal">
                   <span className="flex items-center gap-1 text-sm">
                     {field.label}
                     <Info title={field.label}>{field.help}</Info>
@@ -56,17 +61,20 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
                   {formatRatio(row.value, field.unit)}
+                  <span className="block text-xs text-muted-foreground sm:hidden">
+                    {formatRatio(row.sectorMedian, field.unit)}
+                  </span>
                 </TableCell>
-                <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                <TableCell className="hidden text-right font-mono text-sm text-muted-foreground sm:table-cell">
                   {formatRatio(row.sectorMedian, field.unit)}
                 </TableCell>
                 <TableCell>
                   {pct === null ? (
                     <span className="text-xs text-muted-foreground">not measured</span>
                   ) : (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
                       {/* A position on the peer range, not a score: no fill colour. */}
-                      <div className="relative h-5 flex-1" aria-hidden="true">
+                      <div className="relative h-5 w-full sm:flex-1" aria-hidden="true">
                         <span className="absolute inset-x-0 top-1/2 h-px bg-border" />
                         <span className="absolute inset-y-1 left-1/2 w-px bg-muted-foreground/40" />
                         <span
@@ -74,7 +82,7 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
                           style={{ left: `${(pct * 100).toFixed(1)}%` }}
                         />
                       </div>
-                      <span className="w-16 text-right font-mono text-xs text-muted-foreground">
+                      <span className="font-mono text-xs text-muted-foreground sm:w-16 sm:text-right">
                         {Math.round(pct * row.peers)} of {row.peers}
                       </span>
                     </div>
@@ -90,7 +98,8 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
           The dot is the stock&rsquo;s rank among peers with a reading, lowest
           on the left; the tick is the sector median. These are context, not
           inputs to the factor ranks: in the backtest each plain ratio had a
-          lower IC than the reverse-DCF model built on the same figures.
+          lower mean IC than the reverse-DCF model built on the same figures,
+          though no difference was statistically significant.
         </p>
       </PanelBody>
     </Panel>

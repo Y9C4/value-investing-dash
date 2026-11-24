@@ -48,22 +48,6 @@ export function isSameSelection(
 }
 
 /**
- * Whether this point carries enough to be described.
- *
- * The baseline's illustrative points and any solve cached before the service
- * started sending per-point weights come back without them; both are ordinary
- * states rather than failures, and both mean the same thing to the UI.
- */
-export function isSelectable(
-  data: FrontierResponse,
-  selected: SelectedPortfolio
-): boolean {
-  if (selected.kind !== "envelope") return true
-  const point = data.envelope[selected.index]
-  return Boolean(point?.weights)
-}
-
-/**
  * The portfolio a selection names, or the tangency when it names nothing.
  *
  * Falling back rather than throwing is deliberate: a restored selection can
@@ -95,6 +79,17 @@ export function resolvePortfolio(
   }
 }
 
+export const TANGENCY_LABEL = "Tangency (max Sharpe)"
+export const MIN_VARIANCE_LABEL = "Minimum variance"
+
+/**
+ * The short name of one solved point, shared by the list rows and the chart
+ * tooltip so the two always agree. Index 0 is the minimum-variance anchor.
+ */
+export function pointLabel(index: number): string {
+  return index === 0 ? MIN_VARIANCE_LABEL : `#${index + 1}`
+}
+
 /**
  * What to call the selected portfolio, on the header and on every panel that
  * describes it.
@@ -111,10 +106,10 @@ export function selectionLabel(
   const canonicalised = canonical(selected)
   switch (canonicalised.kind) {
     case "maxSharpe":
-      return "Tangency (max Sharpe)"
+      return TANGENCY_LABEL
     case "minVolatility":
-      return "Minimum variance"
+      return MIN_VARIANCE_LABEL
     case "envelope":
-      return `Frontier point ${canonicalised.index + 1} of ${data.envelope.length}`
+      return `Frontier portfolio ${pointLabel(canonicalised.index)} of ${data.envelope.length}`
   }
 }

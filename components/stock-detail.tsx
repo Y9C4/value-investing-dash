@@ -1,5 +1,3 @@
-"use client"
-
 import { DiscountRatePanel } from "@/components/discount-rate-panel"
 import { ImpliedReturnPanel } from "@/components/implied-return-panel"
 import { RatioPanel } from "@/components/ratio-panel"
@@ -7,8 +5,9 @@ import { SignalPanel, type BlendScore } from "@/components/signal-panel"
 import {
   KeyStatisticsCard,
   PriceChartCard,
-  useTickerReturns,
+  PriceChartLoader,
 } from "@/components/ticker-history"
+import type { Candle } from "@/lib/closes"
 import type { RatioContext } from "@/lib/sectors"
 import type { Stock } from "@/lib/valuation"
 
@@ -25,8 +24,11 @@ export function StockDetail({
   valueRank,
   ratios,
   blends,
+  closes,
 }: {
   stock: Stock
+  /** Read on the server with the page; null when the warehouse has none. */
+  closes: Candle[] | null
   valueRank: number | null
   ratios: RatioContext[]
   blends: BlendScore[]
@@ -34,10 +36,8 @@ export function StockDetail({
   riskFreeRate: number | null
   marketReturn: number | null
 }) {
-  const { data, loading, error } = useTickerReturns(stock.ticker)
-
   return (
-    <div className="flex flex-col gap-4 px-6 py-5 lg:px-10">
+    <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 lg:px-10">
       <div className="grid items-start gap-4 2xl:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-4">
           <ImpliedReturnPanel stock={stock} valuePercentile={valueRank} />
@@ -47,19 +47,11 @@ export function StockDetail({
         <div className="flex min-w-0 flex-col gap-4">
           <SignalPanel stock={stock} valueRank={valueRank} blends={blends} />
 
-          {error && (
-            <div className="border border-border bg-card px-4 py-3">
-              <p className="text-sm text-destructive">{error}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Only the price chart is affected: everything else on this page
-                is precomputed.
-              </p>
-            </div>
+          {closes && closes.length > 0 ? (
+            <PriceChartCard data={{ ticker: stock.ticker, candles: closes }} />
+          ) : (
+            <PriceChartLoader ticker={stock.ticker} />
           )}
-          {loading && !data && (
-            <div className="h-[21rem] animate-pulse border border-border bg-card" />
-          )}
-          {data && data.candles.length > 0 && <PriceChartCard data={data} />}
 
           <KeyStatisticsCard
             beta={stock.beta}
@@ -76,8 +68,8 @@ export function StockDetail({
           <summary className="cursor-pointer px-4 py-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase select-none hover:text-foreground">
             Required return and risk inputs
           </summary>
-          <div className="border-t border-border [&>section]:border-0">
-            <DiscountRatePanel rates={stock.discountRates} beta={stock.beta} />
+          <div className="border-t border-border">
+            <DiscountRatePanel stock={stock} rates={stock.discountRates} />
           </div>
         </details>
       )}

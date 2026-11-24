@@ -8,11 +8,18 @@
  * toggles. The score is the mean percentile of the components switched on,
  * the arithmetic the blends were tested with, re-ranked to a percentile.
  *
- * Percentiles rather than the raw numbers because test 4 found the size of
- * expected alpha meaningless (calibration slope 0.17). A rank is what the
+ * Percentiles rather than the raw numbers because the size of expected alpha
+ * is not a forecast (calibration slope 0.17 in development, negative in the
+ * holdout: python-api/notebooks/evidence.ipynb, figure 4). A rank is what the
  * evidence supports; a forecast return is not.
  */
 
+import {
+  DEVELOPMENT_SPAN,
+  EVIDENCE,
+  HOLDOUT_SPAN,
+  type SignalEvidence,
+} from "@/lib/evidence"
 import { quintile } from "@/lib/rank"
 import type { Stock } from "@/lib/valuation"
 
@@ -25,14 +32,20 @@ export type SignalComponent = {
   /** One line on what it measures, for the methodology popover. */
   blurb: string
   formula: string
-  /** Development-period rank IC against the 1-month factor-adjusted return. */
-  ic: number
-  icTStat: number
 }
 
-/** Development dates: Mar 2023 – Jan 2025. Stated wherever an IC is shown. */
-export const SIGNAL_EVIDENCE =
-  "Rank ICs are from 23 development months (Mar 2023 – Jan 2025) against next-month factor-adjusted returns, from the backtest run of 23 Nov 2026. None is statistically significant yet, and the locked holdout has not been run."
+/** Stated wherever an IC is shown. */
+export const SIGNAL_EVIDENCE = `Rank ICs are Spearman correlations with next-month factor-adjusted returns. Development: ${DEVELOPMENT_SPAN} (${EVIDENCE.signals[0].development.months} months), where every design choice was made. Holdout: ${HOLDOUT_SPAN} (${EVIDENCE.signals[0].holdout.months} months), untouched until the specification was frozen, then run once. A t-stat of about 2 is the usual bar for significance.`
+
+/** "0.054 (t = 1.92)". */
+export function formatIc(stats: { ic: number; t: number }): string {
+  return `${stats.ic.toFixed(3)} (t = ${stats.t.toFixed(2)})`
+}
+
+/** One sentence for a popover: both samples, development first. */
+export function describeEvidence(evidence: SignalEvidence): string {
+  return `Rank IC ${formatIc(evidence.development)} in development; ${formatIc(evidence.holdout)} in the holdout.`
+}
 
 export const SIGNAL_COMPONENTS: SignalComponent[] = [
   {
@@ -42,8 +55,6 @@ export const SIGNAL_COMPONENTS: SignalComponent[] = [
     blurb:
       "The return the current price implies, minus the return the stock's risk requires: the average over reverse FCFF, residual income, revenue and shareholder-yield models. Solved from price, not discounted to a fair value.",
     formula: "α = r(implied) − WACC or kₑ, averaged over 4 models",
-    ic: 0.032,
-    icTStat: 1.18,
   },
   {
     id: "momentum",
@@ -52,8 +63,6 @@ export const SIGNAL_COMPONENTS: SignalComponent[] = [
     blurb:
       "The return from twelve months ago to one month ago (Jegadeesh & Titman 1993). Skipping the last month avoids its short-term reversal. Beside value it asks whether the market has started to re-rate the stock.",
     formula: "P(t−21) ÷ P(t−252) − 1, on dividend-adjusted closes",
-    ic: 0.029,
-    icTStat: 1.18,
   },
   {
     id: "surprise",
@@ -62,33 +71,16 @@ export const SIGNAL_COMPONENTS: SignalComponent[] = [
     blurb:
       "How far the latest quarter's EPS beat or missed the analyst consensus, scaled by price (Livnat & Mendenhall 2006). Only reports from the last 100 days count.",
     formula: "(reported EPS − estimated EPS) ÷ price",
-    ic: 0.024,
-    icTStat: 1.45,
   },
 ]
 
-/** The tested blends, by their sorted component ids. Anything else is untested. */
-const TESTED_BLENDS: Record<string, { label: string; ic: number; icTStat: number }> = {
-  "momentum+value": { label: "Value + momentum", ic: 0.054, icTStat: 1.92 },
-  "momentum+surprise": { label: "Momentum + earnings surprise", ic: 0.035, icTStat: 1.47 },
-}
-
 /**
- * Value + momentum: the best tested blend, equally weighted as in Asness,
- * Moskowitz & Pedersen (2013).
+ * Value + momentum: the best blend in development, equally weighted as in
+ * Asness, Moskowitz & Pedersen (2013). Chosen before the holdout was run and
+ * kept after it, whatever it showed: re-choosing on the holdout would leave no
+ * out-of-sample test.
  */
 export const DEFAULT_SIGNALS: SignalId[] = ["value", "momentum"]
-
-/** The evidence behind a component selection, or null if it was never tested. */
-export function blendEvidence(
-  selected: SignalId[]
-): { label: string; ic: number; icTStat: number } | null {
-  if (selected.length === 1) {
-    const one = SIGNAL_COMPONENTS.find((c) => c.id === selected[0])
-    return one ? { label: one.label, ic: one.ic, icTStat: one.icTStat } : null
-  }
-  return TESTED_BLENDS[[...selected].sort().join("+")] ?? null
-}
 
 /** A warehouse-computed component percentile; value is ranked in the browser. */
 export function warehouseRank(
@@ -137,7 +129,17 @@ export const SIGNAL_BAND_FILL: Record<SignalBand, string> = {
   unscored: "var(--color-muted)",
 }
 
-/** Percentile as a whole number out of 100, the way the score is printed. */
+/**
+ * The composite to one decimal, everywhere it is printed. It is the ranking
+ * key and a cume_dist over ~500 stocks, so neighbours sit ~0.2 apart: whole
+ * numbers put ~5 different ranks on each printed value (three stocks read
+ * "100"), while one decimal leaves equal readings only for true ties.
+ */
+export function formatComposite(score: number | null): string {
+  return score === null ? "—" : (score * 100).toFixed(1)
+}
+
+/** A single factor's percentile as a whole number out of 100. */
 export function formatScore(score: number | null): string {
-  return score === null ? "-" : Math.round(score * 100).toString()
+  return score === null ? "—" : Math.round(score * 100).toString()
 }

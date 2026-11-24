@@ -1,6 +1,6 @@
 # Proposal: Backtesting Valuation Signals with Reverse DCF
 
-**Status:** development tests re-run under the revised specification (§18), holdout not yet run · **Last revised:** 2026-11-23
+**Status:** holdout run once on 2026-11-24 under the frozen specification (§19, `evidence.ipynb`) · **Last revised:** 2026-11-24
 
 §1–§12 are the original plan. §13–§17 record what development found and what comes next: the signals added to the product, further models graded by feasibility, how each is tested, how the signal is shown on the screener, and the live data warehouse that computes it.
 
@@ -457,3 +457,22 @@ Every constant now has a source, and missing data produces no reading rather tha
 | 1 | 2026-11-17 | Original (§6–§7): raw CAPM beta, clamped kd, clamped growth | 0.056 |
 | 2 | 2026-11-23 | This revision | 0.054 |
 
+
+
+---
+
+## 19. Holdout result (2026-11-24)
+
+Run once, on the specification frozen in `warehouse.spec` (§18), by `notebooks/evidence.ipynb` from the development notebook's export. Target and statistics as in test 1. 16 holdout months have a factor-adjusted outcome (May 2025 – Aug 2026); the last two rebalance dates wait on Kenneth French's factor returns.
+
+| Signal | Development IC (t) | Holdout IC (t) | Holdout months IC > 0 | Holdout Q5 − Q1 / month (t) |
+|---|---|---|---|---|
+| Value + momentum composite (default) | 0.054 (1.92) | 0.033 (1.04) | 63% | +0.33% (0.48) |
+| Momentum + earnings surprise | 0.035 (1.47) | 0.057 (2.01) | 75% | +1.75% (2.33) |
+| Value | 0.032 (1.18) | 0.023 (0.61) | 63% | −0.32% (−0.36) |
+| Momentum 12–1 | 0.029 (1.18) | 0.014 (0.30) | 50% | +1.09% (0.87) |
+| Earnings surprise | 0.024 (1.45) | 0.066 (3.31) | 75% | +1.62% (2.67) |
+
+Calibration slope of value: 0.17 (t 0.30) in development, −0.44 (t −0.51) in the holdout.
+
+**Reading.** Every signal kept the sign of its development IC. The default composite kept about 60% of its strength and is not significant. Earnings surprise is the one factor above Harvey–Liu–Zhu's t = 3. The default is not changed on this evidence: the holdout tests the frozen choice, and re-choosing on it would leave no out-of-sample test until new months accrue. The site prints both samples beside every factor and strategy, read from `app/research/_data/evidence.json`.

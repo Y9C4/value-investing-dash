@@ -23,6 +23,8 @@ import type { FrontierResponse } from "@/lib/baseline-frontier"
 import { formatPercent } from "@/lib/format"
 import {
   isSameSelection,
+  pointLabel,
+  TANGENCY_LABEL,
   type SelectedPortfolio,
 } from "@/lib/portfolio-selection"
 import { cn } from "@/lib/utils"
@@ -62,7 +64,7 @@ function buildRows(data: FrontierResponse): Row[] {
       index === 0
         ? { kind: "minVolatility" }
         : { kind: "envelope", index },
-    label: index === 0 ? "Min. variance" : `#${index + 1}`,
+    label: pointLabel(index),
     mark: index === 0 ? "hollow" : undefined,
     portfolio: point,
     selectable: index === 0 || Boolean(point.weights),
@@ -75,7 +77,7 @@ function buildRows(data: FrontierResponse): Row[] {
   // the curve, and scrolled the list to its end on every load.
   const tangencyRow: Row = {
     selection: { kind: "maxSharpe" },
-    label: "Tangency",
+    label: TANGENCY_LABEL,
     mark: "filled",
     portfolio: data.max_sharpe,
     selectable: true,
@@ -109,14 +111,23 @@ export function PortfolioList({
   const activeRef = useRef<HTMLTableRowElement>(null)
 
   // Absent when the index had no usable price history for the window; see the
-  // footer below and the tone on each row.
+  // footer below.
   const market = data.market
 
   // A click on the chart can select a portfolio hundreds of rows down. Without
   // this the list answers by highlighting something off screen, which reads as
   // nothing having happened.
+  // Scrolls the list's own pane only: `scrollIntoView` would also scroll the
+  // page, which on a phone jumps the reader away from the chart they clicked.
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: "nearest" })
+    const row = activeRef.current
+    const pane = row?.closest<HTMLElement>("[data-slot='table-container']")
+    if (!row || !pane) return
+    const top = row.offsetTop
+    const header = pane.querySelector("thead")?.offsetHeight ?? 0
+    if (top - header < pane.scrollTop) pane.scrollTop = top - header
+    else if (top + row.offsetHeight > pane.scrollTop + pane.clientHeight)
+      pane.scrollTop = top + row.offsetHeight - pane.clientHeight
   }, [selected])
 
   return (
@@ -124,17 +135,18 @@ export function PortfolioList({
       <PanelHeader>
         <PanelTitle>Portfolios</PanelTitle>
         <PanelMeta>
-          {`${rows.length} frontier portfolios`}
+          {isBaseline
+            ? `${rows.length} anchors`
+            : `${data.envelope.length} solved points + tangency`}
         </PanelMeta>
       </PanelHeader>
-      <PanelBody className="px-0 py-0">
-        {/* Tighter cells than the app's default: four columns in a panel a
-            third the width of the page, and at the standard padding the last
-            one scrolled out of sight. */}
+      {/* Beside the chart (the builder's `@5xl` row) the list fills the
+          height the chart sets and scrolls inside it; stacked, it caps itself. */}
+      <PanelBody className="relative px-0 py-0 @5xl:min-h-64 @5xl:flex-1">
         {/* Tighter and smaller than the app's default table: four columns in a
             panel a third the width of the page, where at standard padding the
             last of them scrolled out of sight. */}
-        <Table containerClassName="overflow-y-auto overflow-x-hidden max-h-[26rem] [&_td]:px-2 [&_th]:px-2 [&_td]:py-1.5 [&_td]:text-xs [&_th]:text-xs">
+        <Table containerClassName="overflow-y-auto overflow-x-hidden max-h-[26rem] @5xl:absolute @5xl:inset-0 @5xl:max-h-none [&_td]:px-2 [&_th]:px-2 [&_td]:py-1.5 [&_td]:text-xs [&_th]:text-xs">
           <TableHeader className="sticky top-0 z-10 bg-card [&_tr]:border-b-0">
             {/* An inset shadow rather than a border: a sticky row's own border
                 is painted with the cell and scrolls out from under it. */}
@@ -155,28 +167,13 @@ export function PortfolioList({
                   key={row.label}
                   ref={active ? activeRef : undefined}
                   data-active={active || undefined}
-                  // `aria-current`, not `aria-selected`: the role here is
-                  // button, and "the current one of a set" is what a selected
-                  // row actually means.
-                  aria-current={active || undefined}
-                  aria-disabled={disabled || undefined}
-                  tabIndex={disabled ? -1 : 0}
-                  role="button"
+                  // The row stays a row (table semantics intact); the button
+                  // in its first cell is the keyboard and screen-reader target,
+                  // and a click anywhere on the row does the same thing.
                   onClick={() => !disabled && onSelect(row.selection)}
-                  onKeyDown={(event) => {
-                    if (disabled) return
-                    // Enter and Space are what a row acting as a button owes a
-                    // keyboard; Space would otherwise scroll the pane instead.
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault()
-                      onSelect(row.selection)
-                    }
-                  }}
                   className={cn(
-                    "outline-none",
-                    disabled
-                      ? "cursor-default opacity-50"
-                      : "cursor-pointer focus-visible:bg-accent",
+                    "focus-within:bg-accent",
+                    disabled ? "cursor-default opacity-50" : "cursor-pointer",
                     active && "bg-accent hover:bg-accent"
                   )}
                 >
@@ -193,16 +190,20 @@ export function PortfolioList({
                       ) : (
                         <span className="size-2.5 shrink-0" aria-hidden="true" />
                       )}
-                      {row.label}
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        aria-pressed={active}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onSelect(row.selection)
+                        }}
+                        className="text-left outline-none disabled:cursor-default"
+                      >
+                        {row.label}
+                      </button>
                     </span>
                   </TableCell>
-                  {/* Each figure is toned against the index's own, so the
-                      column reads as "better or worse than holding the
-                      market" rather than as three raw numbers. Written as
-                      whole class names because Tailwind matches literals in
-                      the source; an interpolated `text-${…}` compiles to
-                      nothing on its own. Untoned when there is no index to
-                      compare against. */}
                   <TableCell
                     className="text-right font-mono tabular-nums"
                   >
@@ -228,8 +229,7 @@ export function PortfolioList({
               column above is measured against, not another portfolio you can
               pick, and `tfoot` is the one part of a table that stays put when
               the body scrolls. Omitted entirely when the index had no usable
-              price history — the rows above then carry no tone either, and
-              the panel simply makes no claim about the market.
+              price history: the panel then makes no claim about the market.
 
               Opaque, and shadowed rather than bordered, for the same reason
               the header is: a sticky row's own background must not let the
@@ -255,7 +255,6 @@ export function PortfolioList({
           )}
         </Table>
       </PanelBody>
-
-    </Panel >
+    </Panel>
   )
 }

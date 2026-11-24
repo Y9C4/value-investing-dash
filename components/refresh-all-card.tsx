@@ -41,6 +41,8 @@ const STAGE_LABELS: Record<string, string> = {
 
 export function RefreshAllCard() {
   const [loading, setLoading] = useState(false)
+  // Only a run that includes the slow parts asks first.
+  const [armed, setArmed] = useState(false)
   const [result, setResult] = useState<RefreshAllResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Off by default: statements change quarterly, so the eight-minute stage is
@@ -118,10 +120,22 @@ export function RefreshAllCard() {
           </label>
         </div>
 
-        <div className="flex items-center gap-4">
-          <Button onClick={handleClick} disabled={loading}>
-            {loading ? "Refreshing…" : "Refresh everything"}
-          </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {armed ? (
+            <>
+              <span className="text-sm">{`Start a job of ${estimate}? Leave the tab open while it runs.`}</span>
+              <Button onClick={() => { setArmed(false); void handleClick() }}>
+                Start
+              </Button>
+              <Button variant="ghost" onClick={() => setArmed(false)}>
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <Button onClick={(includeFundamentals || full) ? () => setArmed(true) : handleClick} disabled={loading}>
+              {loading ? "Refreshing…" : "Refresh everything"}
+            </Button>
+          )}
           {loading && (
             <p className="text-sm text-muted-foreground">
               Working — this takes {estimate}. Leave the tab open.

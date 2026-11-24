@@ -35,7 +35,13 @@ export function useScrollPane<T extends HTMLElement>({
    */
   from = 1024,
 }: { gutter?: number; minHeight?: number; from?: number } = {}) {
-  const ref = useRef<T>(null)
+  const ref = useRef<T | null>(null)
+  // State as well as a ref: the effect below must re-run when the node changes.
+  const [node, setNode] = useState<T | null>(null)
+  const setRef = useCallback((el: T | null) => {
+    ref.current = el
+    setNode(el)
+  }, [])
   const [maxHeight, setMaxHeight] = useState<string>()
   const [clipped, setClipped] = useState(false)
 
@@ -62,10 +68,10 @@ export function useScrollPane<T extends HTMLElement>({
   }, [from, gutter, minHeight, measureClip])
 
   useEffect(() => {
-    const node = ref.current
     if (!node) return
 
-    measureHeight()
+    // Measured on the next frame, once layout has settled around the new node.
+    const frame = requestAnimationFrame(measureHeight)
     const observer = new ResizeObserver(measureClip)
     observer.observe(node)
     // The content too: adding columns widens it without resizing the port.
@@ -74,11 +80,12 @@ export function useScrollPane<T extends HTMLElement>({
     window.addEventListener("resize", measureHeight)
 
     return () => {
+      cancelAnimationFrame(frame)
       observer.disconnect()
       node.removeEventListener("scroll", measureClip)
       window.removeEventListener("resize", measureHeight)
     }
-  }, [measureClip, measureHeight])
+  }, [node, measureClip, measureHeight])
 
-  return { ref, maxHeight, clipped }
+  return { ref: setRef, maxHeight, clipped, remeasure: measureHeight }
 }

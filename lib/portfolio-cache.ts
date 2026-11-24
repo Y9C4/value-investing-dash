@@ -72,11 +72,3 @@ export function writeSolve(entry: CachedSolve): void {
     // will not survive the next navigation.
   }
 }
-
-export function clearSolve(): void {
-  try {
-    sessionStorage.removeItem(KEY)
-  } catch {
-    // As above.
-  }
-}

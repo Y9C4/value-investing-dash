@@ -58,6 +58,7 @@ export default async function DataPage() {
           endpoint="/api/backfill/fundamentals"
           buttonLabel="Load fundamentals"
           estimate="~8 min"
+          confirm="Start an ~8-minute load? Leave the tab open while it runs."
         />
         <BackfillCard
           title="Warehouse refresh"

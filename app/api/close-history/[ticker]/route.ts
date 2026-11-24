@@ -1,16 +1,5 @@
 import { MARKET_DATA_API_URL } from "@/lib/market-data-service"
-import { selectRows } from "@/lib/supabase"
-
-/**
- * How many trading days the chart draws. Matches `RETURNS_LOOKBACK_DAYS` in
- * `python-api/market.py`, so both sources answer over the same window.
- */
-const LOOKBACK_DAYS = 252
-
-/** An hour, matching the screener's revalidation: both read the same closes. */
-const REVALIDATE_SECONDS = 3600
-
-type Candle = { date: string; close: number }
+import { readStoredCloses } from "@/lib/closes"
 
 /**
  * Stored daily closes for one ticker.
@@ -48,29 +37,6 @@ export async function GET(
   }
 
   return readFromService(symbol)
-}
-
-/**
- * The closes as PostgREST returns them: newest first, then reversed.
- *
- * Ordered descending with a limit rather than ascending, because "the last 252
- * rows" is only expressible from the newest end. The reversal afterwards is
- * what the chart wants, and 252 numbers cost nothing to turn around.
- */
-async function readStoredCloses(symbol: string): Promise<Candle[] | null> {
-  const rows = await selectRows<{ date: string; close: number | string }>(
-    "stock_prices",
-    `select=date,close&ticker=eq.${encodeURIComponent(symbol)}` +
-      `&order=date.desc&limit=${LOOKBACK_DAYS}`,
-    { revalidate: REVALIDATE_SECONDS }
-  )
-
-  if (!rows) return null
-
-  return rows
-    .map((row) => ({ date: row.date, close: Number(row.close) }))
-    .filter((candle) => Number.isFinite(candle.close))
-    .reverse()
 }
 
 /** The original path, kept as the fallback rather than the default. */

@@ -6,14 +6,12 @@ export const metadata = {
 }
 
 /**
- * No page header: the name lives in the context strip. `?sector=` (repeatable)
- * opens the screen filtered, which is how the Overview's sector rows link here.
+ * No page header: the name lives in the context strip. Prerendered: the
+ * `?sector=` filter is read on the client (see `SectorsFromUrl`).
  */
-export default async function ScreenerPage({ searchParams }: PageProps<"/screener">) {
-  const [{ stocks }, { sector }] = await Promise.all([loadUniverse(), searchParams])
-  const known = new Set(stocks.map((stock) => stock.sector))
-  const sectors = [sector ?? []].flat().filter((name) => known.has(name))
-
-  // Keyed so following a different sector link resets the screen's state.
-  return <Screener key={sectors.join("|")} stocks={stocks} initialSectors={sectors} />
+export default async function ScreenerPage() {
+  const { stocks } = await loadUniverse()
+  // The screener never reads the discount-rate breakdown; it was a third of the payload.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  return <Screener stocks={stocks.map(({ discountRates: _unused, ...stock }) => stock)} />
 }

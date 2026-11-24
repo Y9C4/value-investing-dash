@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import {
   RiDownloadLine,
   RiEqualizerLine,
@@ -33,10 +34,12 @@ import {
   BASELINE_FRONTIER,
   type FrontierResponse,
 } from "@/lib/baseline-frontier"
-import { formatSignedPercent as formatMargin } from "@/components/valuation-scale"
 import {
+  DASH,
   formatAxisPercent,
+  formatDataTimestamp,
   formatPercent,
+  formatPp,
   formatSharpeDelta,
 } from "@/lib/format"
 import {
@@ -45,7 +48,7 @@ import {
   VALUATION_METHODS,
   gapTextClass,
   type MethodId,
-  type Stock,
+  type Valued,
 } from "@/lib/valuation"
 import {
   readSolve,
@@ -62,6 +65,7 @@ import {
 } from "@/lib/portfolio-selection"
 import {
   DEFAULT_SETTINGS,
+  MIN_FRONTIER_TICKERS,
   buildFrontierRequest,
   validateSettings,
   type PortfolioSettings,
@@ -70,14 +74,13 @@ import { useScrollPane } from "@/lib/use-scroll-pane"
 import { cn } from "@/lib/utils"
 
 /**
- * The portfolio workspace: the constraints that shape a solve on the left,
- * everything the solve produced on the right.
+ * The portfolio workspace: the constraints that shape a solve, and everything
+ * the solve produced, with the frontier as the hero.
  *
- * Two panes, the same shape as the screener: constraints beside results,
- * results owning the width. Every number here is downstream of a constraint
- * set, so the constraints are stated next to the result rather than buried in
- * a service. A frontier with no stated constraints is not a claim about
- * anything.
+ * Constraints beside the results where both fit (the screener's shape), above
+ * them where they do not. Every number here is downstream of a constraint set,
+ * so the constraints are stated next to the result rather than buried in a
+ * service.
  *
  * A solve survives navigation. It is five to twenty seconds of real work, and
  * looking up a holding and coming back used to throw it away and reinstate the
@@ -87,113 +90,19 @@ import { cn } from "@/lib/utils"
  */
 
 /**
- * The width at which the rail and the result panels both fit.
- *
- * Narrower than the screener's 1700, because the results here are charts that
- * reflow rather than a table with a fixed natural width. Below it the rail
- * starts collapsed and the toolbar button opens it.
+ * The viewport width at which the rail and a wide results column both fit:
+ * the screener's breakpoint. Below it the settings are a section above the
+ * results, collapsed until the toolbar button opens them, so the frontier is
+ * never squeezed into a sliver beside a 20rem rail.
  */
-const RAIL_BREAKPOINT = 1280
+const RAIL_BREAKPOINT = 1700
 
-function ConstraintRow({
-  label,
-  value,
-  note,
-}: {
-  label: string
-  value: string
-  /** Reserved for a value the reader did not ask for and would misread. */
-  note?: string
-}) {
-  return (
-    <div className="flex flex-col gap-0.5 border-b border-border py-1.5 last:border-b-0">
-      <div className="flex items-baseline justify-between gap-4">
-        <span className="text-sm text-muted-foreground">{label}</span>
-        <span className="font-mono text-sm tabular-nums">{value}</span>
-      </div>
-      {note && (
-        <span className="text-xs leading-snug text-muted-foreground">
-          {note}
-        </span>
-      )}
-    </div>
-  )
-}
-
-/**
- * What the solver was actually given, beside the dials that asked for it.
- *
- * Every row here used to carry a sentence explaining itself, and the position
- * bounds were stated here rather than on the controls that set them — so the
- * reader who left "auto" in the box had to look somewhere else to find out
- * what auto had resolved to. The bounds now print as the placeholders of their
- * own fields, and what is left is a plain ledger of the solve.
- *
- * A note survives only where the service answered a different question from
- * the one asked: a capped resolution, a name dropped for short history.
- */
-function ConstraintsPanel({
-  data,
-  tickers,
-  isBaseline,
-}: {
-  data: FrontierResponse
-  tickers: string[]
-  isBaseline: boolean
-}) {
-  return (
-    <Panel>
-      <PanelHeader>
-        <PanelTitle>Solved with</PanelTitle>
-        {isBaseline && <PanelMeta>Baseline</PanelMeta>}
-      </PanelHeader>
-      <PanelBody className="flex flex-col gap-3 py-1">
-        <div className="flex flex-col">
-          <ConstraintRow
-            label="Universe"
-            value={
-              typeof data.n_assets === "number"
-                ? String(data.n_assets)
-                : tickers.length > 0
-                  ? String(tickers.length)
-                  : "—"
-            }
-          />
-          <ConstraintRow
-            label="Shorting"
-            value={data.short_allowed ? "Allowed" : "None"}
-          />
-          <ConstraintRow
-            label="L2 penalty (γ)"
-            value={(data.l2_gamma ?? 0).toFixed(2)}
-          />
-          <ConstraintRow
-            label="Frontier points"
-            value={String(data.n_portfolios)}
-            note={
-              data.resolution_capped
-                ? `Cut from ${data.n_portfolios_requested}: every point is its own solve over ${data.n_assets ?? 0} stocks.`
-                : undefined
-            }
-          />
-        </div>
-
-        {data.excluded_short_history &&
-          data.excluded_short_history.length > 0 && (
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Excluded for short price history:{" "}
-              <span className="font-mono">
-                {data.excluded_short_history.join(", ")}
-              </span>
-            </p>
-          )}
-      </PanelBody>
-    </Panel>
-  )
-}
+/** Where the frontier on screen came from; the toolbar states it. */
+type Source = "baseline" | "nightly" | "solved" | "restored"
 
 export function PortfolioBuilder({
   tickers = [],
+  unknownTickers = [],
   staleSet = false,
   stocks = [],
   snapshot = null,
@@ -204,8 +113,10 @@ export function PortfolioBuilder({
    * the illustrative baseline; null when it has not been computed yet.
    */
   snapshot?: { data: FrontierResponse; computedAt: string } | null
-  /** A screened subset handed over by the screener; empty means the full index. */
+  /** The recognised tickers of a screened subset; empty means the full index. */
   tickers?: string[]
+  /** Tickers the URL named that the index does not hold. Listed, never solved. */
+  unknownTickers?: string[]
   /** The `?set=` token was built against a different index and cannot be read. */
   staleSet?: boolean
   /**
@@ -214,14 +125,22 @@ export function PortfolioBuilder({
    * screener already reads, and the portfolio page has no business asking for
    * it twice.
    */
-  stocks?: Stock[]
+  stocks?: (Valued & { ticker: string })[]
 }) {
+  // A screen was asked for, even if none of its names were recognised: a URL
+  // of unknown tickers must not quietly widen to the whole index.
+  const screened = tickers.length > 0 || unknownTickers.length > 0
+  // Below this the service answers 422, so the page says so before asking.
+  const tooFew = screened && tickers.length < MIN_FRONTIER_TICKERS
+
   const [settings, setSettings] = useState<PortfolioSettings>(DEFAULT_SETTINGS)
-  // Seeded so the page is never blank: the baseline renders instantly and is
-  // replaced the moment a live solve returns or a cached one is restored.
-  const seed = tickers.length === 0 ? snapshot : null
+  // Seeded so the page is never blank: the nightly solve (or, failing that,
+  // the baseline) renders instantly and is replaced the moment a live solve
+  // returns or a cached one is restored.
+  const seed = screened ? null : snapshot
   const [data, setData] = useState<FrontierResponse>(seed?.data ?? BASELINE_FRONTIER)
-  const [isBaseline, setIsBaseline] = useState(seed === null)
+  const [source, setSource] = useState<Source>(seed ? "nightly" : "baseline")
+  const isBaseline = source === "baseline"
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /** Seconds the current solve has been running, for the progress readout. */
@@ -259,8 +178,9 @@ export function PortfolioBuilder({
    * wide screen. The first toggle reads the width once and takes over.
    */
   const [railOpen, setRailOpen] = useState<boolean | null>(null)
-  const { ref: railRef, maxHeight: railMaxHeight } =
-    useScrollPane<HTMLDivElement>()
+  const { ref: railRef, maxHeight: railMaxHeight } = useScrollPane<HTMLDivElement>({
+    from: RAIL_BREAKPOINT,
+  })
 
   const errors = validateSettings(settings)
   const scope = scopeKey(tickers)
@@ -276,16 +196,15 @@ export function PortfolioBuilder({
    *
    * Settings are restored whatever the scope: they are the reader's
    * preferences and travel. The solved frontier is restored only onto the
-   * universe it was solved for, because a frontier over 32 screened names is
-   * not a frontier over the index and showing one under the other's heading
-   * would be a false claim.
+   * universe it was solved for, and only if it is newer than the nightly
+   * snapshot the server rendered — otherwise yesterday's tab would cover
+   * today's solve.
    *
    * Failing both, arriving from the screener starts a solve straight away.
    * A screened set is a request: someone picked 32 names and pressed
-   * "optimise", so answering it with the shipped baseline and a button is
-   * making them ask twice. A bare `/portfolio` visit is not a request, so it
-   * keeps the baseline: it is the browsing entry point, and it must not spend
-   * solver time on someone who came to look.
+   * "optimise", so answering it with a button is making them ask twice. A
+   * bare `/portfolio` visit is not a request: it keeps the nightly solve and
+   * must not spend solver time on someone who came to look.
    *
    * The rule below fires on any setState in an effect body, on the grounds
    * that it cascades a render. That is exactly what is wanted once, on mount,
@@ -301,9 +220,10 @@ export function PortfolioBuilder({
     if (cached) {
       setSettings(cached.settings)
 
-      if (cached.scope === scope) {
+      const newerThanSeed = !seed || cached.savedAt >= Date.parse(seed.computedAt)
+      if (cached.scope === scope && !tooFew && newerThanSeed) {
         setData(cached.data)
-        setIsBaseline(false)
+        setSource("restored")
         setSolvedAt(cached.savedAt)
         setSolvedSettings(cached.settings)
         // Absent on entries written before the curve was selectable, and
@@ -317,14 +237,15 @@ export function PortfolioBuilder({
     // Settings are passed explicitly rather than read from state: the setter
     // above has not landed yet, and the solve has to go out under the settings
     // the page is about to show.
-    if (tickers.length > 0) {
+    if (screened && !tooFew) {
       void runSolve(cached?.settings ?? DEFAULT_SETTINGS)
     }
     // `runSolve` is deliberately not a dependency. It closes over state that
     // changes on every keystroke in the rail, and this effect must run exactly
-    // once: the ref above is the guard, not the dependency list.
+    // once: the ref above is the guard, and the page keys this component by
+    // scope, so a new scope is a new mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope, tickers.length])
+  }, [])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
@@ -345,7 +266,7 @@ export function PortfolioBuilder({
    * previous render's values.
    */
   async function runSolve(next: PortfolioSettings) {
-    if (Object.keys(validateSettings(next)).length > 0) return
+    if (tooFew || Object.keys(validateSettings(next)).length > 0) return
 
     setLoading(true)
     setError(null)
@@ -389,7 +310,7 @@ export function PortfolioBuilder({
       const savedAt = Date.now()
 
       setData(solved)
-      setIsBaseline(false)
+      setSource("solved")
       setSolvedAt(savedAt)
       setSolvedSettings(next)
       // A new curve is a new set of portfolios, so the page reopens on the one
@@ -404,8 +325,8 @@ export function PortfolioBuilder({
         selected: MAX_SHARPE,
       })
     } catch (err) {
-      // Keep the previous render on screen rather than dropping to a blank
-      // frame: the error line says what happened.
+      // A previous solve for this set stays on screen under a disclaimer; with
+      // none, the page shows an explicit empty state rather than the baseline.
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setLoading(false)
@@ -475,8 +396,8 @@ export function PortfolioBuilder({
 
   // Absent when the index had no usable price history for the window. Every
   // reading below that compares against it is then dropped rather than shown
-  // against a zero: "+15.7% vs S&P E[R]" with no S&P behind it is a fabricated
-  // comparison, and the figure itself is still worth printing on its own.
+  // against a zero: "+15.7 pp vs S&P 500" with no S&P behind it is a
+  // fabricated comparison, and the figure itself is still worth printing.
   const market = data.market
 
   /**
@@ -502,71 +423,42 @@ export function PortfolioBuilder({
     solvedSettings !== null &&
     JSON.stringify(solvedSettings) !== JSON.stringify(settings)
 
+  // The illustrative baseline is only ever an illustration of the bare index
+  // page. Under a screen, or under an error, it would read as the reader's own
+  // portfolio, so an explicit empty state takes its place.
+  const showResults = !isBaseline || (!screened && !error)
+
+  const runBlocked = tooFew
+    ? `A frontier needs at least ${MIN_FRONTIER_TICKERS} recognised tickers; this set has ${tickers.length}.`
+    : Object.keys(errors).length > 0
+      ? "Fix the settings marked in red to run."
+      : null
+
+  const solving = `Solving ${Number(settings.portfolios) || 0} portfolios over ${tickers.length || data.n_assets || stocks.length} stocks · ${elapsed}s`
+  const stamp = solvedAt === null ? "" : formatDataTimestamp(new Date(solvedAt).toISOString())
+  // Live, nightly or restored is the one thing a reader cannot tell from the
+  // curve itself, so it is said once, here, with the shared as-of format.
+  const provenance = loading
+    ? solving
+    : source === "baseline"
+      ? screened
+        ? "not solved yet"
+        : "illustrative example, not solved"
+      : source === "nightly"
+        ? `nightly solve · ${stamp}`
+        : source === "restored"
+          ? `solved ${stamp} · kept from earlier in this tab`
+          : data.cached
+            ? `retrieved ${stamp} · the solver's cached result`
+            : `solved ${stamp}`
+
   return (
-    <div
-      className={cn(
-        "grid gap-6",
-        railOpen === null
-          ? "min-[1280px]:grid-cols-[20rem_minmax(0,1fr)]"
-          : railOpen
-            ? "lg:grid-cols-[20rem_minmax(0,1fr)]"
-            : undefined,
-      )}
-    >
-      <div
-        id="optimiser-settings"
-        ref={railRef}
-        style={railMaxHeight ? { maxHeight: railMaxHeight } : undefined}
-        className={cn(
-          // Sticky and self-start: the results column is several screens tall
-          // and the rail is not, so without this the controls scroll away and
-          // the reader is left with a column of nothing beside the charts.
-          "flex-col gap-4 overflow-y-auto lg:sticky lg:top-5 lg:max-h-[calc(100vh-8rem)] lg:self-start",
-          railOpen === null
-            ? "hidden min-[1280px]:flex"
-            : railOpen
-              ? "flex"
-              : "hidden",
-        )}
-      >
-        <PortfolioControls
-          settings={settings}
-          errors={errors}
-          onChange={setSettings}
-          onReset={() => setSettings(DEFAULT_SETTINGS)}
-          universeSize={tickers.length}
-          indexSize={stocks.length}
-          dirty={dirty}
-          resolved={resolvedBounds}
-          methods={methods}
-          onMethodsChange={setMethods}
-          methodCoverage={methodCoverage}
-          ratedHoldings={heldCount}
-        />
-
-        <ConstraintsPanel data={data} tickers={tickers} isBaseline={isBaseline} />
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-4">
-        {/* A link the screener built against a different index. It cannot be
-            decoded back to the set it promised, so the scope silently widens to
-            the whole index unless that is said out loud. */}
-        {staleSet && (
-          <p
-            role="status"
-            className="border border-border bg-card px-4 py-2.5 text-sm"
-          >
-            That screener link points at an older version of the index and
-            can&rsquo;t be read back. Optimising over the full index; run the
-            screen again for a fresh link.
-          </p>
-        )}
-
-        {/* The action bar. It sits above the chart it changes and stays on
-            screen while the rail scrolls, which is why the run button is not
-            in the rail with the dials it applies. */}
+    <div className="flex flex-col gap-4">
+      {/* The action bar, above both the settings and the results, so opening
+          the settings never moves the button that opened them. */}
+      <div className="flex flex-col gap-1.5">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <Button
               size="sm"
               variant="outline"
@@ -586,24 +478,17 @@ export function PortfolioBuilder({
               Settings
             </Button>
 
-            {/* The server renders in UTC and the browser in local time. */}
+            {/* Fixed-zone stamps, but ICU builds can still disagree on a
+                zone's abbreviation between server and browser. */}
             <span
               suppressHydrationWarning
               className="font-mono text-xs text-muted-foreground tabular-nums"
             >
-              {tickers.length > 0
+              {screened
                 ? `${tickers.length} screened ${tickers.length === 1 ? "stock" : "stocks"}`
                 : "Full S&P 500"}
-              {isBaseline
-                ? " · illustrative example, not solved"
-                : solvedAt
-                  ? ` · solved ${new Date(solvedAt).toLocaleString("en-GB", {
-                    day: "numeric",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}`
-                  : ""}
+              {" · "}
+              {provenance}
               {dirty && " · settings changed"}
             </span>
           </div>
@@ -612,11 +497,17 @@ export function PortfolioBuilder({
             <Button
               size="sm"
               variant="outline"
+              disabled={!showResults}
               onClick={() =>
                 downloadPortfolioCsv({
                   data,
                   isBaseline,
                   screenedCount: tickers.length,
+                  solvedAt,
+                  selected:
+                    selected.kind === "envelope"
+                      ? { label: activeLabel, portfolio: active }
+                      : undefined,
                 })
               }
             >
@@ -627,227 +518,298 @@ export function PortfolioBuilder({
             <Button
               size="sm"
               onClick={() => runSolve(settings)}
-              disabled={loading || Object.keys(errors).length > 0}
+              disabled={loading || runBlocked !== null}
+              aria-describedby={runBlocked ? "run-blocked" : undefined}
             >
               {loading ? <RiRefreshLine /> : <RiPlayLine />}
-              {loading
-                ? `Optimising… ${elapsed}s`
-                : isBaseline
-                  ? "Run optimisation"
-                  : "Re-run"}
+              {loading ? `Optimising… ${elapsed}s` : "Run optimisation"}
             </Button>
           </div>
         </div>
 
-        {error && (
-          <div className="flex flex-col gap-1 border border-destructive/40 bg-destructive/5 px-4 py-3">
-            <span className="text-xs font-semibold text-destructive">
-              Not optimised
-            </span>
-            <p className="text-sm text-destructive">{error}</p>
-            {/* Without this the red line sits directly above a perfectly
-                plausible curve, and the curve is the thing people believe. */}
-            <p className="text-xs text-muted-foreground">
-              {isBaseline
-                ? "Everything below is still the illustrative baseline, not a result for this set."
-                : "Everything below is the previous successful solve, not a result for this set."}
-            </p>
-          </div>
+        {runBlocked && (
+          <p id="run-blocked" className="text-xs text-muted-foreground sm:text-right">
+            {runBlocked}
+          </p>
         )}
+      </div>
 
-        {/* Everything below is a reading of the solve on screen. While a new
-            one is in flight this is still the previous solve (or the shipped
-            baseline) rather than a blank page, and dimming the whole block
-            uniformly is what marks it as about to be replaced — the toolbar
-            above it, which says so in words and stays interactive, is
-            deliberately outside this wrapper and stays at full opacity. */}
+      {/* A link the screener built against a different index. It cannot be
+          decoded back to the set it promised, so the scope silently widens to
+          the whole index unless that is said out loud. */}
+      {staleSet && (
+        <p role="status" className="border border-border bg-card px-4 py-2.5 text-sm">
+          That screener link points at an older version of the index and
+          can&rsquo;t be read back. Optimising over the full index; run the
+          screen again for a fresh link.
+        </p>
+      )}
+
+      {unknownTickers.length > 0 && (
+        <p role="status" className="border border-border bg-card px-4 py-2.5 text-sm">
+          Not in the S&amp;P 500 dataset, so left out:{" "}
+          <span className="font-mono">{unknownTickers.join(", ")}</span>
+        </p>
+      )}
+
+      <div
+        className={cn(
+          "grid gap-6",
+          railOpen !== false && "min-[1700px]:grid-cols-[20rem_minmax(0,1fr)]",
+        )}
+      >
+        {/* A rail beside the results where both fit; below that, a section
+            above them that the Settings button opens. */}
         <div
+          id="optimiser-settings"
+          ref={railRef}
+          style={railMaxHeight ? { maxHeight: railMaxHeight } : undefined}
           className={cn(
-            "flex flex-col gap-4 transition-opacity",
-            loading && "opacity-50"
+            // Sticky: the results are several screens tall and the rail is
+            // not, so without this the controls scroll away.
+            "flex-col min-[1700px]:sticky min-[1700px]:top-5 min-[1700px]:max-h-[calc(100vh-8rem)] min-[1700px]:self-start min-[1700px]:overflow-y-auto",
+            railOpen === null
+              ? "hidden min-[1700px]:flex"
+              : railOpen
+                ? "flex"
+                : "hidden",
           )}
         >
-          {/* Every readout from here down describes one point on the frontier
-            rather than the frontier, and nothing on the page used to say
-            which. The header names it once; the composition panels repeat it
-            in their own meta, because a reader who scrolls past this strip
-            would otherwise have no way to tell.
+          <PortfolioControls
+            settings={settings}
+            errors={errors}
+            onChange={setSettings}
+            onReset={() => setSettings(DEFAULT_SETTINGS)}
+            universe={{
+              requested: screened ? tickers.length : stocks.length,
+              indexSize: stocks.length,
+              screened,
+              solved: isBaseline ? null : (data.n_assets ?? null),
+              excluded: isBaseline ? [] : (data.excluded_short_history ?? []),
+            }}
+            dirty={dirty}
+            resolved={resolvedBounds}
+            cappedNote={
+              !isBaseline && data.resolution_capped
+                ? `Cut to ${data.n_portfolios} from ${data.n_portfolios_requested}: every point is its own solve over ${data.n_assets ?? 0} stocks.`
+                : undefined
+            }
+            methods={methods}
+            onMethodsChange={setMethods}
+            methodCoverage={methodCoverage}
+            heldCount={heldCount}
+          />
+        </div>
 
-            One strip, hairline-divided, rather than bordered tiles: a border
-            per reading is a border saying nothing, and this is the row a
-            reader scans left to right. Readings of equal standing, so figures
-            at one size — Sharpe used to be set two steps larger, which made
-            the row read as one headline with captions rather than as an
-            instrument panel.
+        {/* A container, so the results lay out by their own width — which
+            depends on whether the rail is open — not by the viewport's. */}
+        <div className="@container flex min-w-0 flex-col gap-4">
+          {error && (
+            <div className="flex flex-col gap-1 border border-destructive/40 bg-destructive/5 px-4 py-3">
+              <span className="text-xs font-semibold text-destructive">
+                Not optimised
+              </span>
+              <p className="text-sm text-destructive">{error}</p>
+              {/* Without this the red line sits directly above a perfectly
+                  plausible curve, and the curve is the thing people believe. */}
+              {showResults && (
+                <p className="text-xs text-muted-foreground">
+                  Everything below is the previous successful solve, not a
+                  result for these settings.
+                </p>
+              )}
+            </div>
+          )}
 
-            Effective holdings and largest position used to sit here and no
-            longer do. Both were properties of the weight vector rather than
-            readings of the portfolio: the ledger below states every position,
-            and the cap is already printed on the control that sets it. */}
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border border-border bg-card px-4 py-2">
-            <h2 className="text-xs font-semibold text-muted-foreground">
-              {activeLabel}
-            </h2>
-            <span className="font-mono text-xs text-muted-foreground">
-              {heldCount} {heldCount === 1 ? "position" : "positions"}
-            </span>
-          </div>
+          {showResults ? (
+            // While a new solve is in flight this is still the previous one,
+            // dimmed uniformly to mark it as about to be replaced.
+            <div
+              className={cn(
+                "flex flex-col gap-4 transition-opacity",
+                loading && "opacity-50",
+              )}
+            >
+              {/* Every readout from here down describes one point on the
+                  frontier, so the header names it once. One hairline-divided
+                  strip of readings at one size, scanned left to right. */}
+              <div className="flex flex-col">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border border-b-0 border-border bg-card px-4 py-2">
+                  <h2 className="text-xs font-semibold text-muted-foreground">
+                    {activeLabel}
+                  </h2>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {heldCount} {heldCount === 1 ? "position" : "positions"}
+                  </span>
+                </div>
 
-          <StatStrip className="border sm:grid-cols-3 xl:grid-cols-5">
-            <Stat
-              className={
-                market === undefined
-                  ? undefined
-                  : active.sharpe > market.sharpe
-                    ? "text-undervalued"
-                    : "text-overvalued"
-              }
-              label="Sharpe ratio"
-              value={active.sharpe.toFixed(2)}
-              hint={
-                market &&
-                `${formatSharpeDelta(active.sharpe - market.sharpe)} vs S&P Sharpe`
-              }
-            />
-            <Stat
-              className={
-                market === undefined
-                  ? undefined
-                  : active.return > market.return
-                    ? "text-undervalued"
-                    : "text-overvalued"
-              }
-              label="Expected return"
-              value={formatPercent(active.return)}
-              hint={
-                market &&
-                `${active.return - market.return >= 0 ? "+" : ""}${formatPercent(active.return - market.return)} vs S&P 500`
-              }
-            />
-            <Stat
-              className={
-                market === undefined
-                  ? undefined
-                  : active.volatility > market.volatility
-                    ? "text-overvalued"
-                    : "text-undervalued"
-              }
-              label="Expected volatility"
-              value={formatPercent(active.volatility)}
-              hint={
-                market &&
-                `${active.volatility - market.volatility >= 0 ? "+" : ""}${formatPercent(active.volatility - market.volatility)} vs S&P 500`
-              }
-            />
-            <Stat
-              label="T-bill (3M)"
-              value={formatPercent(data.risk_free_rate)}
-              hint="13-week T-bill"
-            />
-            {/* The one figure here that is not a property of the solve. The
-              optimiser reads risk and return off past prices and knows nothing
-              about what a company is worth; this is what the reverse-DCF models
-              say about the book it picked, weighted by position size. */}
-            <Stat
-              className={
-                consensus.ratedHoldings > 0
-                  ? gapTextClass(consensus.impliedAlpha)
-                  : undefined
-              }
-              label="Implied excess return, weighted"
-              value={
-                consensus.ratedHoldings > 0
-                  ? `${formatMargin(consensus.impliedAlpha).replace("%", "")} pp`
-                  : "—"
-              }
-              hint={
-                consensus.ratedHoldings > 0
-                  ? `implied − required, by position weight · ${formatAxisPercent(consensus.coverage)} of weight valued`
-                  : undefined
-              }
-            />
-          </StatStrip>
+                {/* The fifth reading spans the gap a 2- or 3-column wrap would leave. */}
+                <StatStrip className="border sm:grid-cols-3 xl:grid-cols-5 [&>*:last-child]:col-span-2 xl:[&>*:last-child]:col-span-1">
+                  <Stat
+                    className={
+                      market === undefined
+                        ? undefined
+                        : active.sharpe > market.sharpe
+                          ? "text-undervalued"
+                          : "text-overvalued"
+                    }
+                    label="Sharpe ratio"
+                    value={active.sharpe.toFixed(2)}
+                    hint={
+                      market &&
+                      `${formatSharpeDelta(active.sharpe - market.sharpe)} vs S&P 500`
+                    }
+                  />
+                  <Stat
+                    className={
+                      market === undefined
+                        ? undefined
+                        : active.return > market.return
+                          ? "text-undervalued"
+                          : "text-overvalued"
+                    }
+                    label="Expected return"
+                    value={formatPercent(active.return)}
+                    hint={market && `${formatPp(active.return - market.return)} vs S&P 500`}
+                  />
+                  <Stat
+                    className={
+                      market === undefined
+                        ? undefined
+                        : active.volatility > market.volatility
+                          ? "text-overvalued"
+                          : "text-undervalued"
+                    }
+                    label="Expected volatility"
+                    value={formatPercent(active.volatility)}
+                    hint={
+                      market &&
+                      `${formatPp(active.volatility - market.volatility)} vs S&P 500`
+                    }
+                  />
+                  <Stat
+                    label="T-bill (3M)"
+                    value={formatPercent(data.risk_free_rate)}
+                    hint={isBaseline ? "illustrative, not today's rate" : "13-week T-bill, the risk-free rate"}
+                  />
+                  {/* The one figure here that is not a property of the solve:
+                      what the reverse-DCF models say about the book it picked,
+                      weighted by position size. */}
+                  <Stat
+                    className={
+                      consensus.ratedHoldings > 0
+                        ? gapTextClass(consensus.impliedAlpha)
+                        : undefined
+                    }
+                    label="Implied excess return, weighted"
+                    value={
+                      consensus.ratedHoldings > 0
+                        ? formatPp(consensus.impliedAlpha)
+                        : DASH
+                    }
+                    hint={
+                      consensus.ratedHoldings > 0
+                        ? `implied − required, by position weight · ${formatAxisPercent(consensus.coverage)} of weight valued`
+                        : undefined
+                    }
+                  />
+                </StatStrip>
+              </div>
 
-          {/* The curve and the portfolios on it, side by side.
+              {/* The frontier is the hero: full width where the results are
+                  narrow, two thirds beside the list of its portfolios where
+                  they are wide. The list fills whatever height the chart sets. */}
+              <div className="grid gap-4 @5xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+                <FrontierChart
+                  data={data}
+                  isBaseline={isBaseline}
+                  selected={selected}
+                  onSelect={selectPortfolio}
+                />
 
-            The chart used to run full width with a two-row anchor table under
-            it, which named the two ends of the frontier and left the eight or
-            two hundred portfolios between them as unlabelled dots. Putting the
-            list against the chart makes the curve navigable: every point on it
-            has a row, the row says what it is worth, and clicking either one
-            moves the whole page onto it. Two thirds to the chart, because the
-            list is four narrow numeric columns and the chart is the thing
-            being read. */}
-          <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(19rem,1fr)]">
-            <FrontierChart
-              data={data}
-              isBaseline={isBaseline}
-              loading={loading}
-              solving={{
-                portfolios: Number(settings.portfolios) || 0,
-                // The screened set when there is one; otherwise whatever the
-                // last solve reported, which is the full index.
-                assets: tickers.length || data.n_assets || 0,
-                seconds: elapsed,
-              }}
-              selected={selected}
-              onSelect={selectPortfolio}
-            />
+                <PortfolioList
+                  data={data}
+                  selected={selected}
+                  onSelect={selectPortfolio}
+                  isBaseline={isBaseline}
+                />
+              </div>
 
-            <PortfolioList
-              data={data}
-              selected={selected}
-              onSelect={selectPortfolio}
-              isBaseline={isBaseline}
-            />
-          </div>
+              {/* Equal-height rows, so the column edges line up rather than
+                  leaving a ragged hole under the shorter panel. */}
+              <div className="grid gap-4 @3xl:grid-cols-2">
+                {Object.keys(sectors).length > 0 ? (
+                  <SectorExposure
+                    portfolio={active}
+                    sectors={sectors}
+                    scope={activeLabel}
+                  />
+                ) : (
+                  <Panel>
+                    <PanelHeader>
+                      <PanelTitle>Sector exposure</PanelTitle>
+                    </PanelHeader>
+                    <PanelBody>
+                      <p className="text-sm text-muted-foreground">
+                        {isBaseline
+                          ? "Run the optimisation to see the sector split."
+                          : "No sector labels on file for these holdings."}
+                      </p>
+                    </PanelBody>
+                  </Panel>
+                )}
 
-          {/* Two columns of stacked panels rather than a grid of rows. A row
-            grid aligns its cells at the top and leaves the shorter one
-            trailing dead space to the next row, which is what the page did,
-            with a 160px hole under every short panel. Distributing the panels
-            between two columns instead lets them be balanced by height, so
-            both columns end at about the same place. */}
-          <div className="grid items-start gap-4 xl:grid-cols-2">
-            <div className="flex min-w-0 flex-col gap-4">
-              <SharpeCurve data={data} isBaseline={isBaseline} />
-
-              {Object.keys(sectors).length > 0 ? (
-                <SectorExposure
+                <HoldingsChart
                   portfolio={active}
                   sectors={sectors}
                   scope={activeLabel}
                 />
-              ) : (
-                <Panel>
-                  <PanelHeader>
-                    <PanelTitle>Sector exposure</PanelTitle>
-                  </PanelHeader>
-                  <PanelBody>
-                    <p className="text-sm text-muted-foreground">
-                      {isBaseline
-                        ? "Run the optimisation to see the sector split."
-                        : "No sector labels on file for these holdings."}
-                    </p>
-                  </PanelBody>
-                </Panel>
-              )}
-            </div>
+              </div>
 
-            <div className="flex min-w-0 flex-col gap-4">
-              <HoldingsChart
-                portfolio={active}
-                sectors={sectors}
-                scope={activeLabel}
-              />
+              <div className="grid gap-4 @3xl:grid-cols-2">
+                <SharpeCurve data={data} isBaseline={isBaseline} />
+                <HoldingsTable
+                  portfolio={active}
+                  sectors={sectors}
+                  scope={activeLabel}
+                />
+              </div>
             </div>
-          </div>
-
-          <HoldingsTable
-            portfolio={active}
-            sectors={sectors}
-            scope={activeLabel}
-          />
+          ) : (
+            <Panel>
+              <PanelHeader>
+                <PanelTitle>Efficient frontier</PanelTitle>
+                <PanelMeta>
+                  {screened ? `${tickers.length} recognised tickers` : "Full S&P 500"}
+                </PanelMeta>
+              </PanelHeader>
+              <PanelBody className="flex min-h-72 flex-col items-start justify-center gap-2 py-10">
+                <p className="text-sm font-medium">
+                  {tooFew
+                    ? "Not enough stocks to optimise"
+                    : loading
+                      ? "Optimising…"
+                      : error
+                        ? "No frontier for this set"
+                        : "Not solved yet"}
+                </p>
+                <p className="max-w-prose text-sm text-muted-foreground">
+                  {tooFew
+                    ? `A mean–variance frontier needs at least ${MIN_FRONTIER_TICKERS} recognised tickers; this set has ${tickers.length}. Add names in the screener or to the URL.`
+                    : loading
+                      ? `${solving}. A solve usually takes five to twenty seconds.`
+                      : error
+                        ? "The optimiser refused the request (reason above). Nothing is plotted: the illustrative baseline is not a result for this set."
+                        : `Press Run optimisation to solve over these ${tickers.length} stocks.`}
+                </p>
+                {tooFew && (
+                  <Link href="/screener" className="text-sm underline underline-offset-4">
+                    Open the screener
+                  </Link>
+                )}
+              </PanelBody>
+            </Panel>
+          )}
         </div>
       </div>
     </div>

@@ -56,30 +56,41 @@ function holdingRows(
         ticker,
         sectors[ticker] ?? "",
         num(weight),
-        // Only the tangency portfolio is sent with a risk decomposition, so
-        // this is blank rather than zero for the other anchor. A zero would
-        // claim the holding contributes no variance.
+        // Blank rather than zero where a response carries no decomposition
+        // (the baseline): a zero would claim the holding adds no variance.
         num(portfolio.risk_contributions?.[ticker]),
       ])
     )
+}
+
+type ExportInput = {
+  data: FrontierResponse
+  isBaseline: boolean
+  /** Names handed over by the screener; 0 means the full index. */
+  screenedCount: number
+  /** When the exported solve was produced (epoch ms); null for the baseline. */
+  solvedAt?: number | null
+  /**
+   * The frontier point the page was describing, when it is neither anchor —
+   * otherwise the file would carry everything except what the reader chose.
+   */
+  selected?: { label: string; portfolio: Portfolio }
 }
 
 export function buildPortfolioCsv({
   data,
   isBaseline,
   screenedCount,
-}: {
-  data: FrontierResponse
-  isBaseline: boolean
-  /** Names handed over by the screener; 0 means the full index. */
-  screenedCount: number
-}): string {
+  solvedAt = null,
+  selected,
+}: ExportInput): string {
   const sectors = data.sectors ?? {}
 
   const run = [
     row(["field", "value"]),
     row(["source", isBaseline ? "illustrative baseline" : "live solve"]),
     row(["generated_at", new Date().toISOString()]),
+    row(["solved_at", solvedAt === null ? "" : new Date(solvedAt).toISOString()]),
     row(["scope", screenedCount > 0 ? "screened set" : "full index"]),
     row(["names_requested", screenedCount > 0 ? screenedCount : ""]),
     row(["names_solved", data.n_assets ?? ""]),
@@ -104,12 +115,11 @@ export function buildPortfolioCsv({
       "effective_holdings",
       "holdings",
     ]),
-    ...(
-      [
-        ["max_sharpe", data.max_sharpe],
-        ["min_volatility", data.min_volatility],
-      ] as const
-    ).map(([label, portfolio]) =>
+    ...[
+      ["max_sharpe", data.max_sharpe] as const,
+      ["min_volatility", data.min_volatility] as const,
+      ...(selected ? [[selected.label, selected.portfolio] as const] : []),
+    ].map(([label, portfolio]) =>
       row([
         label,
         num(portfolio.return),
@@ -125,6 +135,7 @@ export function buildPortfolioCsv({
     row(["portfolio", "ticker", "sector", "weight", "risk_contribution"]),
     ...holdingRows("max_sharpe", data.max_sharpe, sectors),
     ...holdingRows("min_volatility", data.min_volatility, sectors),
+    ...(selected ? holdingRows(selected.label, selected.portfolio, sectors) : []),
   ]
 
   // The frontier itself: every solved point, so the curve on screen can be
@@ -149,11 +160,7 @@ export function buildPortfolioCsv({
   ].join("\n\n")
 }
 
-export function downloadPortfolioCsv(input: {
-  data: FrontierResponse
-  isBaseline: boolean
-  screenedCount: number
-}): void {
+export function downloadPortfolioCsv(input: ExportInput): void {
   const blob = new Blob([buildPortfolioCsv(input)], {
     type: "text/csv;charset=utf-8",
   })
@@ -162,5 +169,6 @@ export function downloadPortfolioCsv(input: {
   anchor.href = url
   anchor.download = `value-investing-dash-portfolio-${new Date().toISOString().slice(0, 10)}.csv`
   anchor.click()
-  URL.revokeObjectURL(url)
+  // Revoked after the click has been handled: Safari cancels a download whose URL dies first.
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

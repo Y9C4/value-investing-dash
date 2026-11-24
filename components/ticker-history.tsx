@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceDot,
   XAxis,
   YAxis,
 } from "recharts"
@@ -23,6 +24,7 @@ import {
   PanelTitle,
   Stat,
 } from "@/components/ui/panel"
+import { formatPct, formatSignedPct } from "@/lib/format"
 
 type Candle = {
   date: string
@@ -54,26 +56,85 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
+/** A trading date, "YYYY-MM-DD". Read as UTC so no reader's timezone moves it a day. */
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
+  return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
   })
 }
 
-function formatPrice(value: number) {
+/** "Nov 23, 2026", for the summary a screen reader hears. */
+function formatLongDate(iso: string) {
+  return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  })
+}
+
+function formatPrice(value: number, digits = 2) {
   return value.toLocaleString("en-US", {
     style: "currency",
     currency: "USD",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   })
 }
 
-function formatReturn(value: number) {
-  return value.toLocaleString("en-US", {
-    style: "percent",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
+/**
+ * Round price ticks (steps of 1, 2, 2.5 or 5 × 10ⁿ) and the domain they span.
+ * Recharts' own ticks on a padded domain land on values like $66.26.
+ */
+function niceTicks(low: number, high: number, target = 5) {
+  const raw = (high - low || Math.abs(high) || 1) / target
+  const magnitude = 10 ** Math.floor(Math.log10(raw))
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((s) => s >= raw)!
+  const ticks: number[] = []
+  // Up to the first tick at or above the high, and never fewer than two (a flat series).
+  for (let t = Math.floor(low / step) * step; ; t += step) {
+    // Float error would otherwise print $72.49999.
+    ticks.push(Number(t.toFixed(6)))
+    if (t >= high && ticks.length > 1) break
+  }
+  return { ticks, digits: Number.isInteger(step) ? 0 : 2 }
+}
+
+/**
+ * One tick per month start, thinned to at most `count`, labelled with the
+ * month and, on the first tick and wherever the year turns, the year.
+ */
+function monthTicks(dates: string[], count: number) {
+  const starts = dates.filter((d, i) => i > 0 && d.slice(0, 7) !== dates[i - 1].slice(0, 7))
+  const every = Math.max(1, Math.ceil(starts.length / count))
+  const ticks = starts.filter((_, i) => i % every === 0)
+  const labels = new Map(
+    ticks.map((d, i) => {
+      const month = new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", {
+        month: "short",
+        timeZone: "UTC",
+      })
+      const newYear = i === 0 || d.slice(0, 4) !== ticks[i - 1].slice(0, 4)
+      return [d, newYear ? `${month} ${d.slice(0, 4)}` : month]
+    })
+  )
+  return { ticks, labels }
+}
+
+// Fewer date ticks on a phone, where six "Mmm YYYY" labels would collide.
+const wideQuery = "(min-width: 640px)"
+function useWide() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const query = window.matchMedia(wideQuery)
+      query.addEventListener("change", onChange)
+      return () => query.removeEventListener("change", onChange)
+    },
+    () => window.matchMedia(wideQuery).matches,
+    () => true
+  )
 }
 
 /**
@@ -107,13 +168,16 @@ export function useTickerReturns(requested: string) {
     async function load(symbol: string) {
       setLoading(true)
       setError(null)
+      // The last ticker's chart must not stand in for this one while it loads.
+      setData(null)
 
       try {
         const res = await fetch(
           `/api/close-history/${encodeURIComponent(symbol)}`,
           { signal: controller.signal }
         )
-        const body = await res.json()
+        // An error page may not be JSON; the status decides, the body only explains.
+        const body = await res.json().catch(() => null)
 
         if (!res.ok) {
           throw new Error(
@@ -148,61 +212,123 @@ export function useTickerReturns(requested: string) {
  * instead of on this axis.
  */
 export function PriceChartCard({ data }: { data: ReturnsResponse }) {
+  const wide = useWide()
   const chartData = data.candles.map((candle) => ({
-    date: candle.date,
+    date: candle.date.slice(0, 10),
     close: candle.close,
   }))
 
   const closes = chartData.map((point) => point.close)
   const low = Math.min(...closes)
   const high = Math.max(...closes)
-  const pad = (high - low) * 0.04
+  const y = niceTicks(low, high)
+  const x = monthTicks(
+    chartData.map((point) => point.date),
+    wide ? 6 : 3
+  )
+  const first = chartData[0]
+  const last = chartData[chartData.length - 1]
+  const change = last.close / first.close - 1
+  const summary =
+    `${data.ticker} daily closes from ${formatLongDate(first.date)} to ${formatLongDate(last.date)}: ` +
+    `${formatPrice(first.close)} to ${formatPrice(last.close)}, ${formatSignedPct(change)}; ` +
+    `low ${formatPrice(low)}, high ${formatPrice(high)}.`
 
   return (
     <Panel>
       <PanelHeader>
         <PanelTitle>{data.ticker} · price, 1 year</PanelTitle>
+        <PanelMeta>
+          {formatSignedPct(change)} over {chartData.length} sessions to {formatLongDate(last.date)}
+        </PanelMeta>
       </PanelHeader>
       <PanelBody>
-        <ChartContainer config={chartConfig} className="h-96 w-full">
-          <LineChart data={chartData} margin={{ left: 8, right: 44, top: 8 }}>
-            <CartesianGrid vertical={false} stroke="var(--color-grid)" />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tickFormatter={formatDate}
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              domain={[low - pad, high + pad]}
-              tickFormatter={(value) => formatPrice(value)}
-              width={72}
-            />
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(value) => formatDate(String(value))}
-                  formatter={(value) => formatPrice(Number(value))}
-                />
-              }
-            />
+        <figure className="relative">
+          <figcaption className="sr-only">{summary}</figcaption>
+          <ChartContainer config={chartConfig} className="h-72 w-full sm:h-96">
+            {/* The right margin is the room the last-price label needs. */}
+            <LineChart data={chartData} margin={{ left: 0, right: 8 + 7 * formatPrice(last.close).length, top: 8 }}>
+              <CartesianGrid vertical={false} stroke="var(--color-grid)" />
+              <XAxis
+                dataKey="date"
+                ticks={x.ticks}
+                interval={0}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tickFormatter={(value) => x.labels.get(String(value)) ?? formatDate(String(value))}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                domain={[y.ticks[0], y.ticks[y.ticks.length - 1]]}
+                ticks={y.ticks}
+                tickFormatter={(value) => formatPrice(Number(value), y.digits)}
+                width={16 + 8 * formatPrice(y.ticks[y.ticks.length - 1], y.digits).length}
+              />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(value) => formatLongDate(String(value))}
+                    formatter={(value) => formatPrice(Number(value))}
+                  />
+                }
+              />
 
-            <Line
-              dataKey="close"
-              type="monotone"
-              stroke="var(--color-close)"
-              strokeWidth={2}
-              dot={false}
-            />
-          </LineChart>
-        </ChartContainer>
+              {/* Linear, not monotone: a smoothed curve overshoots daily closes. */}
+              <Line
+                dataKey="close"
+                type="linear"
+                stroke="var(--color-close)"
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
+              <ReferenceDot
+                x={last.date}
+                y={last.close}
+                r={4}
+                fill="var(--color-close)"
+                stroke="var(--card)"
+                strokeWidth={2}
+                label={{
+                  value: formatPrice(last.close),
+                  position: "right",
+                  offset: 8,
+                  fill: "var(--foreground)",
+                  fontSize: 12,
+                }}
+              />
+            </LineChart>
+          </ChartContainer>
+        </figure>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Daily closes, split-adjusted; dividends are not added back.
+        </p>
       </PanelBody>
     </Panel>
   )
+}
+
+/**
+ * The chart for a stock whose closes were not in the warehouse at render
+ * time: fetched from the route, which falls back to the market data service.
+ */
+export function PriceChartLoader({ ticker }: { ticker: string }) {
+  const { data, loading, error } = useTickerReturns(ticker)
+  if (error) {
+    return (
+      <div className="border border-border bg-card px-4 py-3">
+        <p className="text-sm text-destructive">{error}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Only the price chart is affected: everything else on this page is precomputed.
+        </p>
+      </div>
+    )
+  }
+  if (loading || !data) return <div className="h-[21rem] animate-pulse border border-border bg-card" />
+  return data.candles.length > 0 ? <PriceChartCard data={data} /> : null
 }
 
 /**
@@ -237,20 +363,31 @@ export function KeyStatisticsCard({
       </PanelHeader>
       <PanelBody>
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
-          <Stat label="Beta" value={beta?.toFixed(3) ?? "—"} />
           <Stat
-            label="T-bill (3M)"
-            value={riskFreeRate === null ? "—" : formatReturn(riskFreeRate)}
+            label="Beta"
+            value={beta?.toFixed(2) ?? "—"}
+            hint="against the market, shrunk (Levi & Welch)"
+          />
+          <Stat
+            label="Risk-free rate, 3-month T-bill"
+            value={formatPct(riskFreeRate)}
+            hint="252-day average: the cash rate over this window, and the optimiser's Sharpe ratios"
           />
           <Stat
             label="Realised return"
-            value={realisedReturn === null ? "—" : formatReturn(realisedReturn)}
+            value={formatSignedPct(realisedReturn)}
+            hint="log, annualised: mean daily log return × 252"
           />
           <Stat
             label="Market return"
-            value={marketReturn === null ? "—" : formatReturn(marketReturn)}
+            value={formatSignedPct(marketReturn)}
+            hint="S&P 500, log, annualised, same window"
           />
         </div>
+        <p className="mt-3 border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
+          Required returns use the 10-year Treasury instead, the horizon a
+          DCF discounts over (see Required return and risk inputs).
+        </p>
       </PanelBody>
     </Panel>
   )

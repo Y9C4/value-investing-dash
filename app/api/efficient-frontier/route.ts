@@ -2,6 +2,7 @@ import { MARKET_DATA_API_URL, originHeaders } from "@/lib/market-data-service"
 import { DEFAULT_PORTFOLIOS } from "@/lib/portfolio-settings"
 import { checkRateLimit, clientKey } from "@/lib/rate-limit"
 import { selectRows } from "@/lib/supabase"
+import { VALUATIONS_CACHE_TAG } from "@/lib/universe"
 
 export const maxDuration = 300
 
@@ -170,7 +171,7 @@ async function readDefaultSnapshot(): Promise<Record<string, unknown> | null> {
   const rows = await selectRows<{ payload: Record<string, unknown> }>(
     "frontier_snapshot",
     `select=payload&cache_key=eq.${DEFAULT_SNAPSHOT_KEY}&limit=1`,
-    { revalidate: SNAPSHOT_REVALIDATE_SECONDS }
+    { revalidate: SNAPSHOT_REVALIDATE_SECONDS, tags: [VALUATIONS_CACHE_TAG] }
   )
 
   const payload = rows?.[0]?.payload

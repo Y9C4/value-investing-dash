@@ -28,6 +28,16 @@ per-sector) and not just sizes, and why a green sweep means something.
 
 Both servers must already be up (`pnpm dev` on :3000, `uvicorn` on :8000).
 
+The app rate-limits solves (10 a minute, 60 an hour per caller; `lib/rate-limit.ts`),
+and a sweep makes more than that, so most cases then fail with HTTP 429. Run it
+against a server started with the limits raised, e.g. a production build:
+
+```bash
+pnpm build && RATE_LIMIT_SOLVES_PER_MINUTE=10000 RATE_LIMIT_SOLVES_PER_HOUR=100000 npx next start -p 3100 &
+set -a; . ./.env.local; set +a   # the sweep reads public.screener with the publishable key
+WEB_URL=http://localhost:3100 node .claude/skills/test-portfolio-optimizer/sweep.mjs --quick
+```
+
 ```bash
 node .claude/skills/test-portfolio-optimizer/sweep.mjs --quick          # ~1 min, 12 cases
 node .claude/skills/test-portfolio-optimizer/sweep.mjs                  # full matrix, ~5 min

@@ -7,7 +7,8 @@ import type { TooltipValueType } from "recharts"
 import { cn } from "@/lib/utils"
 
 // Format: { THEME_NAME: CSS_SELECTOR }
-const THEMES = { light: "", dark: ".dark" } as const
+// This app themes on `data-theme` (dark unless "light"), not a `.dark` class.
+const THEMES = { light: "", dark: ":root:not([data-theme=\"light\"])" } as const
 
 const INITIAL_DIMENSION = { width: 320, height: 200 } as const
 type TooltipNameType = number | string

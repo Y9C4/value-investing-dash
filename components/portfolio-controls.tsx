@@ -2,7 +2,7 @@
 
 import { RiCloseLine } from "@remixicon/react"
 
-import { MethodToggle } from "@/components/screener-filters"
+import { Info } from "@/components/info"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -45,7 +45,7 @@ function ControlGroup({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-border px-6 py-4 last:border-b-0">
+    <div className="flex flex-col gap-3 bg-card px-6 py-4">
       <span className="text-xs font-semibold text-muted-foreground">
         {label}
       </span>
@@ -104,7 +104,7 @@ function SliderField({
         step={step}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full accent-primary"
+        className="w-full accent-foreground"
       />
       {(minLabel ?? maxLabel) && (
         <span className="flex justify-between font-mono text-xs text-muted-foreground tabular-nums">
@@ -121,14 +121,9 @@ function SliderField({
  * and letter-spaced, so a side-by-side row either wraps them onto two lines or
  * runs them into the field; both of which happened before this stacked.
  *
- * `auto` is the interesting part. Blank means the solver picks the bound, and
- * the field used to say so with the literal word "auto" — which told the
- * reader that a number existed without telling them what it was. The value the
- * last solve actually used is the placeholder instead, with a small "auto" tag
- * on the label saying where it came from, so a blank field reads as "3.00%,
- * chosen for you" rather than as a hole. It was previously legible only in the
- * constraints panel below, which is a strange place to keep the current value
- * of a control.
+ * Blank means the solver picks the bound. Once a solve has resolved it, that
+ * value is the placeholder and an "auto" tag on the label says where it came
+ * from; before then the placeholder alone says "auto". Never both at once.
  */
 function NumberField({
   id,
@@ -145,7 +140,7 @@ function NumberField({
   /** What the last solve resolved this bound to when it was left blank. */
   resolved?: string
 }) {
-  const isAuto = String(props.value ?? "").trim() === ""
+  const showsResolved = resolved !== undefined && String(props.value ?? "").trim() === ""
 
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
@@ -154,8 +149,8 @@ function NumberField({
         className="flex items-baseline justify-between gap-2 text-muted-foreground"
       >
         {label}
-        {isAuto && (
-          <span className="text-xs normal-case">
+        {showsResolved && (
+          <span className="text-xs font-normal normal-case">
             auto
           </span>
         )}
@@ -180,56 +175,67 @@ function NumberField({
   )
 }
 
-/** A square switch, matching the filled-square "on" mark the screener uses. */
+/**
+ * A square switch, matching the filled-square "on" mark the screener uses.
+ *
+ * Ink, not gold: gold is kept for the Run button and the current selection,
+ * and a rail of gold tiles made every switch look like the primary action.
+ * The info trigger is a sibling of the switch, never nested inside it.
+ */
 function ToggleRow({
   checked,
   onChange,
   label,
   note,
+  info,
 }: {
   checked: boolean
   onChange: (next: boolean) => void
   label: string
   note?: string
+  info?: React.ReactNode
 }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
+    <div
       className={cn(
-        "flex w-full items-start gap-2.5 border px-3 py-2.5 text-left transition-colors",
-        checked
-          ? "border-primary bg-primary/10"
-          : "border-border hover:border-ring"
+        "flex items-start border transition-colors",
+        checked ? "border-foreground/40" : "border-border hover:border-ring"
       )}
     >
-      <span
-        className={cn(
-          "mt-0.5 size-2.5 shrink-0 border",
-          checked
-            ? "border-primary bg-primary"
-            : "border-muted-foreground/50 bg-transparent"
-        )}
-        aria-hidden="true"
-      />
-      <span className="flex min-w-0 flex-col gap-0.5">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className="flex min-w-0 flex-1 items-start gap-2.5 px-3 py-2.5 text-left"
+      >
         <span
           className={cn(
-            "text-xs font-semibold",
-            checked ? "text-foreground" : "text-muted-foreground"
+            "mt-0.5 size-2.5 shrink-0 border",
+            checked
+              ? "border-foreground bg-foreground"
+              : "border-muted-foreground/50 bg-transparent"
           )}
-        >
-          {label}
-        </span>
-        {note && (
-          <span className="text-xs leading-snug text-muted-foreground">
-            {note}
+          aria-hidden="true"
+        />
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span
+            className={cn(
+              "text-xs font-semibold",
+              checked ? "text-foreground" : "text-muted-foreground"
+            )}
+          >
+            {label}
           </span>
-        )}
-      </span>
-    </button>
+          {note && (
+            <span className="text-xs leading-snug text-muted-foreground">
+              {note}
+            </span>
+          )}
+        </span>
+      </button>
+      {info && <span className="flex py-2.5 pr-2.5">{info}</span>}
+    </div>
   )
 }
 
@@ -238,37 +244,49 @@ export function PortfolioControls({
   errors,
   onChange,
   onReset,
-  universeSize,
-  indexSize,
+  universe,
   dirty,
   resolved,
+  cappedNote,
   methods,
   onMethodsChange,
   methodCoverage,
-  ratedHoldings,
+  heldCount,
 }: {
   settings: PortfolioSettings
   errors: SettingsErrors
   onChange: (next: PortfolioSettings) => void
   onReset: () => void
-  /** Screened stock count; 0 means the full index. */
-  universeSize: number
-  /** Stocks in the index, for the "N / total" readout. */
-  indexSize: number
+  /**
+   * What the solve is over, in one place: how many were asked for, out of how
+   * many, how many the solver kept and which it dropped.
+   */
+  universe: {
+    /** Recognised tickers asked for; the index size for a full-index solve. */
+    requested: number
+    /** Stocks in the index, for the "N / total" readout. */
+    indexSize: number
+    screened: boolean
+    /** Stocks the displayed solve ran over; null while it is the baseline. */
+    solved: number | null
+    excluded: string[]
+  }
   /** These settings have not been solved yet. */
   dirty: boolean
+  /**
+   * What the last solve resolved the blank position bounds to, as percentages
+   * ready to print. Absent before anything has been solved.
+   */
+  resolved: { minWeight?: string; maxWeight?: string }
+  /** Set when the service solved fewer frontier points than asked for. */
+  cappedNote?: string
   /** Models the implied excess return averages. Empty means all of them. */
   methods: MethodId[]
   onMethodsChange: (next: MethodId[]) => void
   /** How many of the held names each model could value. */
   methodCoverage: Record<MethodId, number>
   /** Holdings in the portfolio on screen, the denominator for the above. */
-  ratedHoldings: number
-  /**
-   * What the last solve resolved the blank position bounds to, as percentages
-   * ready to print. Absent before anything has been solved.
-   */
-  resolved: { minWeight?: string; maxWeight?: string }
+  heldCount: number
 }) {
   const set = <K extends keyof PortfolioSettings>(
     key: K,
@@ -277,9 +295,12 @@ export function PortfolioControls({
 
   const gamma = Number(settings.gamma) || 0
   const portfolios = Number(settings.portfolios) || 0
+  const { requested, indexSize, screened, solved, excluded } = universe
 
   return (
-    <div className="flex flex-col border border-border bg-card">
+    // A container, so the same groups stack in the 20rem rail and spread into
+    // columns when the settings open as a section above the results.
+    <div className="@container flex flex-col border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <span className="font-heading text-sm font-semibold">
           Optimiser settings
@@ -290,26 +311,42 @@ export function PortfolioControls({
         </Button>
       </div>
 
-      {/* What the solve is over. The screener's rail leads with the number its
-          controls exist to move; here that number is fixed by the set handed
-          over, and stating it is what keeps a scoped optimisation from looking
-          like an index-wide one. */}
-      <div className="flex flex-col gap-1 border-b border-border px-6 py-4">
+      {/* What the solve is over, stated once: asked for, out of how many, and
+          how many the solver actually kept. These used to be split between
+          this header ("503 / 503") and a separate "Solved with" panel
+          ("Universe 492") with the exclusions under it. */}
+      <div className="flex flex-col gap-1.5 border-b border-border px-6 py-4">
         <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="text-3xl font-semibold tabular-nums">
-            {universeSize > 0 ? universeSize : indexSize}
-          </span>
+          <span className="text-3xl font-semibold tabular-nums">{requested}</span>
           <span className="text-sm text-muted-foreground">
-            / {indexSize} stocks
+            {screened
+              ? `screened of ${indexSize} stocks`
+              : `/ ${indexSize} stocks · full S&P 500`}
           </span>
         </p>
+        {solved !== null && (
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            <span className="font-mono text-foreground tabular-nums">
+              {solved} of {requested}
+            </span>{" "}
+            solved
+            {excluded.length > 0 && (
+              <>
+                {" "}
+                · {excluded.length} excluded for short price history:{" "}
+                <span className="font-mono">{excluded.join(", ")}</span>
+              </>
+            )}
+          </p>
+        )}
         {dirty && (
           <span className="text-xs text-status-warning">
-            Settings changed
+            Settings changed since this solve · run to apply
           </span>
         )}
       </div>
 
+      <div className="grid gap-px bg-border @2xl:grid-cols-2 @5xl:grid-cols-4">
       <ControlGroup label="Position size">
         <div className="grid grid-cols-2 gap-4">
           <NumberField
@@ -373,28 +410,32 @@ export function PortfolioControls({
         {errors.portfolios && (
           <span className="text-xs text-destructive">{errors.portfolios}</span>
         )}
+        {cappedNote && (
+          <span className="text-xs leading-snug text-muted-foreground">
+            {cappedNote}
+          </span>
+        )}
       </ControlGroup>
 
       {/* The only group here that is not a solver input. Everything above
           changes which portfolios exist and needs a re-run to take effect;
           this changes what the models say about the one on screen, and lands
-          immediately — which is why it says so, and why it sits at the bottom
-          rather than among the dials that do need the button. */}
+          immediately — which is why it sits last, apart from the dials that
+          need the button. */}
       <ControlGroup label="Valuation models">
         <span className="text-xs leading-snug text-muted-foreground">
           Which reverse-DCF models the weighted implied excess return
-          averages: the return each says the holdings&apos; prices imply,
-          against the return their risk requires.
+          averages. Applies at once; no re-run needed.
         </span>
         <div className="flex flex-col gap-1.5">
           {VALUATION_METHODS.map((method) => (
-            <MethodToggle
+            <ToggleRow
               key={method.id}
-              method={method}
-              active={methods.length === 0 || methods.includes(method.id)}
-              coverage={methodCoverage[method.id] ?? 0}
-              total={ratedHoldings}
-              onClick={() => {
+              label={method.label}
+              note={`Solves for ${methodCoverage[method.id] ?? 0} of ${heldCount} holdings`}
+              info={<Info title={method.full}>{method.blurb}</Info>}
+              checked={methods.length === 0 || methods.includes(method.id)}
+              onChange={() => {
                 // An empty selection means "all", so the first click has to
                 // materialise that into a real list minus the one just turned
                 // off, or nothing would appear to happen.
@@ -403,8 +444,8 @@ export function PortfolioControls({
                     ? VALUATION_METHODS.map((m) => m.id)
                     : methods
                 const next = current.includes(method.id)
-                    ? current.filter((id) => id !== method.id)
-                    : [...current, method.id]
+                  ? current.filter((id) => id !== method.id)
+                  : [...current, method.id]
                 // Switching the last one off would leave nothing to average.
                 if (next.length === 0) return
                 onMethodsChange(next)
@@ -413,6 +454,7 @@ export function PortfolioControls({
           ))}
         </div>
       </ControlGroup>
+      </div>
     </div>
   )
 }

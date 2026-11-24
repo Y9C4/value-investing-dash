@@ -1,6 +1,9 @@
 import Image from "next/image"
 import { RiGithubFill, RiLinkedinBoxFill, RiMailLine } from "@remixicon/react"
 
+import Link from "next/link"
+
+import { DEVELOPMENT_SPAN, EVIDENCE, HOLDOUT_SPAN } from "@/lib/evidence"
 import { SIGNAL_COMPONENTS, SIGNAL_EVIDENCE } from "@/lib/signals"
 import { GRAHAM_NOTE } from "@/lib/screen"
 
@@ -9,15 +12,6 @@ export const metadata = {
   description:
     "How Value Investing Dash values the S&P 500: reverse DCF, the momentum and earnings-surprise factors, the backtest behind them, and every assumption with its source.",
 }
-
-/** Development-period results, backtests.md §13 (run of 2026-11-23). */
-const SIGNAL_RESULTS = [
-  { signal: "Value + momentum composite", ic: "0.054", t: "1.92", spread: "0.8%", coverage: "96%" },
-  { signal: "Momentum + earnings surprise composite", ic: "0.035", t: "1.47", spread: "0.8%", coverage: "97%" },
-  { signal: "Value", ic: "0.032", t: "1.18", spread: "0.3%", coverage: "96%" },
-  { signal: "Momentum (12–1)", ic: "0.029", t: "1.18", spread: "0.5%", coverage: "99%" },
-  { signal: "Earnings surprise", ic: "0.024", t: "1.45", spread: "0.2%", coverage: "97%" },
-]
 
 /** Test 2: each reverse-DCF model against the plain ratio built on the same figures. */
 const MODEL_VS_RATIO = [
@@ -54,6 +48,17 @@ const JUDGEMENT_CALLS = [
   "A sector median (the margin the revenue model fades to, the ROE residual income fades to) needs at least 5 peers.",
 ]
 
+/** The page's sections, for the contents list. */
+const SECTIONS = [
+  ["value", "Value: reverse DCF"],
+  ["factors", "Momentum and earnings surprise"],
+  ["evidence", "The evidence"],
+  ["assumptions", "Every assumption, and its source"],
+  ["build", "How it is built"],
+  ["glossary", "Glossary"],
+  ["about", "About"],
+] as const
+
 const GLOSSARY = [
   ["Reverse DCF", "Solving a discounted cash flow model for the discount rate that makes it equal today's price, rather than discounting at an assumed rate to get a fair value."],
   ["Implied return", "That discount rate: what buying at today's price earns if the cash flows arrive as modelled."],
@@ -63,8 +68,14 @@ const GLOSSARY = [
   ["Percentile", "The share of the index at or below a stock. 100 is the top."],
   ["Rank IC", "The correlation between this month's ranking and next month's returns, by rank. 0.05 is useful in practice; 0 is noise."],
   ["t-stat", "How many standard errors the mean IC is from zero. About 2 is the usual bar for significance."],
-  ["Q5 − Q1", "The monthly return of the top quintile minus the bottom quintile."],
-  ["12-1 momentum", "The return from twelve months ago to one month ago."],
+  ["Implied excess return", "Implied return minus required return, in percentage points (pp) a year. The value factor ranks on it."],
+  ["pp", "Percentage points: the difference between two percentages (6.7% − 9.4% = −2.7 pp)."],
+  ["Composite", "The equal-weight average of the selected factor percentiles, re-ranked 0–100 so its quintiles hold equal numbers of stocks."],
+  ["Quintile", "One fifth of the index by a ranking. Value Q5 is the cheapest fifth; composite Q5 the highest-ranked fifth."],
+  ["Factor-adjusted return", "A stock's excess return minus what its Fama–French five-factor betas predicted from that month's factor returns. The backtest's target."],
+  ["Q5 − Q1", "The equal-weight factor-adjusted return of the top quintile minus the bottom quintile, per month."],
+  ["Holdout", "Months kept untouched while the specification was designed, then tested once. The out-of-sample result."],
+  ["12–1 momentum", "The return from twelve months ago to one month ago."],
 ] as const
 
 const LINKS = [
@@ -76,6 +87,16 @@ const LINKS = [
 export default function MethodologyPage() {
   return (
     <article className="mx-auto max-w-3xl px-6 py-10 text-sm leading-relaxed lg:px-10 [&_h2]:mt-12 [&_h2]:mb-3 [&_h2]:font-heading [&_h2]:text-xl [&_h3]:mt-6 [&_h3]:mb-1 [&_h3]:font-semibold [&_li]:mb-1.5 [&_p]:mb-4 [&_table]:mb-4 [&_table]:w-full [&_table]:border-collapse [&_td]:border-b [&_td]:border-border [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top [&_th]:border-b [&_th]:border-border [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-muted-foreground [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-5">
+      <nav aria-label="On this page" className="mb-8 border-l border-border pl-4 text-xs">
+        <p className="mb-1.5 font-semibold tracking-wider text-muted-foreground uppercase">On this page</p>
+        <ol className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:gap-x-5">
+          {SECTIONS.map(([id, title]) => (
+            <li key={id}>
+              <a href={`#${id}`} className="text-muted-foreground hover:text-foreground">{title}</a>
+            </li>
+          ))}
+        </ol>
+      </nav>
       <p className="font-heading text-2xl leading-snug">
         Value Investing Dash asks one question of every S&amp;P 500 stock: what
         return does today&rsquo;s price imply, and is that more or less than
@@ -89,7 +110,7 @@ export default function MethodologyPage() {
         number is recomputed after each trading day.
       </p>
 
-      <h2>Value: reverse DCF</h2>
+      <h2 id="value" className="scroll-mt-20">Value: reverse DCF</h2>
       <p>
         A conventional DCF assumes a discount rate and produces a fair value.
         Small changes to that rate swing the answer wildly: a lumpy cash flow
@@ -112,7 +133,7 @@ export default function MethodologyPage() {
       <p>
         The screener shows value as a percentile, 0–100 across the index, and
         sorts it into quintiles with breakpoints recomputed at every refresh
-        (Fama &amp; French 1992). &ldquo;Value quintile 5&rdquo; means exactly
+        (Fama &amp; French 1992). &ldquo;Value Q5 · cheapest&rdquo; means exactly
         that: the cheapest 20% against the rest of the index, not below some
         intrinsic worth. The stock page
         also solves the same FCFF model for growth, holding the return at
@@ -120,7 +141,7 @@ export default function MethodologyPage() {
         the company has actually delivered.
       </p>
 
-      <h2>Momentum and earnings surprise</h2>
+      <h2 id="factors" className="scroll-mt-20">Momentum and earnings surprise</h2>
       <p>
         Cheap stocks are often cheap for a reason. The two further factors ask
         whether anything is changing. Combining value with momentum is one of
@@ -146,30 +167,37 @@ export default function MethodologyPage() {
         hold equal numbers of stocks.
       </p>
 
-      <h2>The evidence</h2>
+      <h2 id="evidence" className="scroll-mt-20">The evidence</h2>
       <p>
         Every signal was backtested month by month on the S&amp;P 500, using
         only statements that were public at the time, against next-month
         returns adjusted for the five Fama-French factors.
       </p>
-      <h3>Signal quality, development period</h3>
+      <h3>Signal quality: development and holdout</h3>
       <table>
         <thead>
-          <tr><th>Signal</th><th className="text-right">Rank IC</th><th className="text-right">t-stat</th><th className="text-right">Q5 − Q1 / month</th><th className="text-right">Coverage</th></tr>
+          <tr>
+            <th>Strategy or factor</th>
+            <th className="text-right">IC, development</th>
+            <th className="text-right">IC, holdout</th>
+            <th className="text-right">Q5 − Q1 / month, holdout</th>
+          </tr>
         </thead>
         <tbody>
-          {SIGNAL_RESULTS.map((r) => (
-            <tr key={r.signal}>
-              <td>{r.signal}</td>
-              <td className="text-right font-mono">{r.ic}</td>
-              <td className="text-right font-mono">{r.t}</td>
-              <td className="text-right font-mono">{r.spread}</td>
-              <td className="text-right font-mono">{r.coverage}</td>
+          {EVIDENCE.signals.map((r) => (
+            <tr key={r.id}>
+              <td>{r.label}</td>
+              <td className="text-right font-mono">{r.development.ic.toFixed(3)} <span className="text-muted-foreground">(t {r.development.t.toFixed(2)})</span></td>
+              <td className="text-right font-mono">{r.holdout.ic.toFixed(3)} <span className="text-muted-foreground">(t {r.holdout.t.toFixed(2)})</span></td>
+              <td className="text-right font-mono">{(r.holdout.spread * 100).toFixed(2)}%</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="text-xs text-muted-foreground">{SIGNAL_EVIDENCE}</p>
+      <p className="text-xs text-muted-foreground">
+        {SIGNAL_EVIDENCE} Charts, the full table and the notebooks are on{" "}
+        <Link href="/research" className="underline underline-offset-2 hover:text-foreground">Backtest evidence</Link>.
+      </p>
 
       <h3>Does the model beat the plain ratio?</h3>
       <p>
@@ -193,21 +221,24 @@ export default function MethodologyPage() {
         </tbody>
       </table>
       <p>
-        Every model beat its ratio, which is why the ratios appear on the site
-        as context rather than as the ranking. A fifth model, sector-relative
+        Every model had a higher mean IC than its ratio, which is why the
+        ratios appear on the site as context rather than as the ranking. None
+        of the differences is statistically significant (t ≤ 1.6), and three of
+        the five models beat their ratio in fewer than half of the months. A fifth model, sector-relative
         multiples, failed and was dropped.
       </p>
 
       <h3>What the evidence does not show</h3>
       <ul>
-        <li><strong>Nothing is statistically significant yet.</strong> The best t-stat is 1.92 on 23 months; about 2 is the usual bar.</li>
-        <li><strong>The holdout has not been run.</strong> 18 months (May 2025 – Oct 2026) are locked for a single, final test after the specification is frozen.</li>
-        <li><strong>The size of the gap is not a forecast.</strong> A stock whose price implies 5 points more than required did not go on to earn 5 points more; the calibration slope is 0.17. Rank, don&rsquo;t read.</li>
+        <li><strong>The default strategy is not significant.</strong> Value + momentum reached t = {EVIDENCE.signals[0].development.t.toFixed(2)} in development ({DEVELOPMENT_SPAN}) and t = {EVIDENCE.signals[0].holdout.t.toFixed(2)} in the holdout ({HOLDOUT_SPAN}); about 2 is the usual bar. It stays the default because it was chosen before the holdout, and re-choosing on the holdout would leave no out-of-sample test.</li>
+        <li><strong>Short samples.</strong> {EVIDENCE.signals[0].development.months} development and {EVIDENCE.signals[0].holdout.months} holdout months. A single factor needs a t-stat near 3 to be convincing once many have been tried (Harvey, Liu &amp; Zhu 2016).</li>
+        <li><strong>Value alone did not make money as a raw long–short.</strong> Over development, the top value quintile minus the bottom lost 0.7% a month before factor adjustment; regressed on the five Fama–French factors its alpha is −4.3% a year (t = −0.76), with large value (HML) and profitability (RMW) loadings. Its ranking information is mostly known factor exposure.</li>
+        <li><strong>The size of the gap is not a forecast.</strong> A stock whose price implies 5 pp more than required did not go on to earn 5 pp more: the calibration slope is {EVIDENCE.calibration.development.slope.toFixed(2)} in development and {EVIDENCE.calibration.holdout.slope.toFixed(2)} in the holdout. The site ranks on it; it does not forecast with it.</li>
         <li><strong>Survivorship bias.</strong> The universe is today&rsquo;s S&amp;P 500, so stocks that left the index are missing.</li>
         <li><strong>One regime.</strong> 2023–2026 was led by mega-cap growth, a poor stretch for value.</li>
       </ul>
 
-      <h2>Every assumption, and its source</h2>
+      <h2 id="assumptions" className="scroll-mt-20">Every assumption, and its source</h2>
       <p>
         A constant needs a published method, a regulatory fact, or a backtest
         result behind it. Missing data produces no reading, never a guess: an
@@ -243,19 +274,19 @@ export default function MethodologyPage() {
         expected returns (Jorion 1986), which pull noisy historical means
         toward the minimum-variance portfolio. The default position cap is the
         UCITS 10% single-issuer limit, lifted when fewer than ten stocks make
-        it impossible. The optimiser knows nothing about value: the value
-        tilt shown beside it is what the reverse-DCF models say about the
-        portfolio it picked.
+        it impossible. The optimiser knows nothing about value: the
+        weighted implied excess return shown beside it is what the
+        reverse-DCF models say about the portfolio it picked.
       </p>
 
-      <h2>How it is built</h2>
+      <h2 id="build" className="scroll-mt-20">How it is built</h2>
       <Image
         src="/Infrastructure-diag.svg"
         alt="Architecture: a Next.js site reads Postgres views; a Python service fetches data from yfinance and runs the optimiser."
         width={0}
         height={0}
         sizes="100vw"
-        className="my-4 h-auto w-full"
+        className="my-4 h-auto w-full bg-white p-3"
       />
       <ul>
         <li><strong>Database</strong>: Supabase Postgres. A raw schema holds prices and statements exactly as fetched; a warehouse schema computes every signal, rate and ratio in SQL after each fetch; read-only views serve the site.</li>
@@ -267,7 +298,7 @@ export default function MethodologyPage() {
         is investment advice; this is a demonstration project.
       </p>
 
-      <h2>Glossary</h2>
+      <h2 id="glossary" className="scroll-mt-20">Glossary</h2>
       <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[10rem_1fr]">
         {GLOSSARY.map(([term, meaning]) => (
           <div key={term} className="contents">
@@ -277,7 +308,7 @@ export default function MethodologyPage() {
         ))}
       </dl>
 
-      <h2 id="about">About</h2>
+      <h2 id="about" className="scroll-mt-20">About</h2>
       <p>
         Built by Yajat Charpe, Bachelor of Commerce and Computer Science at
         Monash University (graduating November 2027).

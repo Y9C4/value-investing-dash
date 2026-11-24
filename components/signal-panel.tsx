@@ -1,4 +1,6 @@
 import { SignalBar } from "@/components/signal-scale"
+import { compositeQuintileLabel } from "@/components/stock-readings"
+import { ValueBar } from "@/components/valuation-scale"
 import {
   Panel,
   PanelBody,
@@ -15,17 +17,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { formatSignedPercent } from "@/components/valuation-scale"
+import { formatPp, formatSignedPct } from "@/lib/format"
 import {
-  SIGNAL_BAND_LABELS,
   SIGNAL_COMPONENTS,
   SIGNAL_EVIDENCE,
+  formatComposite,
   formatScore,
   signalBand,
   warehouseRank,
   type SignalId,
 } from "@/lib/signals"
-import type { Stock } from "@/lib/valuation"
+import { impliedAlpha, type Stock } from "@/lib/valuation"
 
 /** A tested blend's score for this stock, ranked over the whole universe. */
 export type BlendScore = { label: string; score: number | null }
@@ -35,13 +37,16 @@ function rawReading(stock: Stock, id: SignalId): string {
   const signals = stock.signals
   if (!signals) return "—"
   if (id === "value") {
-    return signals.value === null ? "—" : `${formatSignedPercent(signals.value).replace("%", "")} pp / yr`
+    // The same figure the percentile ranks: all four models, as on every other surface.
+    const alpha = impliedAlpha(stock)
+    return alpha === null ? "—" : `${formatPp(alpha)} a year`
   }
   if (id === "momentum") {
-    return signals.momentum === null ? "—" : formatSignedPercent(signals.momentum)
+    return signals.momentum === null ? "—" : formatSignedPct(signals.momentum)
   }
   if (signals.surprise === null) return "—"
-  return `${formatSignedPercent(signals.surprise)} of price`
+  // In basis points: as a percent of price it would print +0.0% at one decimal.
+  return `${formatSignedPct(signals.surprise * 100).replace("%", " bp")} of price`
 }
 
 /**
@@ -83,9 +88,9 @@ export function SignalPanel({
               label={blend.label}
               value={
                 <span className="flex items-baseline gap-2">
-                  <span>{formatScore(score)}</span>
+                  <span>{formatComposite(score)}</span>
                   <span className="font-sans text-xs font-normal text-muted-foreground">
-                    {SIGNAL_BAND_LABELS[signalBand(score)]}
+                    {compositeQuintileLabel(signalBand(score))}
                   </span>
                 </span>
               }
@@ -101,30 +106,39 @@ export function SignalPanel({
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>Factor</TableHead>
-            <TableHead className="text-right">Raw value</TableHead>
-            <TableHead className="w-[40%]">Percentile</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">Raw value</TableHead>
+            <TableHead className="w-[45%] sm:w-[40%]">Percentile</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {SIGNAL_COMPONENTS.map((component) => {
             const rank =
               component.id === "value" ? valueRank : warehouseRank(stock, component.id)
+            const raw = rawReading(stock, component.id)
             return (
               <TableRow key={component.id} className="hover:bg-transparent">
-                <TableCell>
+                {/* Under 640px the raw reading folds under the name. */}
+                <TableCell className="whitespace-normal">
                   <span className="text-sm font-medium">
                     {component.label}
                   </span>
-                  <span className="ml-2 text-xs text-muted-foreground">
+                  <span className="ml-2 hidden text-xs text-muted-foreground md:inline">
                     {component.full}
                   </span>
+                  <span className="block font-mono text-xs text-muted-foreground sm:hidden">
+                    {raw}
+                  </span>
                 </TableCell>
-                <TableCell className="text-right font-mono text-sm">
-                  {rawReading(stock, component.id)}
+                <TableCell className="hidden text-right font-mono text-sm sm:table-cell">
+                  {raw}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <SignalBar score={rank} className="flex-1" />
+                    {component.id === "value" ? (
+                      <ValueBar percentile={rank} className="flex-1" />
+                    ) : (
+                      <SignalBar score={rank} className="flex-1" />
+                    )}
                     <span className="w-7 text-right font-mono text-sm">
                       {formatScore(rank)}
                     </span>

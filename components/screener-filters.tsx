@@ -6,6 +6,9 @@ import {
   RiSearchLine,
 } from "@remixicon/react"
 
+import Link from "next/link"
+import { useRef } from "react"
+
 import { Info } from "@/components/info"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,10 +38,11 @@ import {
   SIGNAL_BAND_LABELS,
   SIGNAL_COMPONENTS,
   SIGNAL_EVIDENCE,
-  blendEvidence,
+  describeEvidence,
   type SignalComponent,
   type SignalId,
 } from "@/lib/signals"
+import { evidenceFor } from "@/lib/evidence"
 import { cn } from "@/lib/utils"
 
 const BANDS: ValuationBand[] = [
@@ -91,10 +95,11 @@ function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs transition-colors",
+        "inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+        // Foreground tones, not gold: gold is kept for primary actions and the strategy.
         active
-          ? "border-primary bg-primary/10 text-foreground"
-          : "border-border text-muted-foreground hover:border-ring hover:text-foreground"
+          ? "border-foreground/60 bg-foreground/10 text-foreground"
+          : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
       )}
     >
       {swatch && (
@@ -106,6 +111,34 @@ function Chip({
       )}
       {children}
     </button>
+  )
+}
+
+/** What each strategy finds and where its rule comes from: the detail the compact radios leave out. */
+function StrategyInfo() {
+  return (
+    <Popover>
+      <PopoverTrigger openOnHover delay={200} aria-label="About Strategy" className="size-4 shrink-0">
+        <RiInformationLine className="size-3.5" aria-hidden="true" />
+      </PopoverTrigger>
+      <PopoverContent side="right" className="max-h-(--available-height) max-w-sm gap-3 overflow-y-auto">
+        <PopoverTitle>Strategy</PopoverTitle>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          A strategy sets which factors the composite averages and which stocks are kept. Search and sector
+          filters apply on top. Changing a quintile filter or the composite&rsquo;s factors makes it custom.
+        </p>
+        <dl className="flex flex-col gap-2.5 border-t border-border pt-2.5">
+          {PRESETS.map((preset) => (
+            <div key={preset.id} className="flex flex-col gap-0.5">
+              <dt className="text-xs font-semibold">{preset.label}</dt>
+              <dd className="text-xs leading-relaxed text-muted-foreground">
+                {preset.blurb} {preset.basis}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -206,7 +239,7 @@ export function MethodToggle({
     <div
       className={cn(
         "flex items-start gap-1 border pr-1 transition-colors",
-        active ? "border-primary bg-primary/10" : "border-border"
+        active ? "border-foreground/40" : "border-border"
       )}
     >
       {/* Toggle and info are siblings, not nested: a button inside a button is
@@ -215,32 +248,30 @@ export function MethodToggle({
         type="button"
         onClick={onClick}
         aria-pressed={active}
-        className="flex min-w-0 flex-1 flex-col gap-1.5 px-3 py-2.5 text-left"
+        className="flex min-w-0 flex-1 flex-col gap-1.5 px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-foreground"
       >
-        <span className="flex items-baseline justify-between gap-2">
-          <span className="flex items-baseline gap-2">
-            {/* A filled square reads as "on" without relying on colour alone. */}
-            <span
-              className={cn(
-                "size-2 shrink-0 border",
-                active
-                  ? "border-primary bg-primary"
-                  : "border-muted-foreground/50 bg-transparent"
-              )}
-              aria-hidden="true"
-            />
-            <span
-              className={cn(
-                "text-xs font-semibold",
-                active ? "text-foreground" : "text-muted-foreground"
-              )}
-            >
-              {method.label}
-            </span>
+        <span className="flex items-baseline gap-2">
+          {/* A filled square reads as "on" without relying on colour alone. */}
+          <span
+            className={cn(
+              "size-2 shrink-0 border",
+              active
+                ? "border-foreground bg-foreground"
+                : "border-muted-foreground/50 bg-transparent"
+            )}
+            aria-hidden="true"
+          />
+          <span
+            className={cn(
+              "text-xs font-semibold",
+              active ? "text-foreground" : "text-muted-foreground"
+            )}
+          >
+            {method.label}
           </span>
-          <span className="font-mono text-xs text-muted-foreground tabular-nums">
-            {coverage}/{total}
-          </span>
+        </span>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          solves {coverage} of {total}
         </span>
 
         {/* Coverage as a bar: how much of the universe this model can speak to. */}
@@ -260,7 +291,7 @@ export function MethodToggle({
 }
 
 /**
- * One signal component as a switch: its name, its development IC and how much
+ * One signal component as a switch: its name, its holdout IC and how much
  * of the universe it can score. The same shape as `MethodToggle`, so the two
  * kinds of switch on the rail read as one control language.
  */
@@ -278,43 +309,42 @@ function SignalToggle({
   onClick: () => void
 }) {
   const share = total === 0 ? 0 : coverage / total
+  const evidence = evidenceFor([component.id])
 
   return (
     <div
       className={cn(
         "flex items-start gap-1 border pr-1 transition-colors",
-        active ? "border-primary bg-primary/10" : "border-border"
+        active ? "border-foreground/40" : "border-border"
       )}
     >
       <button
         type="button"
         onClick={onClick}
         aria-pressed={active}
-        className="flex min-w-0 flex-1 flex-col gap-1.5 px-3 py-2.5 text-left"
+        className="flex min-w-0 flex-1 flex-col gap-1.5 px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-foreground"
       >
-        <span className="flex items-baseline justify-between gap-2">
-          <span className="flex items-baseline gap-2">
-            <span
-              className={cn(
-                "size-2 shrink-0 border",
-                active
-                  ? "border-primary bg-primary"
-                  : "border-muted-foreground/50 bg-transparent"
-              )}
-              aria-hidden="true"
-            />
-            <span
-              className={cn(
-                "text-xs font-semibold",
-                active ? "text-foreground" : "text-muted-foreground"
-              )}
-            >
-              {component.label}
-            </span>
+        <span className="flex items-baseline gap-2">
+          <span
+            className={cn(
+              "size-2 shrink-0 border",
+              active
+                ? "border-foreground bg-foreground"
+                : "border-muted-foreground/50 bg-transparent"
+            )}
+            aria-hidden="true"
+          />
+          <span
+            className={cn(
+              "text-xs font-semibold",
+              active ? "text-foreground" : "text-muted-foreground"
+            )}
+          >
+            {component.label}
           </span>
-          <span className="font-mono text-xs text-muted-foreground tabular-nums">
-            IC {component.ic.toFixed(3)} · {coverage}/{total}
-          </span>
+        </span>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {evidence && <>holdout IC {evidence.holdout.ic.toFixed(3)} · </>}scores {coverage} of {total}
         </span>
 
         <span className="h-0.5 w-full bg-muted" aria-hidden="true">
@@ -352,10 +382,7 @@ function SignalToggle({
               </div>
             </div>
             <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-              Development rank IC{" "}
-              <span className="font-mono">{component.ic.toFixed(3)}</span> (t ={" "}
-              <span className="font-mono">{component.icTStat.toFixed(2)}</span>).
-              Scores <span className="font-mono">{coverage}</span> of the{" "}
+              {evidence && describeEvidence(evidence)} Scores <span className="font-mono">{coverage}</span> of the{" "}
               <span className="font-mono">{total}</span> stocks.
             </p>
           </PopoverContent>
@@ -389,7 +416,18 @@ export function ScreenerFilterRail({
   /** Closes the rail where it is an overlay; the button hides where it is docked. */
   onClose: () => void
 }) {
-  const evidence = blendEvidence(filters.signals)
+  const evidence = evidenceFor(filters.signals)
+  const radios = useRef<(HTMLButtonElement | null)[]>([])
+
+  // WAI-ARIA radio group: arrows move focus and check the next radio, wrapping.
+  function moveStrategy(event: React.KeyboardEvent) {
+    const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key]
+    if (!step) return
+    event.preventDefault()
+    const next = (radios.current.indexOf(event.target as HTMLButtonElement) + step + PRESETS.length) % PRESETS.length
+    radios.current[next]?.focus()
+    onChange(applyPreset(filters, PRESETS[next].id))
+  }
 
   function toggle<T>(list: T[], value: T): T[] {
     return list.includes(value)
@@ -400,61 +438,58 @@ export function ScreenerFilterRail({
   // Changing what the score is made of, or which fifths are kept, departs from
   // the chosen screen: the preset is then "custom" rather than silently wrong.
   function customise(next: Partial<ScreenerFilters>) {
-    onChange({ ...filters, ...next, preset: null })
+    // Graham is a strategy, not a custom filter: it has no control here, so it
+    // must not keep filtering invisibly once the strategy is left.
+    onChange({ ...filters, ...next, preset: null, graham: false })
   }
 
   return (
     <div className="flex flex-col border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <span className="text-sm font-semibold">Filters</span>
-        <span className="flex items-center gap-1">
-          <Button variant="ghost" size="xs" onClick={onReset}>
-            Reset all
-          </Button>
-          <Button variant="ghost" size="xs" onClick={onClose} aria-label="Close filters" className="min-[1700px]:hidden">
-            <RiCloseLine />
-          </Button>
-        </span>
-      </div>
-
-      {/* Live count: the rail's whole purpose is narrowing this number. */}
-      <div className="border-b border-border px-6 py-4">
-        <p className="flex items-baseline gap-2">
-          <span className="font-mono text-3xl font-semibold tabular-nums">{matches}</span>
+      {/* Sticky inside the rail's own scroll, so Reset and Close never scroll away. */}
+      <div className="sticky top-0 z-10 flex flex-col gap-1 border-b border-border bg-card px-6 py-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold">Filters</span>
+          <span className="flex items-center gap-1">
+            <Button variant="ghost" size="xs" onClick={onReset}>
+              Reset all
+            </Button>
+            <Button variant="ghost" size="xs" onClick={onClose} aria-label="Close filters" className="min-[1700px]:hidden">
+              <RiCloseLine />
+            </Button>
+          </span>
+        </div>
+        {/* Live count: the rail's whole purpose is narrowing this number. */}
+        <p className="flex items-baseline gap-2" aria-live="polite">
+          <span className="font-mono text-2xl font-semibold tabular-nums">{matches}</span>
           <span className="text-sm text-muted-foreground">of {total} stocks shown</span>
         </p>
       </div>
 
-      <FilterGroup
-        label="Strategy"
-        info={
-          <Info title="Strategy">
-            A strategy sets which factors the composite averages and which
-            stocks are kept. Search and sector filters apply on top. Changing a
-            quintile filter or the composite&rsquo;s factors makes it custom.
-          </Info>
-        }
-      >
-        <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="Strategy">
-          {PRESETS.map((preset) => {
+      <FilterGroup label="Strategy" info={<StrategyInfo />}>
+        <div className="flex flex-col gap-1" role="radiogroup" aria-label="Strategy" onKeyDown={moveStrategy}>
+          {PRESETS.map((preset, index) => {
             const active = filters.preset === preset.id
             return (
               <button
                 key={preset.id}
+                ref={(el) => {
+                  radios.current[index] = el
+                }}
                 type="button"
                 role="radio"
                 aria-checked={active}
+                // Roving tab stop: the checked radio, or the first while the screen is custom.
+                tabIndex={active || (filters.preset === null && index === 0) ? 0 : -1}
                 onClick={() => onChange(applyPreset(filters, preset.id))}
                 className={cn(
-                  "flex flex-col gap-0.5 border px-3 py-2.5 text-left transition-colors",
-                  active ? "border-primary bg-primary/10" : "border-border hover:border-ring"
+                  "flex flex-col border px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+                  active ? "border-primary bg-primary/10" : "border-border hover:border-foreground/40"
                 )}
               >
                 <span className={cn("text-sm font-medium", active ? "text-foreground" : "text-muted-foreground")}>
                   {preset.label}
                 </span>
-                <span className="text-xs leading-relaxed text-muted-foreground">{preset.blurb}</span>
-                <span className="text-xs leading-relaxed text-muted-foreground/80">{preset.basis}</span>
+                <span className="text-xs text-muted-foreground">{preset.short}</span>
               </button>
             )
           })}
@@ -536,7 +571,7 @@ export function ScreenerFilterRail({
       </FilterGroup>
 
       <details className="group/advanced border-t border-border">
-        <summary className="cursor-pointer list-none px-6 py-4 text-xs font-semibold text-muted-foreground hover:text-foreground">
+        <summary className="cursor-pointer list-none px-6 py-4 text-xs font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-foreground">
           <span className="group-open/advanced:hidden">+ Composite factors, valuation models, beta cap</span>
           <span className="hidden group-open/advanced:inline">− Composite factors, valuation models, beta cap</span>
         </summary>
@@ -565,9 +600,8 @@ export function ScreenerFilterRail({
           <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
             {evidence ? (
               <>
-                <span className="text-foreground">{evidence.label}</span> had a development IC of{" "}
-                <span className="font-mono">{evidence.ic.toFixed(3)}</span> (t ={" "}
-                <span className="font-mono">{evidence.icTStat.toFixed(2)}</span>).
+                <span className="text-foreground">{evidence.label}</span>: {describeEvidence(evidence)}{" "}
+                <Link href="/research" className="underline underline-offset-2 hover:text-foreground">Backtest</Link>
               </>
             ) : (
               <>This combination was not tested in the backtest.</>

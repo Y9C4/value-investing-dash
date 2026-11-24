@@ -1,3 +1,4 @@
+import Script from "next/script";
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
 import "./globals.css";
@@ -28,7 +29,7 @@ const THEME_SCRIPT = `try{if(localStorage.getItem("theme")==="light")document.do
 
 const TITLE = "Value Investing Dash";
 const DESCRIPTION =
-  "Rank the S&P 500 on what each price implies against what its risk requires, confirmed by price momentum, then build an optimised portfolio from the screen.";
+  "Rank the S&P 500 on the return each price implies against the return its risk requires, alongside momentum and earnings surprise; check the evidence on a locked holdout; then build a mean–variance portfolio from the screen.";
 
 export const metadata: Metadata = {
   // Absolute URLs for the share card. Vercel injects the deployment host, so
@@ -53,6 +54,8 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // One cached snapshot row, deduped with whatever the page itself reads, so
   // the strip runs across every route without costing a request per page.
+  // A warehouse outage must not take down every route, Methodology included:
+  // the strip renders empty and the page itself reports the failure.
   const {
     index,
     riskFreeRate,
@@ -61,7 +64,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     isStale,
     stocks,
     isBaseline,
-  } = await loadUniverse();
+  } = await loadUniverse().catch(() => ({
+    index: null,
+    riskFreeRate: null,
+    computedAt: null,
+    gatheredAt: null,
+    isStale: false,
+    stocks: [],
+    isBaseline: false,
+  }));
 
   return (
     <html
@@ -70,10 +81,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={cn("h-full antialiased font-sans", display.variable, sans.variable, mono.variable)}
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-      </head>
       <body className="flex min-h-full flex-col bg-background">
+        {/* Injected into the initial HTML ahead of first-party code. A raw
+            <script> in the layout made React warn on client re-renders. */}
+        <Script id="theme" strategy="beforeInteractive">
+          {THEME_SCRIPT}
+        </Script>
         {/* Read here rather than in the shell: the shell is a client
             component and this is a server-only variable. Evaluated at build,
             since making the root layout dynamic would opt every page out of
