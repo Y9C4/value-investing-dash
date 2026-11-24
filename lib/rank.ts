@@ -40,3 +40,37 @@ export function median(values: (number | null)[]): number | null {
   const mid = xs.length >> 1
   return xs.length % 2 ? xs[mid] : (xs[mid - 1] + xs[mid]) / 2
 }
+
+/** The q-quantile of sorted values, linear between order statistics (R type 7). */
+function quantileSorted(xs: number[], q: number): number {
+  const h = (xs.length - 1) * q
+  const lo = Math.floor(h)
+  return xs[lo] + (h - lo) * ((xs[Math.ceil(h)] ?? xs[lo]) - xs[lo])
+}
+
+export type Bin = { lo: number; hi: number; count: number }
+
+/**
+ * Equal-width bins with the Freedman–Diaconis width, 2·IQR·n^(−1/3) (1981),
+ * over the 1st–99th percentile range; values outside it fall into the edge
+ * bins, so every observation is counted and no single outlier sets the scale.
+ * Edges are aligned to zero so a sign change is always a bin edge.
+ */
+export function histogram(values: number[]): Bin[] {
+  const xs = values.filter(Number.isFinite).sort((a, b) => a - b)
+  if (xs.length < 2) return []
+  const iqr = quantileSorted(xs, 0.75) - quantileSorted(xs, 0.25)
+  const width = (2 * iqr) / Math.cbrt(xs.length)
+  if (!(width > 0)) return [{ lo: xs[0], hi: xs[xs.length - 1], count: xs.length }]
+  const start = Math.floor(quantileSorted(xs, 0.01) / width)
+  const end = Math.ceil(quantileSorted(xs, 0.99) / width)
+  const bins: Bin[] = []
+  for (let k = start; k < Math.max(end, start + 1); k += 1) {
+    bins.push({ lo: k * width, hi: (k + 1) * width, count: 0 })
+  }
+  for (const x of xs) {
+    const i = Math.min(bins.length - 1, Math.max(0, Math.floor(x / width) - start))
+    bins[i].count += 1
+  }
+  return bins
+}

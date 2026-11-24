@@ -53,13 +53,13 @@ function ImpliedGrowth({ stock }: { stock: Stock }) {
       ? stock.discountRates?.wacc === null
         ? "No WACC (financial firms, or no cost of debt), so FCFF does not apply."
         : "Needs positive free cash flow to the firm."
-      : "a year to start, fading to long-run growth over five years"
+      : "a year, fading to 2.5% over five years. Solved at WACC, so it is sensitive when WACC is near long-run growth."
 
   return (
     <div className="grid grid-cols-2 gap-px border-b border-border bg-border [&>*]:bg-card [&>*]:px-4 [&>*]:py-3">
-      <Stat label="Growth the price assumes" value={assumed} hint={why} />
+      <Stat label="Implied FCFF growth" value={assumed} hint={why} />
       <Stat
-        label="Revenue has grown"
+        label="Trailing revenue growth"
         value={stock.revenueGrowth === null ? "—" : `${(stock.revenueGrowth * 100).toFixed(1)}%`}
         hint={stock.revenueGrowth === null ? "no growth history" : "a year, trailing, as reported"}
       />
@@ -90,20 +90,20 @@ export function ImpliedReturnPanel({
       <PanelHeader>
         <PanelTitle>
           <span className="flex items-center gap-1.5">
-            What the price implies
+            Implied return, reverse DCF
             <Info title="Implied excess return">{IMPLIED_BASIS}</Info>
           </span>
         </PanelTitle>
-        <PanelMeta>per year, reverse DCF</PanelMeta>
+        <PanelMeta>% a year</PanelMeta>
       </PanelHeader>
 
       <div className="border-b border-border px-4 py-3">
         <Stat
-          label="Over the required return"
+          label="Implied excess return (implied − required), averaged over models"
           className={gapTextClass(alpha)}
           value={
             <span className="flex items-baseline gap-2">
-              <span>{alpha === null ? "—" : formatSignedPercent(alpha)}</span>
+              <span>{alpha === null ? "—" : `${formatSignedPercent(alpha).replace("%", "")} pp`}</span>
               <span className="font-sans text-xs font-normal">
                 {BAND_LABELS[band]}
               </span>
@@ -125,7 +125,7 @@ export function ImpliedReturnPanel({
             <TableHead>Model</TableHead>
             <TableHead className="text-right">Implied</TableHead>
             <TableHead className="text-right">Required</TableHead>
-            <TableHead className="text-right">Excess</TableHead>
+            <TableHead className="text-right">Implied − required</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -153,7 +153,7 @@ export function ImpliedReturnPanel({
                 <TableCell
                   className={`text-right font-mono text-sm ${gapTextClass(excess)}`}
                 >
-                  {excess === null ? "—" : formatSignedPercent(excess)}
+                  {excess === null ? "—" : `${formatSignedPercent(excess).replace("%", "")} pp`}
                 </TableCell>
               </TableRow>
             )
@@ -167,7 +167,7 @@ export function ImpliedReturnPanel({
           flow, then a perpetuity, worth today&rsquo;s price. The headline
           averages whichever solved. A dash means no solution at this price (no
           positive cash flow, or an implied return above 100%). The band is
-          this stock&rsquo;s fifth of the index; the backtest found the ranking
+          this stock&rsquo;s value quintile; the backtest found the ranking
           useful and the size not.
         </p>
       </PanelBody>

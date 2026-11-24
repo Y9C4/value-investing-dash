@@ -13,10 +13,10 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
 
 const NAV = [
-  { href: "/", label: "Overview", hint: "Is the market cheap?", icon: RiDashboardLine },
-  { href: "/screener", label: "Screener", hint: "Rank and filter the index", icon: RiFilter3Line },
-  { href: "/portfolio", label: "Portfolio", hint: "Optimise the screen", icon: RiPieChartLine },
-  { href: "/methodology", label: "Methodology", hint: "How it works, and the evidence", icon: RiInformationLine },
+  { href: "/", label: "Market overview", hint: "Implied vs required return, by sector", icon: RiDashboardLine },
+  { href: "/screener", label: "Stock screener", hint: "Rank the S&P 500 by factor percentile", icon: RiFilter3Line },
+  { href: "/portfolio", label: "Portfolio optimiser", hint: "Mean–variance efficient frontier", icon: RiPieChartLine },
+  { href: "/methodology", label: "Methodology", hint: "Models, assumptions, backtest", icon: RiInformationLine },
 ]
 
 /** `/` would prefix-match every route, so it is matched exactly. */

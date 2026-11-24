@@ -206,10 +206,10 @@ export function FrontierChart({
     : []
 
   const anchors = [
-    { key: "maxSharpe" as const, title: "Max Sharpe", portfolio: data.max_sharpe },
+    { key: "maxSharpe" as const, title: "Tangency (max Sharpe)", portfolio: data.max_sharpe },
     {
       key: "minVolatility" as const,
-      title: "Min volatility",
+      title: "Minimum variance",
       portfolio: data.min_volatility,
     },
   ]
@@ -524,11 +524,11 @@ export function FrontierChart({
           )}
           <span className="flex items-center gap-1.5">
             <LegendDot />
-            Max Sharpe
+            Tangency (max Sharpe)
           </span>
           <span className="flex items-center gap-1.5">
             <LegendDot hollow />
-            Min volatility
+            Minimum variance
           </span>
           {data.market && (
             <span className="flex items-center gap-1.5">
@@ -691,7 +691,7 @@ export function SharpeCurve({
               legendType="none"
             />
             <Scatter
-              name="Max Sharpe"
+              name="Tangency (max Sharpe)"
               data={[peak]}
               dataKey="sharpe"
               zAxisId="peak"
@@ -706,7 +706,7 @@ export function SharpeCurve({
 
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <LegendDot />
-          Max Sharpe
+          Tangency (max Sharpe)
           {isBaseline && " · illustrative baseline"}
         </div>
       </PanelBody>

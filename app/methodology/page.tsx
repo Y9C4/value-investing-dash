@@ -7,15 +7,15 @@ import { GRAHAM_NOTE } from "@/lib/screen"
 export const metadata = {
   title: "Methodology",
   description:
-    "How Value Investing Dash values the S&P 500: reverse DCF, the trend and earnings confirmations, the backtest behind them, and every assumption with its source.",
+    "How Value Investing Dash values the S&P 500: reverse DCF, the momentum and earnings-surprise factors, the backtest behind them, and every assumption with its source.",
 }
 
 /** Development-period results, backtests.md §13 (run of 2026-11-23). */
 const SIGNAL_RESULTS = [
-  { signal: "Value + trend", ic: "0.054", t: "1.92", spread: "0.8%", coverage: "96%" },
-  { signal: "Trend + earnings", ic: "0.035", t: "1.47", spread: "0.8%", coverage: "97%" },
+  { signal: "Value + momentum composite", ic: "0.054", t: "1.92", spread: "0.8%", coverage: "96%" },
+  { signal: "Momentum + earnings surprise composite", ic: "0.035", t: "1.47", spread: "0.8%", coverage: "97%" },
   { signal: "Value", ic: "0.032", t: "1.18", spread: "0.3%", coverage: "96%" },
-  { signal: "Trend (12-1 momentum)", ic: "0.029", t: "1.18", spread: "0.5%", coverage: "99%" },
+  { signal: "Momentum (12–1)", ic: "0.029", t: "1.18", spread: "0.5%", coverage: "99%" },
   { signal: "Earnings surprise", ic: "0.024", t: "1.45", spread: "0.2%", coverage: "97%" },
 ]
 
@@ -39,7 +39,7 @@ const ASSUMPTIONS = [
   { what: "Cost of debt", value: "10Y + synthetic-rating spread", source: "Damodaran's rating table for large non-financial firms, January 2026" },
   { what: "Financial firms", value: "No WACC", source: "Debt is a bank's raw material, not its capital (Damodaran)" },
   { what: "Statement lag", value: "60 days after fiscal year end", source: "SEC 10-K deadline for large accelerated filers" },
-  { what: "Trend", value: "12-month return skipping the last month", source: "Jegadeesh & Titman (1993)" },
+  { what: "Momentum", value: "12-month return skipping the last month (12–1)", source: "Jegadeesh & Titman (1993)" },
   { what: "Earnings surprise", value: "(Actual − consensus EPS) ÷ price", source: "Livnat & Mendenhall (2006)" },
   { what: "Blend weights", value: "Equal", source: "Asness, Moskowitz & Pedersen (2013); equal weights hold up out of sample (DeMiguel et al. 2009)" },
   { what: "Model average", value: "Equal, over whichever solve", source: "Forecast combination (Stock & Watson 2004)" },
@@ -63,7 +63,7 @@ const GLOSSARY = [
   ["Percentile", "The share of the index at or below a stock. 100 is the top."],
   ["Rank IC", "The correlation between this month's ranking and next month's returns, by rank. 0.05 is useful in practice; 0 is noise."],
   ["t-stat", "How many standard errors the mean IC is from zero. About 2 is the usual bar for significance."],
-  ["Q5 − Q1", "The monthly return of the top fifth minus the bottom fifth."],
+  ["Q5 − Q1", "The monthly return of the top quintile minus the bottom quintile."],
   ["12-1 momentum", "The return from twelve months ago to one month ago."],
 ] as const
 
@@ -82,10 +82,11 @@ export default function MethodologyPage() {
         the stock&rsquo;s risk requires?
       </p>
       <p className="text-muted-foreground">
-        It answers by ranking, not by naming a fair value, and checks the
-        answer against two confirmations: whether the market has started to
-        agree (trend), and whether the business just beat expectations
-        (earnings). Every number is recomputed after each trading day.
+        It answers by ranking, not by naming a fair value, and combines that
+        value rank with two further factors: 12–1 month price momentum
+        (whether the market has started to re-rate the stock) and the latest
+        earnings surprise (whether the business just beat expectations). Every
+        number is recomputed after each trading day.
       </p>
 
       <h2>Value: reverse DCF</h2>
@@ -110,24 +111,25 @@ export default function MethodologyPage() {
       </ul>
       <p>
         The screener shows value as a percentile, 0–100 across the index, and
-        cuts it into fifths recomputed with every refresh (Fama &amp; French
-        sorts). &ldquo;Cheapest fifth&rdquo; means exactly that: cheap against
-        the rest of the index, not below some intrinsic worth. The stock page
+        sorts it into quintiles with breakpoints recomputed at every refresh
+        (Fama &amp; French 1992). &ldquo;Value quintile 5&rdquo; means exactly
+        that: the cheapest 20% against the rest of the index, not below some
+        intrinsic worth. The stock page
         also solves the same FCFF model for growth, holding the return at
         WACC: the growth today&rsquo;s price assumes, shown beside the growth
         the company has actually delivered.
       </p>
 
-      <h2>Trend and earnings: confirmation</h2>
+      <h2>Momentum and earnings surprise</h2>
       <p>
-        Cheap stocks are often cheap for a reason. The two confirmations ask
+        Cheap stocks are often cheap for a reason. The two further factors ask
         whether anything is changing. Combining value with momentum is one of
         the most robust results in asset pricing (Asness, Moskowitz &amp;
         Pedersen 2013), because the two tend to work at different times.
       </p>
       <table>
         <thead>
-          <tr><th>Component</th><th>What it measures</th></tr>
+          <tr><th>Factor</th><th>What it measures</th></tr>
         </thead>
         <tbody>
           {SIGNAL_COMPONENTS.map((c) => (
@@ -139,8 +141,9 @@ export default function MethodologyPage() {
         </tbody>
       </table>
       <p>
-        The default score averages the value and trend percentiles equally and
-        re-ranks the result, so its fifths hold equal numbers of stocks.
+        The default composite averages the value and momentum percentiles with
+        equal weights and re-ranks the result to a percentile, so its quintiles
+        hold equal numbers of stocks.
       </p>
 
       <h2>The evidence</h2>

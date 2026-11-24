@@ -64,10 +64,10 @@ export type SortKey =
 
 export type ColumnGroup = "ratios" | "trend" | "risk"
 
-export const COLUMN_GROUPS: { id: ColumnGroup; label: string }[] = [
-  { id: "ratios", label: "Classic ratios" },
-  { id: "trend", label: "Trend & earnings" },
-  { id: "risk", label: "Risk" },
+export const COLUMN_GROUPS: { id: ColumnGroup; label: string; columns: string }[] = [
+  { id: "ratios", label: "Fundamentals", columns: "P/B, EV/EBITDA, FCF yield, shareholder yield, ROE, revenue growth" },
+  { id: "trend", label: "Factor inputs", columns: "12–1 momentum and earnings surprise, as raw figures" },
+  { id: "risk", label: "Risk & return", columns: "Trailing 1-year return, volatility and beta" },
 ]
 
 type Help = { title: string; body: string; points?: string[] }
@@ -106,15 +106,15 @@ const COLUMNS: Column[] = [
   },
   {
     key: "score",
-    label: "Score",
+    label: "Composite",
     align: "left",
     width: "w-[11rem]",
     help: {
-      title: "Score",
-      body: "The average of the selected component ranks (value + trend by default), re-ranked 0–100 across the index. A rank, not a forecast return.",
+      title: "Composite percentile",
+      body: "The equal-weight average of the selected factor percentiles (value + momentum by default), re-ranked 0–100 across the index. A rank, not a forecast return.",
       points: [
-        "Blank means a selected component could not be measured for this stock.",
-        "Value + trend had a development IC of 0.054 (t 1.92). Not yet significant, and the holdout has not been run.",
+        "Blank means a selected factor could not be measured for this stock.",
+        "Value + momentum had a development IC of 0.054 (t = 1.92). Not yet significant, and the holdout has not been run.",
       ],
     },
     cell: (stock, { ranking }) => {
@@ -136,11 +136,11 @@ const COLUMNS: Column[] = [
     align: "left",
     width: "w-[15rem]",
     help: {
-      title: "Value",
+      title: "Value percentile",
       body: IMPLIED_BASIS,
       points: [
-        "The number is the stock's rank, 0–100, on that gap. 100 is the cheapest in the index.",
-        "The figure beside it is the gap itself, in points a year.",
+        "The bar and number are the stock's percentile, 0–100, on implied excess return. 100 is the cheapest in the index.",
+        "The signed figure is the implied excess return itself, in percentage points (pp) a year.",
         BAND_BASIS,
       ],
     },
@@ -155,7 +155,7 @@ const COLUMNS: Column[] = [
             {percentile === null ? DASH : Math.round(percentile * 100)}
           </span>
           <span className={cn("font-mono text-xs whitespace-nowrap", gapTextClass(alpha))}>
-            {alpha === null ? "unrated" : `${formatSignedPercent(alpha).replace("%", "")} pts`}
+            {alpha === null ? "not valued" : `${formatSignedPercent(alpha).replace("%", "")} pp`}
           </span>
         </div>
       )
@@ -169,7 +169,7 @@ const COLUMNS: Column[] = [
   },
   {
     key: "marketCap",
-    label: "Mkt cap",
+    label: "Market cap",
     align: "right",
     cell: (stock) => (stock.marketCap === null ? DASH : formatMarketCap(stock.marketCap)),
   },
@@ -177,7 +177,7 @@ const COLUMNS: Column[] = [
     key: "peRatio",
     label: "P/E",
     align: "right",
-    help: { title: "Price / earnings", body: "Price over trailing-twelve-month diluted EPS. Blank when earnings are negative, where the ratio has no meaning." },
+    help: { title: "Price / earnings", body: "Market capitalisation over trailing-twelve-month net income. Blank when earnings are negative or a quarter is missing." },
     cell: (stock) => (stock.peRatio !== null && stock.peRatio > 0 ? stock.peRatio.toFixed(1) : DASH),
   },
   {
@@ -206,7 +206,7 @@ const COLUMNS: Column[] = [
   },
   {
     key: "shareholderYield",
-    label: "Sh. yield",
+    label: "Shareholder yield",
     align: "right",
     group: "ratios",
     help: { title: "Shareholder yield", body: "Dividends plus net buybacks over market cap: cash returned to shareholders, the base of the shareholder-yield model." },
@@ -222,7 +222,7 @@ const COLUMNS: Column[] = [
   },
   {
     key: "revenueGrowth",
-    label: "Rev. growth",
+    label: "Revenue growth",
     align: "right",
     group: "ratios",
     help: { title: "Revenue growth", body: "Trailing revenue growth a year: the 2-year compound rate, else 1-year, as reported." },
@@ -230,15 +230,15 @@ const COLUMNS: Column[] = [
   },
   {
     key: "momentum",
-    label: "Trend",
+    label: "Momentum 12–1",
     align: "right",
     group: "trend",
-    help: { title: "Trend (12-1 momentum)", body: "The total return from twelve months ago to one month ago (Jegadeesh & Titman 1993)." },
+    help: { title: "12–1 month momentum", body: "The total return from twelve months ago to one month ago (Jegadeesh & Titman 1993)." },
     cell: (stock) => signed(stock.signals?.momentum),
   },
   {
     key: "surprise",
-    label: "Earnings",
+    label: "Earnings surprise",
     align: "right",
     group: "trend",
     help: { title: "Earnings surprise", body: "Reported minus consensus EPS for the latest quarter, as a share of the price. Only reports from the last 100 days count." },
@@ -246,7 +246,7 @@ const COLUMNS: Column[] = [
   },
   {
     key: "realisedReturn",
-    label: "Return 1Y",
+    label: "Return, 1y",
     align: "right",
     group: "risk",
     help: {
@@ -258,7 +258,7 @@ const COLUMNS: Column[] = [
   },
   {
     key: "volatility",
-    label: "Vol 1Y",
+    label: "Volatility, 1y",
     align: "right",
     group: "risk",
     help: { title: "Annualised volatility", body: "Standard deviation of daily log returns over the last 252 sessions × √252." },
@@ -348,7 +348,7 @@ export function ScreenerTable({
       <div className="flex flex-col items-center gap-3 border border-border bg-card px-6 py-16 text-center">
         <p className="text-sm font-semibold">No stocks pass these filters</p>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Loosen a filter, or go back to the opening screen.
+          Loosen a filter, or reset to the value + momentum composite.
         </p>
         <Button size="sm" variant="outline" onClick={onReset}>
           Reset filters

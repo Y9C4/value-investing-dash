@@ -28,7 +28,7 @@ const THEME_SCRIPT = `try{if(localStorage.getItem("theme")==="light")document.do
 
 const TITLE = "Value Investing Dash";
 const DESCRIPTION =
-  "Rank the S&P 500 on what each price implies against what its risk requires, confirmed by trend, then build an optimised portfolio from the screen.";
+  "Rank the S&P 500 on what each price implies against what its risk requires, confirmed by price momentum, then build an optimised portfolio from the screen.";
 
 export const metadata: Metadata = {
   // Absolute URLs for the share card. Vercel injects the deployment host, so

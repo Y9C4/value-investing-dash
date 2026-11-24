@@ -8,13 +8,13 @@ import { SIGNAL_BAND_LABELS, formatScore, signalBand } from "@/lib/signals"
 import { loadUniverse } from "@/lib/universe"
 import { impliedAndRequired, valuationBand, type ValuationBand } from "@/lib/valuation"
 
-const FIFTH: Record<ValuationBand, string> = {
-  "deep-value": "the cheapest fifth",
-  undervalued: "the second-cheapest fifth",
-  fair: "the middle fifth",
-  overvalued: "the second-dearest fifth",
-  expensive: "the dearest fifth",
-  unrated: "no fifth",
+const QUINTILE: Record<ValuationBand, string> = {
+  "deep-value": "value quintile 5, the cheapest 20% of the index",
+  undervalued: "value quintile 4",
+  fair: "value quintile 3, the middle of the index",
+  overvalued: "value quintile 2",
+  expensive: "value quintile 1, the dearest 20% of the index",
+  unrated: "no value quintile",
 }
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`
@@ -34,10 +34,10 @@ export default async function StockPage({ params }: PageProps<"/stocks/[ticker]"
   if (!stock) notFound()
 
   // Ranked over the whole index at all four models, as the screener opens.
-  const valueTrend = rankUniverse(stocks, [], ["value", "momentum"])
-  const trendEarnings = rankUniverse(stocks, [], ["momentum", "surprise"])
-  const valueRank = valueTrend.value.get(stock.ticker) ?? null
-  const score = valueTrend.score.get(stock.ticker) ?? null
+  const valueMomentum = rankUniverse(stocks, [], ["value", "momentum"])
+  const momentumSurprise = rankUniverse(stocks, [], ["momentum", "surprise"])
+  const valueRank = valueMomentum.value.get(stock.ticker) ?? null
+  const score = valueMomentum.score.get(stock.ticker) ?? null
   const rates = impliedAndRequired(stock)
 
   return (
@@ -70,15 +70,14 @@ export default async function StockPage({ params }: PageProps<"/stocks/[ticker]"
             </>
           ) : (
             <>
-              At {formatSharePrice(stock.price)}, the price implies{" "}
-              {pct(rates.implied)} a year;{" "}
-              {stock.ticker}&rsquo;s risk requires{" "}
-              {pct(rates.required)}. That puts
-              it in {FIFTH[valuationBand(valueRank)]} of the index on value
+              At {formatSharePrice(stock.price)}, the price implies a return
+              of {pct(rates.implied)} a year; {stock.ticker}&rsquo;s risk
+              requires {pct(rates.required)}. That places it in{" "}
+              {QUINTILE[valuationBand(valueRank)]}
               {score !== null && (
                 <>
-                  , and at {formatScore(score)} of 100 on value and trend together
-                  ({SIGNAL_BAND_LABELS[signalBand(score)].toLowerCase()})
+                  , with a value + momentum composite of {formatScore(score)} of
+                  100 ({SIGNAL_BAND_LABELS[signalBand(score)]})
                 </>
               )}
               .
@@ -94,8 +93,8 @@ export default async function StockPage({ params }: PageProps<"/stocks/[ticker]"
         valueRank={valueRank}
         ratios={ratioContext(stocks, stock)}
         blends={[
-          { label: "Value + trend", score },
-          { label: "Trend + earnings", score: trendEarnings.score.get(stock.ticker) ?? null },
+          { label: "Value + momentum composite", score },
+          { label: "Momentum + earnings surprise composite", score: momentumSurprise.score.get(stock.ticker) ?? null },
         ]}
       />
     </>

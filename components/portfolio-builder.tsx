@@ -593,11 +593,11 @@ export function PortfolioBuilder({
             >
               {tickers.length > 0
                 ? `${tickers.length} screened ${tickers.length === 1 ? "stock" : "stocks"}`
-                : "Full index"}
+                : "Full S&P 500"}
               {isBaseline
-                ? " : Example"
+                ? " · illustrative example, not solved"
                 : solvedAt
-                  ? ` : solved ${new Date(solvedAt).toLocaleString("en-GB", {
+                  ? ` · solved ${new Date(solvedAt).toLocaleString("en-GB", {
                     day: "numeric",
                     month: "short",
                     hour: "2-digit",
@@ -686,7 +686,7 @@ export function PortfolioBuilder({
             and the cap is already printed on the control that sets it. */}
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border border-border bg-card px-4 py-2">
             <h2 className="text-xs font-semibold text-muted-foreground">
-              {activeLabel} portfolio
+              {activeLabel}
             </h2>
             <span className="font-mono text-xs text-muted-foreground">
               {heldCount} {heldCount === 1 ? "position" : "positions"}
@@ -721,7 +721,7 @@ export function PortfolioBuilder({
               value={formatPercent(active.return)}
               hint={
                 market &&
-                `${active.return - market.return >= 0 ? "+" : ""}${formatPercent(active.return - market.return)} vs S&P E[R]`
+                `${active.return - market.return >= 0 ? "+" : ""}${formatPercent(active.return - market.return)} vs S&P 500`
               }
             />
             <Stat
@@ -736,7 +736,7 @@ export function PortfolioBuilder({
               value={formatPercent(active.volatility)}
               hint={
                 market &&
-                `${active.volatility - market.volatility >= 0 ? "+" : ""}${formatPercent(active.volatility - market.volatility)} vs S&P E[V]`
+                `${active.volatility - market.volatility >= 0 ? "+" : ""}${formatPercent(active.volatility - market.volatility)} vs S&P 500`
               }
             />
             <Stat
@@ -754,15 +754,15 @@ export function PortfolioBuilder({
                   ? gapTextClass(consensus.impliedAlpha)
                   : undefined
               }
-              label="Value tilt (weighted)"
+              label="Implied excess return, weighted"
               value={
                 consensus.ratedHoldings > 0
-                  ? `${formatMargin(consensus.impliedAlpha)}/yr`
+                  ? `${formatMargin(consensus.impliedAlpha).replace("%", "")} pp`
                   : "—"
               }
               hint={
                 consensus.ratedHoldings > 0
-                  ? `over required return · ${formatAxisPercent(consensus.coverage)} of weight covered`
+                  ? `implied − required, by position weight · ${formatAxisPercent(consensus.coverage)} of weight valued`
                   : undefined
               }
             />

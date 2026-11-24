@@ -35,7 +35,7 @@ function rawReading(stock: Stock, id: SignalId): string {
   const signals = stock.signals
   if (!signals) return "—"
   if (id === "value") {
-    return signals.value === null ? "—" : `${formatSignedPercent(signals.value)} α / yr`
+    return signals.value === null ? "—" : `${formatSignedPercent(signals.value).replace("%", "")} pp / yr`
   }
   if (id === "momentum") {
     return signals.momentum === null ? "—" : formatSignedPercent(signals.momentum)
@@ -69,11 +69,11 @@ export function SignalPanel({
   return (
     <Panel>
       <PanelHeader>
-        <PanelTitle>Signal</PanelTitle>
-        <PanelMeta>percentile of today&rsquo;s universe</PanelMeta>
+        <PanelTitle>Factor percentiles</PanelTitle>
+        <PanelMeta>0–100 across today&rsquo;s S&amp;P 500</PanelMeta>
       </PanelHeader>
 
-      {/* The two tested blends first: these are the scores the screener ranks on. */}
+      {/* The two tested composites first: these are what the screener ranks on. */}
       <div className="grid grid-cols-1 gap-px border-b border-border bg-border sm:grid-cols-2 [&>*]:bg-card [&>*]:px-4 [&>*]:py-3">
         {blends.map((blend) => {
           const score = blend.score
@@ -85,7 +85,7 @@ export function SignalPanel({
                 <span className="flex items-baseline gap-2">
                   <span>{formatScore(score)}</span>
                   <span className="font-sans text-xs font-normal text-muted-foreground">
-                    {score === null ? "unscored" : SIGNAL_BAND_LABELS[signalBand(score)]}
+                    {SIGNAL_BAND_LABELS[signalBand(score)]}
                   </span>
                 </span>
               }
@@ -100,8 +100,8 @@ export function SignalPanel({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead>Component</TableHead>
-            <TableHead className="text-right">Reading</TableHead>
+            <TableHead>Factor</TableHead>
+            <TableHead className="text-right">Raw value</TableHead>
             <TableHead className="w-[40%]">Percentile</TableHead>
           </TableRow>
         </TableHeader>

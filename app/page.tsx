@@ -7,7 +7,6 @@ import {
   PanelHeader,
   PanelMeta,
   PanelTitle,
-  Stat,
 } from "@/components/ui/panel"
 import {
   Table,
@@ -17,7 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ImpliedReturnBar, ValueBar, formatSignedPercent } from "@/components/valuation-scale"
+import { ExcessReturnHistogram } from "@/components/excess-return-histogram"
+import { ValueBar } from "@/components/valuation-scale"
 import { median } from "@/lib/rank"
 import { rankUniverse } from "@/lib/screen"
 import { formatRatio, sectorRows } from "@/lib/sectors"
@@ -30,12 +30,31 @@ export const metadata = {
 }
 
 const STEPS = [
-  { n: 1, title: "Screen", text: "Rank the index on value and trend, or start from a classic screen.", href: "/screener" },
-  { n: 2, title: "Analyse", text: "Read one stock: what its price implies, and its ratios against its sector.", href: null },
-  { n: 3, title: "Build", text: "Optimise a portfolio out of the screen and see its value tilt.", href: "/portfolio" },
+  {
+    n: 1,
+    title: "Stock screener",
+    text: "Rank the S&P 500 by value, momentum and earnings-surprise percentiles; filter by strategy, sector or quintile.",
+    href: "/screener",
+  },
+  {
+    n: 2,
+    title: "Stock analysis",
+    text: "For one stock: the implied return under each reverse-DCF model, the growth its price assumes, and its multiples against sector medians. Open any row, or search above.",
+    href: null,
+  },
+  {
+    n: 3,
+    title: "Portfolio optimiser",
+    text: "The mean–variance efficient frontier over the screened stocks, with shrunk means and covariance.",
+    href: "/portfolio",
+  },
 ] as const
 
 const percent = (x: number | null) => (x === null ? "—" : `${(x * 100).toFixed(1)}%`)
+const pp = (x: number) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x * 100).toFixed(1)} pp`
+
+/** Yahoo gives no sector for a handful of names; they are not a sector to rank. */
+const NO_SECTOR = "Unclassified"
 
 export default async function OverviewPage() {
   const { stocks } = await loadUniverse()
@@ -55,52 +74,69 @@ export default async function OverviewPage() {
     .sort((a, b) => ranking.score.get(b.ticker)! - ranking.score.get(a.ticker)!)
     .slice(0, 10)
 
-  const sectors = sectorRows(stocks, ranking)
+  const allSectors = sectorRows(stocks, ranking)
+  const sectors = allSectors.filter((row) => row.sector !== NO_SECTOR)
+  const unclassified = stocks.filter((s) => s.sector === NO_SECTOR).map((s) => s.ticker)
+  const notValued = stocks.length - pairs.length
 
   return (
-    <div className="flex flex-col gap-6 px-6 py-6 lg:px-10">
+    <div className="flex flex-col gap-8 px-6 py-6 lg:px-10">
       {/* The market gauge: the one question a value investor asks first. */}
-      <section aria-labelledby="gauge" className="flex flex-col gap-4">
-        <h2 id="gauge" className="max-w-3xl font-heading text-2xl leading-snug">
-          {impliedMedian === null || requiredMedian === null ? (
-            "No stock in the index could be valued at today's prices."
-          ) : (
-            <>
-              The median S&amp;P 500 stock&rsquo;s price implies{" "}
-              {percent(impliedMedian)} a year;
-              its risk requires {percent(requiredMedian)}.
-            </>
-          )}
-        </h2>
-        {pairs.length > 0 && gapMedian !== null && (
-          <div className="grid max-w-3xl gap-4 sm:grid-cols-[1fr_auto]">
-            <div className="flex flex-col gap-1">
-              <ImpliedReturnBar alpha={gapMedian} className="w-full" />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>implies less than required</span>
-                <span>more</span>
+      <section aria-labelledby="gauge" className="grid gap-x-10 gap-y-6 xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+        <div className="flex flex-col gap-4">
+          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            Market valuation · reverse DCF
+          </p>
+          <h2 id="gauge" className="font-heading text-2xl leading-snug">
+            {gapMedian === null ? (
+              "No stock in the index could be valued at today's prices."
+            ) : (
+              <>
+                The median S&amp;P 500 stock is priced to return{" "}
+                {pp(Math.abs(gapMedian)).replace(/^[+−]/, "")} a year{" "}
+                {gapMedian < 0 ? "less" : "more"} than its risk requires.
+              </>
+            )}
+          </h2>
+          {gapMedian !== null && (
+            <dl className="grid grid-cols-3 gap-px border border-border bg-border [&>div]:bg-card [&>div]:px-3 [&>div]:py-2.5">
+              <div>
+                <dt className="text-xs text-muted-foreground">Median implied return</dt>
+                <dd className="font-mono text-xl">{percent(impliedMedian)}</dd>
               </div>
-            </div>
-            <Stat
-              label="Median gap"
-              value={`${formatSignedPercent(gapMedian)} / yr`}
-              hint={`${above} of ${pairs.length} stocks price in more than their risk requires`}
-            />
+              <div>
+                <dt className="text-xs text-muted-foreground">Median required return</dt>
+                <dd className="font-mono text-xl">{percent(requiredMedian)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Median implied − required</dt>
+                <dd className={`font-mono text-xl ${gapMedian < 0 ? "text-overvalued" : "text-undervalued"}`}>
+                  {pp(gapMedian)}
+                </dd>
+              </div>
+            </dl>
+          )}
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Medians over the {pairs.length} stocks at least one model can value
+            ({notValued} cannot). {above} of them ({Math.round((above / Math.max(pairs.length, 1)) * 100)}%)
+            have an implied return above their required return. Implied return
+            is the discount rate that equates forecast cash flows with today&rsquo;s
+            price; required return is WACC or the CAPM cost of equity. The
+            backtest found the cross-sectional rank informative and the level
+            not, so this is a reading of relative pricing, not a forecast.{" "}
+            <Link href="/methodology" className="underline underline-offset-2 hover:text-foreground">
+              Methodology
+            </Link>
+          </p>
+        </div>
+        {gapMedian !== null && (
+          <div className="flex flex-col justify-end pt-2">
+            <ExcessReturnHistogram values={pairs.map(([r, k]) => r - k)} median={gapMedian} />
           </div>
         )}
-        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          Each figure is a reverse DCF: the return that makes a company&rsquo;s
-          cash flows worth today&rsquo;s price, against WACC or the CAPM cost of
-          equity. The backtest found the ranking across stocks informative and
-          the size of the gap not, so the screener ranks rather than reading
-          this as a forecast.{" "}
-          <Link href="/methodology" className="underline underline-offset-2 hover:text-foreground">
-            Methodology
-          </Link>
-        </p>
       </section>
 
-      {/* Screen → Analyse → Build */}
+      {/* What each page is for, named as it is in the sidebar. */}
       <ol className="grid gap-px border border-border bg-border sm:grid-cols-3">
         {STEPS.map((step) => {
           const body = (
@@ -110,9 +146,7 @@ export default async function OverviewPage() {
                 {step.title}
                 {step.href && <RiArrowRightLine className="size-4 text-muted-foreground" aria-hidden="true" />}
               </span>
-              <span className="text-xs leading-relaxed text-muted-foreground">
-                {step.href ? step.text : <>{step.text} Search from the bar above, or pick a stock below.</>}
-              </span>
+              <span className="text-xs leading-relaxed text-muted-foreground">{step.text}</span>
             </>
           )
           return (
@@ -132,29 +166,33 @@ export default async function OverviewPage() {
       <div className="grid items-start gap-6 2xl:grid-cols-2">
         <Panel>
           <PanelHeader>
-            <PanelTitle>Top ten: value + trend</PanelTitle>
+            <PanelTitle>Top 10 · value + momentum composite</PanelTitle>
             <Link href="/screener" className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
-              Full screen
+              All {stocks.length} in the screener
             </Link>
           </PanelHeader>
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
+                <TableHead className="w-8">#</TableHead>
                 <TableHead>Stock</TableHead>
-                <TableHead className="w-[30%]">Score</TableHead>
-                <TableHead className="w-[30%]">Value</TableHead>
+                <TableHead className="w-[22%]">Composite</TableHead>
+                <TableHead className="w-[22%]">Value percentile</TableHead>
+                <TableHead className="w-[22%]">Momentum percentile</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {top.map((stock) => {
+              {top.map((stock, i) => {
                 const score = ranking.score.get(stock.ticker) ?? null
                 const value = ranking.value.get(stock.ticker) ?? null
+                const momentum = stock.signals?.momentumRank ?? null
                 return (
                   <TableRow key={stock.ticker}>
+                    <TableCell className="font-mono text-xs text-muted-foreground">{i + 1}</TableCell>
                     <TableCell>
                       <Link href={`/stocks/${stock.ticker}`} className="flex flex-col hover:underline">
                         <span className="font-mono text-sm font-semibold">{stock.ticker}</span>
-                        <span className="max-w-[16rem] truncate text-xs text-muted-foreground">{stock.name}</span>
+                        <span className="max-w-[14rem] truncate text-xs text-muted-foreground">{stock.name}</span>
                       </Link>
                     </TableCell>
                     <TableCell>
@@ -169,23 +207,33 @@ export default async function OverviewPage() {
                         <span className="w-7 text-right font-mono text-sm">{formatScore(value)}</span>
                       </div>
                     </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <SignalBar score={momentum} className="flex-1" />
+                        <span className="w-7 text-right font-mono text-sm">{formatScore(momentum)}</span>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 )
               })}
             </TableBody>
           </Table>
+          <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
+            Percentiles are 0–100 across the index (100 = cheapest on value,
+            strongest on momentum). The composite averages the two and re-ranks.
+          </p>
         </Panel>
 
         <Panel>
           <PanelHeader>
-            <PanelTitle>Sectors</PanelTitle>
-            <PanelMeta>medians · cheapest first</PanelMeta>
+            <PanelTitle>Sector valuation · medians</PanelTitle>
+            <PanelMeta>cheapest first</PanelMeta>
           </PanelHeader>
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead>Sector</TableHead>
-                <TableHead className="text-right">Value</TableHead>
+                <TableHead>Sector (stocks)</TableHead>
+                <TableHead className="w-[26%]">Median value percentile</TableHead>
                 <TableHead className="text-right">P/E</TableHead>
                 <TableHead className="text-right">EV/EBITDA</TableHead>
                 <TableHead className="text-right">FCF yield</TableHead>
@@ -203,7 +251,12 @@ export default async function OverviewPage() {
                       <span className="font-mono text-xs text-muted-foreground">{row.count}</span>
                     </Link>
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm">{formatScore(row.value)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <ValueBar percentile={row.value} className="flex-1" />
+                      <span className="w-7 text-right font-mono text-sm">{formatScore(row.value)}</span>
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right font-mono text-sm">{formatRatio(row.peRatio, "multiple")}</TableCell>
                   <TableCell className="text-right font-mono text-sm">{formatRatio(row.evEbitda, "multiple")}</TableCell>
                   <TableCell className="text-right font-mono text-sm">{formatRatio(row.fcfYield, "percent")}</TableCell>
@@ -212,8 +265,9 @@ export default async function OverviewPage() {
             </TableBody>
           </Table>
           <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
-            Value is the sector&rsquo;s median value rank, 0–100 across the
-            index. Click a sector to screen it.
+            Sectors are ordered by the median value percentile of their
+            stocks. Click a sector to open it in the screener.
+            {unclassified.length > 0 && <> Not shown: {unclassified.join(", ")}, which has no sector from the data source.</>}
           </p>
         </Panel>
       </div>

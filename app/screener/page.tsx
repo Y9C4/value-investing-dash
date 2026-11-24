@@ -2,7 +2,7 @@ import { Screener } from "@/components/screener"
 import { loadUniverse } from "@/lib/universe"
 
 export const metadata = {
-  title: "Screener",
+  title: "Stock screener",
 }
 
 /**

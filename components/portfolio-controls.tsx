@@ -282,7 +282,7 @@ export function PortfolioControls({
     <div className="flex flex-col border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <span className="font-heading text-sm font-semibold">
-          Optimiser
+          Optimiser settings
         </span>
         <Button variant="ghost" size="xs" onClick={onReset}>
           <RiCloseLine />
@@ -382,7 +382,7 @@ export function PortfolioControls({
           rather than among the dials that do need the button. */}
       <ControlGroup label="Valuation models">
         <span className="text-xs leading-snug text-muted-foreground">
-          Which reverse-DCF models the &ldquo;Value tilt&rdquo; reading
+          Which reverse-DCF models the weighted implied excess return
           averages: the return each says the holdings&apos; prices imply,
           against the return their risk requires.
         </span>

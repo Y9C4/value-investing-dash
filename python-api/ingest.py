@@ -118,8 +118,12 @@ def _download(chunk: list[str], start: str) -> pd.DataFrame:
 
 def _bars(ticker: str, frame: pd.DataFrame) -> tuple[list, list, list]:
     """Price, dividend and split rows for one ticker's slice of a download."""
-    frame = frame.dropna(subset=["Close"])
     prices, dividends, splits = [], [], []
+    # Actions are read before bars without a close are dropped: Yahoo publishes
+    # a split on its ex-date before that day's bar, and dropping the row first
+    # lost SNDK's 8:1 split of 2026-11-20 while the history was already adjusted.
+    actions = frame
+    frame = frame.dropna(subset=["Close"])
     close = frame["Close"]
     # Indices publish no separate adjusted series.
     adj = frame["Adj Close"].fillna(close) if "Adj Close" in frame else close
@@ -128,13 +132,14 @@ def _bars(ticker: str, frame: pd.DataFrame) -> tuple[list, list, list]:
 
     for day, c, a, v in zip(days, close, adj, volume):
         prices.append((ticker, day, float(c), float(a), _finite(v)))
-    if "Dividends" in frame:
-        for day, amount in zip(days, frame["Dividends"]):
+    action_days = actions.index.date
+    if "Dividends" in actions:
+        for day, amount in zip(action_days, actions["Dividends"]):
             value = _finite(amount)
             if value and value > 0:
                 dividends.append((ticker, day, value))
-    if "Stock Splits" in frame:
-        for day, ratio in zip(days, frame["Stock Splits"]):
+    if "Stock Splits" in actions:
+        for day, ratio in zip(action_days, actions["Stock Splits"]):
             value = _finite(ratio)
             if value and value > 0:
                 splits.append((ticker, day, value))

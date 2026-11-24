@@ -38,7 +38,7 @@ export const SIGNAL_COMPONENTS: SignalComponent[] = [
   {
     id: "value",
     label: "Value",
-    full: "What the price implies, against what the risk requires",
+    full: "Implied excess return, reverse DCF",
     blurb:
       "The return the current price implies, minus the return the stock's risk requires: the average over reverse FCFF, residual income, revenue and shareholder-yield models. Solved from price, not discounted to a fair value.",
     formula: "α = r(implied) − WACC or kₑ, averaged over 4 models",
@@ -47,18 +47,18 @@ export const SIGNAL_COMPONENTS: SignalComponent[] = [
   },
   {
     id: "momentum",
-    label: "Trend",
-    full: "12-1 month price momentum",
+    label: "Momentum",
+    full: "12–1 month price momentum",
     blurb:
-      "The return from twelve months ago to one month ago (Jegadeesh & Titman 1993). Skipping the last month avoids its short-term reversal. Beside value it asks whether the market has started to agree.",
+      "The return from twelve months ago to one month ago (Jegadeesh & Titman 1993). Skipping the last month avoids its short-term reversal. Beside value it asks whether the market has started to re-rate the stock.",
     formula: "P(t−21) ÷ P(t−252) − 1, on dividend-adjusted closes",
     ic: 0.029,
     icTStat: 1.18,
   },
   {
     id: "surprise",
-    label: "Earnings",
-    full: "Latest earnings surprise",
+    label: "Earnings surprise",
+    full: "Price-scaled earnings surprise, latest quarter",
     blurb:
       "How far the latest quarter's EPS beat or missed the analyst consensus, scaled by price (Livnat & Mendenhall 2006). Only reports from the last 100 days count.",
     formula: "(reported EPS − estimated EPS) ÷ price",
@@ -69,12 +69,12 @@ export const SIGNAL_COMPONENTS: SignalComponent[] = [
 
 /** The tested blends, by their sorted component ids. Anything else is untested. */
 const TESTED_BLENDS: Record<string, { label: string; ic: number; icTStat: number }> = {
-  "momentum+value": { label: "Value + trend", ic: 0.054, icTStat: 1.92 },
-  "momentum+surprise": { label: "Trend + earnings", ic: 0.035, icTStat: 1.47 },
+  "momentum+value": { label: "Value + momentum", ic: 0.054, icTStat: 1.92 },
+  "momentum+surprise": { label: "Momentum + earnings surprise", ic: 0.035, icTStat: 1.47 },
 }
 
 /**
- * Value + trend: the best tested blend, equally weighted as in Asness,
+ * Value + momentum: the best tested blend, equally weighted as in Asness,
  * Moskowitz & Pedersen (2013).
  */
 export const DEFAULT_SIGNALS: SignalId[] = ["value", "momentum"]
@@ -114,12 +114,12 @@ export function signalBand(score: number | null): SignalBand {
 }
 
 export const SIGNAL_BAND_LABELS: Record<SignalBand, string> = {
-  q5: "Top fifth",
-  q4: "Second fifth",
-  q3: "Middle fifth",
-  q2: "Fourth fifth",
-  q1: "Bottom fifth",
-  unscored: "Unscored",
+  q5: "Q5 · highest",
+  q4: "Q4",
+  q3: "Q3",
+  q2: "Q2",
+  q1: "Q1 · lowest",
+  unscored: "Not scored",
 }
 
 /**

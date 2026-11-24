@@ -21,22 +21,22 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
   return (
     <Panel>
       <PanelHeader>
-        <PanelTitle>Classic ratios</PanelTitle>
-        <PanelMeta>against {sector}</PanelMeta>
+        <PanelTitle>Multiples and fundamentals vs sector</PanelTitle>
+        <PanelMeta>{sector}</PanelMeta>
       </PanelHeader>
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>Ratio</TableHead>
-            <TableHead className="text-right">This stock</TableHead>
+            <TableHead className="text-right">Stock</TableHead>
             <TableHead className="text-right">Sector median</TableHead>
             <TableHead className="w-[30%]">
               <span className="flex items-center gap-1">
-                Rank in sector
-                <Info title="Rank in sector">
-                  Where this stock&rsquo;s figure sits among sector peers that
-                  report it, counted from the lowest. A low P/E and a high FCF
-                  yield both point to cheap.
+                Position in sector (low → high)
+                <Info title="Position in sector">
+                  The stock&rsquo;s rank among sector peers that report the
+                  figure, counted from the lowest. For P/E, P/B and EV/EBITDA
+                  low is cheap; for the yields, high is cheap.
                 </Info>
               </span>
             </TableHead>
@@ -87,10 +87,10 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
       </Table>
       <PanelBody className="border-t border-border">
         <p className="text-xs leading-relaxed text-muted-foreground">
-          The dot is where the stock sits among peers with a reading, lowest on
-          the left; the tick is the median. Ratios are
-          context: in the backtest each lost to the reverse-DCF model built
-          on the same figures.
+          The dot is the stock&rsquo;s rank among peers with a reading, lowest
+          on the left; the tick is the sector median. These are context, not
+          inputs to the factor ranks: in the backtest each plain ratio had a
+          lower IC than the reverse-DCF model built on the same figures.
         </p>
       </PanelBody>
     </Panel>

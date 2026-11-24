@@ -374,6 +374,7 @@ export function ScreenerFilterRail({
   signalCoverage,
   onChange,
   onReset,
+  onClose,
 }: {
   filters: ScreenerFilters
   sectors: string[]
@@ -385,6 +386,8 @@ export function ScreenerFilterRail({
   signalCoverage: Record<SignalId, number>
   onChange: (next: ScreenerFilters) => void
   onReset: () => void
+  /** Closes the rail where it is an overlay; the button hides where it is docked. */
+  onClose: () => void
 }) {
   const evidence = blendEvidence(filters.signals)
 
@@ -403,23 +406,36 @@ export function ScreenerFilterRail({
   return (
     <div className="flex flex-col border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <span className="text-sm font-semibold">Screen</span>
-        <Button variant="ghost" size="xs" onClick={onReset}>
-          <RiCloseLine />
-          Reset
-        </Button>
+        <span className="text-sm font-semibold">Filters</span>
+        <span className="flex items-center gap-1">
+          <Button variant="ghost" size="xs" onClick={onReset}>
+            Reset all
+          </Button>
+          <Button variant="ghost" size="xs" onClick={onClose} aria-label="Close filters" className="min-[1700px]:hidden">
+            <RiCloseLine />
+          </Button>
+        </span>
       </div>
 
       {/* Live count: the rail's whole purpose is narrowing this number. */}
       <div className="border-b border-border px-6 py-4">
         <p className="flex items-baseline gap-2">
           <span className="font-mono text-3xl font-semibold tabular-nums">{matches}</span>
-          <span className="text-sm text-muted-foreground">of {total} stocks</span>
+          <span className="text-sm text-muted-foreground">of {total} stocks shown</span>
         </p>
       </div>
 
-      <FilterGroup label="Start from a screen">
-        <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="Screens">
+      <FilterGroup
+        label="Strategy"
+        info={
+          <Info title="Strategy">
+            A strategy sets which factors the composite averages and which
+            stocks are kept. Search and sector filters apply on top. Changing a
+            quintile filter or the composite&rsquo;s factors makes it custom.
+          </Info>
+        }
+      >
+        <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="Strategy">
           {PRESETS.map((preset) => {
             const active = filters.preset === preset.id
             return (
@@ -443,7 +459,9 @@ export function ScreenerFilterRail({
             )
           })}
           {filters.preset === null && (
-            <p className="text-xs text-muted-foreground">Custom: adjusted under Advanced.</p>
+            <p className="text-xs text-muted-foreground">
+              Custom: the quintile filters or composite factors differ from every strategy above.
+            </p>
           )}
         </div>
         {filters.graham && (
@@ -451,7 +469,7 @@ export function ScreenerFilterRail({
         )}
       </FilterGroup>
 
-      <FilterGroup label="Search">
+      <FilterGroup label="Ticker or company">
         <div className="flex items-center gap-2 border-b border-input focus-within:border-ring">
           <RiSearchLine className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <Input
@@ -479,7 +497,7 @@ export function ScreenerFilterRail({
         </div>
       </FilterGroup>
 
-      <FilterGroup label="Value, by fifth of the index" info={<Info title="Value fifths">{BAND_BASIS}</Info>}>
+      <FilterGroup label="Value quintile" info={<Info title="Value quintile">{BAND_BASIS}</Info>}>
         <div className="flex flex-wrap gap-2">
           {BANDS.map((band) => (
             <Chip
@@ -494,7 +512,15 @@ export function ScreenerFilterRail({
         </div>
       </FilterGroup>
 
-      <FilterGroup label="Score, by fifth">
+      <FilterGroup
+        label="Composite quintile"
+        info={
+          <Info title="Composite quintile">
+            Quintiles of the composite percentile: Q5 is the 20% of scored
+            stocks ranked highest on the factors selected below.
+          </Info>
+        }
+      >
         <div className="flex flex-wrap gap-2">
           {SIGNAL_BANDS.map((band) => (
             <Chip
@@ -511,11 +537,11 @@ export function ScreenerFilterRail({
 
       <details className="group/advanced border-t border-border">
         <summary className="cursor-pointer list-none px-6 py-4 text-xs font-semibold text-muted-foreground hover:text-foreground">
-          <span className="group-open/advanced:hidden">+ Advanced: score components, valuation models, beta</span>
-          <span className="hidden group-open/advanced:inline">− Advanced</span>
+          <span className="group-open/advanced:hidden">+ Composite factors, valuation models, beta cap</span>
+          <span className="hidden group-open/advanced:inline">− Composite factors, valuation models, beta cap</span>
         </summary>
 
-        <FilterGroup label="Score is the average rank of" info={<Info title="Evidence">{SIGNAL_EVIDENCE}</Info>}>
+        <FilterGroup label="Factors averaged into the composite" info={<Info title="Evidence">{SIGNAL_EVIDENCE}</Info>}>
           <div className="flex flex-col gap-1.5">
             {SIGNAL_COMPONENTS.map((component) => (
               <SignalToggle
@@ -526,7 +552,7 @@ export function ScreenerFilterRail({
                 total={total}
                 onClick={() => {
                   const next = toggle(filters.signals, component.id)
-                  // A score of nothing would blank the column with no reason given.
+                  // A composite of nothing would blank the column with no reason given.
                   if (next.length === 0) return
                   // Kept in registry order, so the tested-blend lookup is stable.
                   customise({
@@ -550,7 +576,7 @@ export function ScreenerFilterRail({
         </FilterGroup>
 
         <FilterGroup
-          label="Value averages these models"
+          label="Reverse-DCF models averaged into value"
           info={
             <Info title="Reverse-DCF models">
               Each model solves for the annual return today&rsquo;s price implies and subtracts the return the
@@ -580,7 +606,7 @@ export function ScreenerFilterRail({
             ))}
           </div>
           <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
-            Each stock averages whichever selected models solved for it, the rule the backtest used. Unrated
+            Each stock averages whichever selected models solved for it, the rule the backtest used. Not valued
             means none did. The backtest&rsquo;s figures are for all four.
           </p>
         </FilterGroup>

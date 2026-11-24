@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils"
  *
  * Measured, not guessed: the table's natural width is a little over 1,000px,
  * the rail is 20rem, and the app chrome takes another 336px. Below this the
- * rail starts collapsed and the toolbar button opens it.
+ * rail is an overlay sheet, so opening it never squeezes the table.
  */
 const RAIL_BREAKPOINT = 1700
 
@@ -94,7 +94,7 @@ function downloadCsv(
     "sector",
     "price",
     "market_cap_usd_bn",
-    `score_${signals.join("_")}`,
+    `composite_${signals.join("_")}`,
     "value_percentile",
     "implied_excess_return",
     ...VALUATION_METHODS.map((m) => `implied_excess_${m.id}`),
@@ -198,16 +198,16 @@ function ScreenerGuide() {
 
   const items = [
     {
-      term: "Value",
-      text: "The return today's price implies, against the return the stock's risk requires (reverse DCF). Ranked 0–100 across the index: 100 is the cheapest.",
+      term: "Value percentile",
+      text: "Rank on implied excess return: the annual return today's price implies (reverse DCF) minus the return the stock's risk requires. 100 is the cheapest stock in the index.",
     },
     {
-      term: "Trend",
-      text: "The last twelve months' price move, skipping the latest month: has the market started to agree?",
+      term: "Momentum percentile",
+      text: "Rank on 12–1 month price momentum: the return from twelve months ago to one month ago (Jegadeesh & Titman 1993).",
     },
     {
-      term: "Score",
-      text: "The average of the selected ranks, re-ranked 0–100. Value + trend ranked best in the backtest, though not yet significantly.",
+      term: "Composite",
+      text: "The equal-weight average of the selected factor percentiles, re-ranked 0–100. Value + momentum had the highest backtest IC, though not yet significant.",
     },
   ]
 
@@ -226,7 +226,7 @@ function ScreenerGuide() {
         href="/methodology"
         className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground md:col-span-3"
       >
-        How the models work, and what the backtest found
+        Methodology: the four reverse-DCF models and the backtest
       </Link>
       <button
         type="button"
@@ -358,23 +358,35 @@ export function Screener({
     <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 lg:px-10">
       <ScreenerGuide />
 
+      {/* Below the breakpoint an open rail is an overlay; this is its scrim. */}
+      {railOpen && (
+        <button
+          type="button"
+          aria-label="Close filters"
+          onClick={() => setRailOpen(false)}
+          className="fixed inset-0 z-40 bg-background/60 min-[1700px]:hidden"
+        />
+      )}
+
       <div
         className={cn(
           "grid gap-6",
-          railOpen === null
-            ? "min-[1700px]:grid-cols-[20rem_minmax(0,1fr)]"
-            : railOpen
-              ? "lg:grid-cols-[20rem_minmax(0,1fr)]"
-              : undefined
+          railOpen !== false && "min-[1700px]:grid-cols-[20rem_minmax(0,1fr)]"
         )}
       >
         <div
           id="screener-filters"
           ref={railRef}
           style={railMaxHeight ? { maxHeight: railMaxHeight } : undefined}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && window.innerWidth < RAIL_BREAKPOINT) setRailOpen(false)
+          }}
           className={cn(
             "flex-col gap-6 overflow-y-auto lg:max-h-[calc(100vh-14rem)]",
-            railOpen === null ? "hidden min-[1700px]:flex" : railOpen ? "flex" : "hidden"
+            railOpen === null && "hidden min-[1700px]:flex",
+            railOpen === false && "hidden",
+            railOpen === true &&
+              "fixed inset-y-0 left-0 z-50 flex w-[22rem] max-w-[calc(100vw-2rem)] shadow-xl max-[1700px]:max-h-dvh! min-[1700px]:static min-[1700px]:z-auto min-[1700px]:w-auto min-[1700px]:max-w-none min-[1700px]:shadow-none"
           )}
         >
           <ScreenerFilterRail
@@ -393,75 +405,76 @@ export function Screener({
               }
             }}
             onReset={reset}
+            onClose={() => setRailOpen(false)}
           />
         </div>
 
         <div className="flex min-w-0 flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                size="sm"
-                variant="outline"
-                aria-controls="screener-filters"
-                aria-expanded={railOpen ?? undefined}
-                onClick={() =>
-                  setRailOpen((current) =>
-                    // The first press flips whatever the viewport chose.
-                    current === null ? !(window.innerWidth >= RAIL_BREAKPOINT) : !current
-                  )
-                }
-              >
-                <RiEqualizerLine />
-                Filters
-                {activeFilters > 0 && (
-                  <span className="ml-1 font-mono text-xs text-muted-foreground">{activeFilters}</span>
-                )}
-              </Button>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <Button
+              size="sm"
+              variant="outline"
+              aria-controls="screener-filters"
+              aria-expanded={railOpen ?? undefined}
+              onClick={() =>
+                setRailOpen((current) =>
+                  // The first press flips whatever the viewport chose.
+                  current === null ? !(window.innerWidth >= RAIL_BREAKPOINT) : !current
+                )
+              }
+            >
+              <RiEqualizerLine />
+              Filters
+              {activeFilters > 0 && (
+                <span className="ml-1 font-mono text-xs text-muted-foreground">{activeFilters}</span>
+              )}
+            </Button>
 
-              {/* Column groups beyond the defaults: what a reader adds, not hunts for. */}
-              <div role="group" aria-label="Show columns" className="flex flex-wrap items-center gap-1">
-                {COLUMN_GROUPS.map((group) => {
-                  const on = groups.includes(group.id)
-                  return (
-                    <button
-                      key={group.id}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() =>
-                        setGroups((current) =>
-                          on ? current.filter((g) => g !== group.id) : [...current, group.id]
-                        )
-                      }
-                      className={cn(
-                        "border px-2.5 py-1.5 text-xs transition-colors",
-                        on
-                          ? "border-primary bg-primary/10 text-foreground"
-                          : "border-border text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {on ? "− " : "+ "}
-                      {group.label}
-                    </button>
-                  )
-                })}
-              </div>
-
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => downloadCsv(sorted, ranking, filters.methods, filters.signals)}
-              >
-                <RiDownloadLine />
-                Export {sorted.length}
-              </Button>
-
-              <span className="font-mono text-xs text-muted-foreground">
-                {filtered.length} of {stocks.length} stocks
-                {selected.length > 0 && ` · ${selected.length} selected`}
-              </span>
+            {/* Column groups beyond the defaults: what a reader adds, not hunts for. */}
+            <div role="group" aria-label="Extra columns" className="flex items-center gap-1">
+              <span className="mr-1 text-xs text-muted-foreground">Columns</span>
+              {COLUMN_GROUPS.map((group) => {
+                const on = groups.includes(group.id)
+                return (
+                  <button
+                    key={group.id}
+                    type="button"
+                    aria-pressed={on}
+                    title={group.columns}
+                    onClick={() =>
+                      setGroups((current) =>
+                        on ? current.filter((g) => g !== group.id) : [...current, group.id]
+                      )
+                    }
+                    className={cn(
+                      "border px-2.5 py-1.5 text-xs whitespace-nowrap transition-colors",
+                      on
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {on ? "− " : "+ "}
+                    {group.label}
+                  </button>
+                )
+              })}
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => downloadCsv(sorted, ranking, filters.methods, filters.signals)}
+            >
+              <RiDownloadLine />
+              CSV
+            </Button>
+
+            <div className="ml-auto flex items-center gap-3">
+              <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">
+                {filtered.length} of {stocks.length}
+                {selected.length > 0 && ` · ${selected.length} ticked`}
+              </span>
+
               {/* Hand the whole screened set over, not just ticked rows: the
                   frontier is built from what survived the filters. */}
               {filtered.length > 1 && !allVisibleSelected && (
@@ -471,14 +484,14 @@ export function Screener({
                   nativeButton={false}
                   render={<Link href={portfolioHref(filtered.map((stock) => stock.ticker))} />}
                 >
-                  Optimise all {filtered.length}
+                  Optimise these {filtered.length}
                   <RiArrowRightLine />
                 </Button>
               )}
 
               {selected.length > 1 && (
                 <Button size="sm" nativeButton={false} render={<Link href={portfolioHref(selected)} />}>
-                  Optimise {selected.length} selected
+                  Optimise {selected.length} ticked
                   <RiArrowRightLine />
                 </Button>
               )}

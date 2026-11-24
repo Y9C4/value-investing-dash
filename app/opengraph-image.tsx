@@ -38,7 +38,7 @@ export default function Image() {
             <span style={{ fontSize: 60, lineHeight: 1.1, color: MUTED }}>What does the risk require?</span>
           </div>
           <span style={{ fontSize: 22, color: MUTED, fontFamily: "sans-serif" }}>
-            S&amp;P 500 · reverse DCF · trend · portfolio optimiser
+            S&amp;P 500 · reverse DCF · momentum · portfolio optimiser
           </span>
         </div>
         <div style={{ display: "flex", flex: 1, flexDirection: "column", justifyContent: "center", gap: 18, padding: "0 56px", background: CARD }}>

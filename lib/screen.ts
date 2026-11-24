@@ -123,10 +123,10 @@ export type ScreenerFilters = {
   search: string
   /** Signal components the score averages. Never empty. */
   signals: SignalId[]
-  /** Keep only these fifths of the score. Empty keeps every stock. */
+  /** Keep only these quintiles of the composite. Empty keeps every stock. */
   signalBands: SignalBand[]
   sectors: string[]
-  /** Keep only these fifths of value. Empty keeps every stock. */
+  /** Keep only these value quintiles. Empty keeps every stock. */
   bands: ValuationBand[]
   /** Restrict value to these models. Empty means all four, as backtested. */
   methods: MethodId[]
@@ -135,7 +135,7 @@ export type ScreenerFilters = {
   graham: boolean
 }
 
-/** Everything ranked on value + trend, nothing cut. */
+/** Everything ranked on value + momentum, nothing cut. */
 export const DEFAULT_FILTERS: ScreenerFilters = {
   preset: "cheap-improving",
   search: "",
@@ -161,30 +161,30 @@ export type Preset = {
 export const PRESETS: Preset[] = [
   {
     id: "cheap-improving",
-    label: "Cheap and improving",
-    blurb: "Every stock, ranked on value and trend together.",
-    basis: "The best blend in the backtest (development IC 0.054, t 1.92).",
+    label: "Value + momentum composite",
+    blurb: "Every stock, ranked by the equal-weight average of its value and momentum percentiles (Asness, Moskowitz & Pedersen 2013).",
+    basis: "Highest IC of the combinations backtested: 0.054 (t = 1.92).",
     apply: { signals: ["value", "momentum"], signalBands: [], bands: [], graham: false },
   },
   {
     id: "deep-value",
-    label: "Deep value",
-    blurb: "The cheapest fifth of the index on value alone.",
-    basis: "The top quintile of the backtest's value sort (IC 0.032).",
+    label: "Value quintile 5",
+    blurb: "Only the cheapest 20% of the index on implied excess return, ranked by value percentile.",
+    basis: "The long leg of the backtest's quintile sort. Value alone: IC 0.032 (t = 1.18).",
     apply: { signals: ["value"], signalBands: [], bands: ["deep-value"], graham: false },
   },
   {
     id: "earnings-momentum",
-    label: "Earnings momentum",
-    blurb: "Ranked on trend and the latest earnings surprise.",
-    basis: "The second-best blend tested (IC 0.035, t 1.47).",
+    label: "Momentum + earnings surprise",
+    blurb: "Every stock, ranked by the equal-weight average of its momentum and earnings-surprise percentiles. No valuation input.",
+    basis: "IC 0.035 (t = 1.47) in the backtest.",
     apply: { signals: ["momentum", "surprise"], signalBands: [], bands: [], graham: false },
   },
   {
     id: "graham",
-    label: "Graham defensive",
-    blurb: "Benjamin Graham's defensive-investor rules, ranked on value.",
-    basis: "A classic rule, partly testable here. Not backtested.",
+    label: "Graham defensive (partial)",
+    blurb: "Stocks passing the testable parts of Graham's defensive-investor criteria (1973), ranked by value percentile.",
+    basis: "4 of 7 criteria testable on this data. Not backtested.",
     apply: { signals: ["value"], signalBands: [], bands: [], graham: true },
   },
 ]

@@ -111,10 +111,10 @@ export function selectionLabel(
   const canonicalised = canonical(selected)
   switch (canonicalised.kind) {
     case "maxSharpe":
-      return "Max Sharpe"
+      return "Tangency (max Sharpe)"
     case "minVolatility":
-      return "Min volatility"
+      return "Minimum variance"
     case "envelope":
-      return `Point ${canonicalised.index + 1} of ${data.envelope.length}`
+      return `Frontier point ${canonicalised.index + 1} of ${data.envelope.length}`
   }
 }

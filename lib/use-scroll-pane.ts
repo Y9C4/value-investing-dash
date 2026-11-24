@@ -68,6 +68,8 @@ export function useScrollPane<T extends HTMLElement>({
     measureHeight()
     const observer = new ResizeObserver(measureClip)
     observer.observe(node)
+    // The content too: adding columns widens it without resizing the port.
+    if (node.firstElementChild) observer.observe(node.firstElementChild)
     node.addEventListener("scroll", measureClip, { passive: true })
     window.addEventListener("resize", measureHeight)
 

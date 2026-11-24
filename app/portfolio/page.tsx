@@ -5,7 +5,7 @@ import { decodeTickerSet } from "@/lib/ticker-set"
 import { loadUniverse, VALUATIONS_CACHE_TAG } from "@/lib/universe"
 
 export const metadata = {
-  title: "Portfolio",
+  title: "Portfolio optimiser",
 }
 
 /**

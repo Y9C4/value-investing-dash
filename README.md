@@ -2,7 +2,7 @@
 
 # Value Investing Dash
 
-**What return does each S&P 500 stock’s price imply, and is it more than its risk requires? Rank the index on that, confirm it with trend, then build an optimised portfolio from the screen.**
+**What return does each S&P 500 stock’s price imply, and is it more than its risk requires? Rank the index on that, combine it with price momentum, then build an optimised portfolio from the screen.**
 
 Next.js frontend | FastAPI Data API | Supabase PostgreSQL database
 
@@ -30,10 +30,10 @@ The reason for screening first is that a portfolio optimizer estimates expected 
 
 | | Page | What it does |
 |---|---|---|
-| | **Overview** | Is the market cheap? The median implied vs required return, sectors ranked by value, and the top ten on the default screen. |
-| **1** | **Screener** | Rank the index on value + trend (or start from Deep value, Earnings momentum or a partial Graham screen), filter by sector and fifths, and add classic-ratio, trend and risk columns. Stocks that pass or are ticked go to the portfolio page. |
-| **2** | **Stock** | A one-sentence verdict, the four implied returns and the growth the price assumes, classic ratios against the sector, trend and earnings, the price chart, and the required-return inputs. Reached from the search bar on every page. |
-| **3** | **Portfolio** | Solve the efficient frontier over the screened stocks, setting position bounds, short selling and L2 regularisation, and see the portfolio’s value tilt. |
+| | **Market overview** | The median implied vs required return and its distribution across the index, sectors ranked by median value percentile, and the top ten on the value + momentum composite. |
+| **1** | **Stock screener** | Rank the index on the value + momentum composite (or the value quintile 5, momentum + earnings surprise and partial Graham strategies), filter by sector and quintile, and add fundamentals, factor-input and risk columns. Stocks that pass or are ticked go to the portfolio page. |
+| **2** | **Stock analysis** | A one-sentence verdict, the four implied returns and the growth the price assumes, multiples against the sector, momentum and earnings surprise, the price chart, and the required-return inputs. Reached from the search bar on every page. |
+| **3** | **Portfolio optimiser** | Solve the efficient frontier over the screened stocks, setting position bounds, short selling and L2 regularisation, and see the portfolio’s weighted implied excess return. |
 | | **Methodology** | Why reverse DCF, the backtest tables, every assumption with its source, and a glossary. |
 
 ![The screener](public/screener.png)
@@ -67,12 +67,12 @@ The [backtest](python-api/notebooks/backtests.md) tested each model against the 
 | Component | What it is | Development IC |
 |---|---|---|
 | **Value** | Reverse DCF: the return today’s price implies, minus the return the stock’s risk requires, averaged over reverse FCFF, residual income, revenue and shareholder-yield models | 0.032 |
-| **Trend** | 12-1 momentum: the return from 12 months to 1 month ago (Jegadeesh & Titman 1993) | 0.029 |
+| **Momentum** | 12–1 momentum: the return from 12 months to 1 month ago (Jegadeesh & Titman 1993) | 0.029 |
 | **Earnings** | Latest EPS beat or miss against the analyst consensus, scaled by price (Livnat & Mendenhall 2006) | 0.024 |
-| *Value + trend* | The default blend, equal-weighted (Asness, Moskowitz & Pedersen 2013) | *0.054* |
-| *Trend + earnings* | | *0.035* |
+| *Value + momentum* | The default composite, equal-weighted (Asness, Moskowitz & Pedersen 2013) | *0.054* |
+| *Momentum + earnings surprise* | | *0.035* |
 
-Each is shown as a percentile of today’s universe, and the score is the mean of the selected percentiles, re-ranked so its fifths hold equal numbers of stocks. The backtest found the size of expected alpha meaningless, so no component is shown as a return forecast. None of these results is statistically significant on 23 months yet, and the locked holdout hasn’t been run; the screener says so beside the controls.
+Each is shown as a percentile of today’s universe, and the composite is the mean of the selected percentiles, re-ranked so its quintiles hold equal numbers of stocks. The backtest found the size of expected alpha meaningless, so no component is shown as a return forecast. None of these results is statistically significant on 23 months yet, and the locked holdout hasn’t been run; the screener says so beside the controls.
 
 ## Valuation models
 
@@ -93,7 +93,7 @@ VID used to run five forward models (DDM, FCFE, FCFF, RIM, comps) and screen on 
 
 ### Valuation is relative
 
-Value is shown as a percentile (100 = cheapest), cut into fifths recomputed from the live cross-section at every refresh, as in a Fama-French sort. “Cheapest fifth” means exactly that, not that a stock will beat its required return by the number shown. The classic ratios (P/E, P/B, EV/EBITDA, FCF and shareholder yield, ROE) appear as context: in the backtest each lost to the reverse-DCF model built on the same figures.
+Value is shown as a percentile (100 = cheapest), sorted into quintiles recomputed from the live cross-section at every refresh, as in a Fama-French sort. “Value quintile 5” means exactly that (the cheapest 20%), not that a stock will beat its required return by the number shown. The classic ratios (P/E, P/B, EV/EBITDA, FCF and shareholder yield, ROE) appear as context: in the backtest each lost to the reverse-DCF model built on the same figures.
 
 ## Decisions worth explaining
 

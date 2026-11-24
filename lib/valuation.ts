@@ -296,19 +296,19 @@ export function valuationBand(percentile: number | null): ValuationBand {
  * caveat cannot drift away from what it describes.
  */
 export const BAND_BASIS =
-  "Bands are fifths of today's S&P 500 ranked by implied excess return over the models selected, recomputed with every refresh. They rank a company against the index; they do not say it is cheap in absolute terms."
+  "Quintiles of today's S&P 500 ranked by implied excess return over the models selected, with breakpoints recomputed at every refresh (Fama & French 1992). Q5 is the cheapest 20%. They rank a company against the index; they do not say it is cheap in absolute terms."
 
 /** Shown behind the info trigger on the value column and tiles. */
 export const IMPLIED_BASIS =
-  "The annual return today's price implies, minus the return the stock's risk requires (WACC for FCFF and revenue, CAPM cost of equity for RIM and shareholder yield), averaged over the selected reverse-DCF models. +2 pts means the price implies 2 points a year more than the stock needs to earn. The backtest found its rank useful and its size not, so the screener ranks on the percentile."
+  "The annual return today's price implies, minus the return the stock's risk requires (WACC for FCFF and revenue, CAPM cost of equity for RIM and shareholder yield), averaged over the selected reverse-DCF models. +2 pp means the price implies 2 percentage points a year more than the stock's risk requires. The backtest found its rank useful and its size not, so the screener ranks on the percentile."
 
 export const BAND_LABELS: Record<ValuationBand, string> = {
-  "deep-value": "Cheapest fifth",
-  undervalued: "Cheaper",
-  fair: "Middle",
-  overvalued: "Dearer",
-  expensive: "Dearest fifth",
-  unrated: "Unrated",
+  "deep-value": "Q5 · cheapest",
+  undervalued: "Q4",
+  fair: "Q3",
+  overvalued: "Q2",
+  expensive: "Q1 · dearest",
+  unrated: "Not valued",
 }
 
 /**

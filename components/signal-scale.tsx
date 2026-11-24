@@ -38,7 +38,7 @@ export function SignalBar({
         )}
       </div>
       <span className="sr-only">
-        {SIGNAL_BAND_LABELS[band]}, signal {formatScore(score)} of 100
+        {SIGNAL_BAND_LABELS[band]}, percentile {formatScore(score)} of 100
       </span>
     </div>
   )

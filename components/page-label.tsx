@@ -20,11 +20,11 @@ import { usePathname } from "next/navigation"
  */
 
 const LABELS: Record<string, string> = {
-  "/": "Overview",
-  "/screener": "Screener",
-  "/portfolio": "Portfolio",
+  "/": "Market overview",
+  "/screener": "Stock screener",
+  "/portfolio": "Portfolio optimiser",
   "/methodology": "Methodology",
-  "/data": "Data",
+  "/data": "Data maintenance",
 }
 
 function labelFor(pathname: string): string {

@@ -14,7 +14,7 @@ import type { Stock } from "@/lib/valuation"
 
 /**
  * The stock page's evidence, in reading order: what the price implies, the
- * classic ratios against the sector, trend and earnings, the price itself,
+ * multiples against the sector, momentum and earnings surprise, the price itself,
  * and — collapsed, because it is the machinery — the required return.
  * On a wide screen the first two and the next two sit side by side.
  */

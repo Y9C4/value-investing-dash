@@ -62,7 +62,7 @@ function buildRows(data: FrontierResponse): Row[] {
       index === 0
         ? { kind: "minVolatility" }
         : { kind: "envelope", index },
-    label: index === 0 ? "Min volatility" : `Point ${index + 1}`,
+    label: index === 0 ? "Min. variance" : `#${index + 1}`,
     mark: index === 0 ? "hollow" : undefined,
     portfolio: point,
     selectable: index === 0 || Boolean(point.weights),
@@ -75,7 +75,7 @@ function buildRows(data: FrontierResponse): Row[] {
   // the curve, and scrolled the list to its end on every load.
   const tangencyRow: Row = {
     selection: { kind: "maxSharpe" },
-    label: "Max Sharpe",
+    label: "Tangency",
     mark: "filled",
     portfolio: data.max_sharpe,
     selectable: true,
@@ -124,7 +124,7 @@ export function PortfolioList({
       <PanelHeader>
         <PanelTitle>Portfolios</PanelTitle>
         <PanelMeta>
-          {`${rows.length} on the curve`}
+          {`${rows.length} frontier portfolios`}
         </PanelMeta>
       </PanelHeader>
       <PanelBody className="px-0 py-0">
@@ -139,7 +139,7 @@ export function PortfolioList({
             {/* An inset shadow rather than a border: a sticky row's own border
                 is painted with the cell and scrolls out from under it. */}
             <TableRow className="shadow-[inset_0_-1px_0_0_var(--color-border)] hover:bg-card">
-              <TableHead>Portfolio</TableHead>
+              <TableHead>Frontier portfolio</TableHead>
               <TableHead className="text-right">Return</TableHead>
               <TableHead className="text-right">Vol.</TableHead>
               <TableHead className="text-right">Sharpe</TableHead>
@@ -239,7 +239,7 @@ export function PortfolioList({
             <TableFooter className="sticky bottom-0 z-10 bg-card shadow-[inset_0_1px_0_0_var(--color-border)]">
               <TableRow className="border-b-0 hover:bg-transparent">
                 <TableCell className="font-medium text-muted-foreground">
-                  Market portfolio
+                  S&amp;P 500
                 </TableCell>
                 <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
                   {formatPercent(market.return)}
