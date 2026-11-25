@@ -5,8 +5,7 @@ Routes only. Each one delegates to the module that owns the work:
     pipeline    the scheduled stages, in dependency order, recorded in job_runs
     ingest      extract and load: yfinance and Ken French rows into `raw`
     dw          direct Postgres: bulk upserts and warehouse.refresh()
-    db          Supabase REST access to the serving layer, retries, paging
-    market      prices, returns and the cash rate, with their caches
+    market      prices and the cash rate, with their caches
     frontier    mean-variance optimisation
 
 Everything between ingest and the serving layer — statement pivots, betas,
@@ -18,6 +17,7 @@ time is the optimiser.
 
 from __future__ import annotations
 
+import logging
 import secrets
 import threading
 from contextlib import asynccontextmanager
@@ -56,6 +56,8 @@ async def lifespan(app: FastAPI):
     threading.Thread(target=_warm_price_cache, daemon=True).start()
     yield
 
+
+log = logging.getLogger("uvicorn.error")
 
 app = FastAPI(title="Value Investing Dash market data service", lifespan=lifespan)
 
@@ -121,44 +123,15 @@ def unhandled_exception_handler(request: Request, exc: Exception) -> JSONRespons
     Error`. The dashboard parses every response as JSON, so that reply threw a
     second time in the browser and the page died with nothing to show.
     """
-    return JSONResponse(
-        status_code=500, content={"detail": f"{type(exc).__name__}: {exc}"}
-    )
+    # The message stays in the log: it can name hosts, SQL or keys, and this
+    # body reaches the browser through the Next proxy.
+    log.error("unhandled error on %s", request.url.path, exc_info=exc)
+    return JSONResponse(status_code=500, content={"detail": "Internal error"})
 
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-@app.get("/returns/{ticker}")
-def get_returns(ticker: str):
-    """Stored dividend-adjusted daily closes and log returns over the last
-    252 sessions, plus the 2x2 covariance matrix and the annualised T-bill rate.
-
-    Only caller: the close-history route's fallback, when the dashboard cannot
-    read `stock_prices` itself."""
-    frame, varcov = market.returns_df(ticker)
-    frame = frame.tail(market.RETURNS_LOOKBACK_DAYS).reset_index()
-    span = market.RETURNS_LOOKBACK_DAYS
-
-    return {
-        "ticker": ticker.upper(),
-        "candles": [
-            {
-                "date": row["date"].date().isoformat(),
-                "close": row["close"],
-                "stock_log_return": row["stock_log_return"],
-                "market_log_return": row["market_log_return"],
-                "excess_log_return": row["excess_log_return"],
-            }
-            for _, row in frame.iterrows()
-        ],
-        "varcov": varcov.values.tolist(),
-        "risk_free_rate": market.average_risk_free_rate(),
-        "expected_stock_return": frame["stock_log_return"].mean() * span,
-        "expected_market_return": frame["market_log_return"].mean() * span,
-    }
 
 
 @app.post("/backfill/all", dependencies=[Depends(require_backfill_token)])

@@ -116,6 +116,10 @@ export function checkRateLimit(key: string): RateLimitVerdict {
   }
 
   recent.push(now)
+  // Delete first: `Map.set` on an existing key keeps its old position, which
+  // would make the eviction below drop the oldest *inserted* caller rather than
+  // the least recently active one.
+  hits.delete(key)
   hits.set(key, recent)
 
   if (hits.size > MAX_TRACKED_CALLERS) {

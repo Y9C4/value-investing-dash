@@ -20,10 +20,11 @@ from typing import NamedTuple
 import numpy as np
 import pandas as pd
 from fastapi import HTTPException
+from psycopg.types.json import Jsonb
 from pypfopt import EfficientFrontier, expected_returns, objective_functions, risk_models
 
 import config
-import db
+import dw
 import market
 
 # Default per-stock cap: the UCITS single-issuer limit (Directive 2009/65/EC,
@@ -251,18 +252,11 @@ def _cached_solve(key: str) -> dict | None:
             del _solve_cache[key]
 
     try:
-        # One attempt, deliberately not `db.read`. That wrapper retries a
-        # dropped connection over ~1.75s of backoff, which is the right trade
-        # for a read the answer depends on and the wrong one for a cache probe:
-        # a slow miss here would be added to the solve it was meant to avoid.
-        rows = (
-            db.client()
-            .table("frontier_snapshot")
-            .select("payload")
-            .eq("cache_key", key)
-            .limit(1)
-            .execute()
-            .data
+        # One attempt, no retry: a slow miss here would be added to the solve
+        # the probe was meant to avoid.
+        rows = dw.fetch(
+            "select payload from public.frontier_snapshot where cache_key = %s",
+            (key,),
         )
     except Exception:  # noqa: BLE001 - an absent cache is not a failure
         return None
@@ -270,7 +264,7 @@ def _cached_solve(key: str) -> dict | None:
     if not rows:
         return None
 
-    payload = rows[0]["payload"]
+    payload = rows[0][0]
     _store_solve(key, payload)
     return payload
 
@@ -638,15 +632,11 @@ def sector_map() -> dict[str, str]:
             return _sector_cache
 
     try:
-        rows = db.fetch_all_rows("screener", "ticker, sector")
+        rows = dw.fetch("select ticker, sector from public.screener")
     except Exception:  # noqa: BLE001 - decoration must not fail the solve
         return {}
 
-    mapping = {
-        row["ticker"]: row.get("sector") or "Unclassified"
-        for row in rows
-        if row.get("ticker")
-    }
+    mapping = {ticker: sector or "Unclassified" for ticker, sector in rows if ticker}
     with _sector_lock:
         _sector_cache = mapping
         _sector_stamp = time.time()
@@ -952,20 +942,16 @@ def precompute_default() -> dict:
         # Two rows, one payload. The hashed key is what this service's own
         # cache probe looks up; the stable key is what the dashboard reads
         # straight from Postgres when the solver is asleep.
-        db.client().table("frontier_snapshot").upsert(
-            [
-                {"cache_key": key, "payload": payload, "computed_at": stamp},
-                {
-                    "cache_key": DEFAULT_SNAPSHOT_KEY,
-                    "payload": payload,
-                    "computed_at": stamp,
-                },
-            ],
-            on_conflict="cache_key",
-            ignore_duplicates=False,
-        ).execute()
+        with dw.connect() as conn:
+            conn.execute(
+                "insert into public.frontier_snapshot (cache_key, payload, computed_at)"
+                " values (%s, %s, %s), (%s, %s, %s)"
+                " on conflict (cache_key) do update"
+                " set payload = excluded.payload, computed_at = excluded.computed_at",
+                (key, Jsonb(payload), stamp, DEFAULT_SNAPSHOT_KEY, Jsonb(payload), stamp),
+            )
     except Exception as exc:  # noqa: BLE001 - see docstring
-        return {"failed": True, "detail": f"{type(exc).__name__}: {exc}"}
+        return {"failed": True, "detail": type(exc).__name__}
 
     return {
         "cache_key": key,

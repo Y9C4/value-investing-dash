@@ -14,6 +14,7 @@ valuations stage did in Python after a minute of bulk reads.
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Callable
 
@@ -23,6 +24,8 @@ import ingest
 import jobs
 import market
 
+log = logging.getLogger("uvicorn.error")
+
 
 def _recorded(job: str, run: Callable[[], dict]) -> dict:
     """Run one stage and log it to job_runs, including a stage that raised."""
@@ -30,13 +33,21 @@ def _recorded(job: str, run: Callable[[], dict]) -> dict:
     try:
         res = run()
     except Exception as exc:  # noqa: BLE001 - recorded, then reported
+        # The full message stays in the service log. What is returned and stored
+        # is read by the browser (job_runs is anon-readable), and a database or
+        # provider error can name hosts or SQL.
+        log.exception("stage %s raised", job)
+        name = type(exc).__name__
         res = {
-            "failed": True,
-            "detail": f"{type(exc).__name__}: {exc}",
+            "detail": name,
             "rows_upserted": 0,
-            "errors": [f"{type(exc).__name__}: {exc}"],
+            "errors": [name],
             "duration_seconds": round(time.monotonic() - started, 1),
         }
+    # Ingest stages report trouble as `tickers_failed` and `errors` rather than
+    # by raising, so "failed" has to come from the same rule job_runs uses.
+    # Otherwise a run that saved nothing is recorded as failed and reported ok.
+    res["failed"] = jobs.status_of(res) == "failed"
     jobs.record(job, res)
     return res
 

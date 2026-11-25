@@ -21,9 +21,6 @@ LONG_RISK_FREE_TICKER = "^TNX"
 with open(SP500_TICKERS_PATH, encoding="utf-8") as f:
     SP500_TICKERS: list[str] = json.load(f)
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-
 # Shared secret guarding the backfill routes. Unset means the routes refuse
 # every caller rather than admitting every caller: an ingest job that pins the
 # CPU for ten minutes is not something to leave open by default, and a
@@ -45,13 +42,6 @@ ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
-# PostgREST caps a response at 1000 rows, so the page size is a ceiling rather
-# than a choice.
-SELECT_PAGE_SIZE = 1000
-UPSERT_CHUNK_SIZE = 500
-
 # The optimiser's estimation window: three years of daily returns for the mean
 # and covariance. A ticker with under 90% of it is excluded from a solve.
 PRICE_WINDOW_DAYS = 3 * 365
-# Tickers per yfinance download and per `in_()` filter.
-FETCH_CHUNK_SIZE = 50

@@ -92,6 +92,16 @@ def query(conn: psycopg.Connection, statement: str, params: tuple | None = None)
         return cur.fetchall()
 
 
+def fetch(statement: str, params: tuple | None = None) -> list[tuple]:
+    """One read on its own short-lived connection, for the request-time paths.
+
+    A connection per call: the pooled endpoint hands one out in milliseconds,
+    and a long-lived one would have to survive Cloud Run idling the container.
+    """
+    with connect() as conn:
+        return query(conn, statement, params)
+
+
 def refresh(conn: psycopg.Connection) -> dict:
     """Rebuild the warehouse from `raw` and archive the day. See warehouse.refresh()."""
     with conn.cursor() as cur:

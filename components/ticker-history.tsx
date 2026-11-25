@@ -144,8 +144,7 @@ function useWide() {
  * valuation table, and `/stocks` is now only the search box that routes here.
  * The CAPM, covariance-matrix and daily-returns cards that used to live below
  * these were removed with the standalone page, and the covariance matrix they
- * ran on is no longer fetched. Bringing them back means bringing that read
- * back, which `GET /returns/{ticker}` on the solver still serves.
+ * ran on is no longer fetched, and the solver no longer serves it.
  */
 
 /**

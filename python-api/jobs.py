@@ -16,7 +16,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import db
+from psycopg.types.json import Jsonb
+
+import dw
 
 # The pipeline's stages, matching the check constraint in migration
 # 20261117000002. The refresh is recorded even though it fetches nothing: it is
@@ -59,25 +61,32 @@ def record(job: str, res: dict) -> None:
         errors = res.get("errors") or []
         failed = res.get("tickers_failed") or []
 
-        db.client().table("job_runs").insert(
-            {
-                "job": job,
-                "status": status_of(res),
-                # Derived rather than threaded through every stage: the stages
-                # time themselves on a monotonic clock, which has no wall-clock
-                # origin to report.
-                "started_at": (finished - timedelta(seconds=duration)).isoformat(),
-                "finished_at": finished.isoformat(),
-                "duration_seconds": round(duration, 1),
-                "rows_upserted": res.get("rows_upserted"),
-                "tickers_failed": len(failed),
-                "detail": {
-                    "tickers_requested": res.get("tickers_requested"),
-                    "rows_fetched": res.get("rows_fetched"),
-                    "failed": failed[:MAX_DETAIL_ERRORS],
-                    "errors": errors[:MAX_DETAIL_ERRORS],
-                },
-            }
-        ).execute()
+        with dw.connect() as conn:
+            conn.execute(
+                "insert into public.job_runs (job, status, started_at, finished_at,"
+                " duration_seconds, rows_upserted, tickers_failed, detail)"
+                " values (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (
+                    job,
+                    status_of(res),
+                    # Derived rather than threaded through every stage: the
+                    # stages time themselves on a monotonic clock, which has no
+                    # wall-clock origin to report.
+                    finished - timedelta(seconds=duration),
+                    finished,
+                    round(duration, 1),
+                    res.get("rows_upserted"),
+                    len(failed),
+                    Jsonb(
+                        {
+                            "tickers_requested": res.get("tickers_requested"),
+                            "rows_fetched": res.get("rows_fetched"),
+                            "failed": failed[:MAX_DETAIL_ERRORS],
+                            "errors": errors[:MAX_DETAIL_ERRORS],
+                            "notes": (res.get("notes") or [])[:MAX_DETAIL_ERRORS],
+                        }
+                    ),
+                ),
+            )
     except Exception:  # noqa: BLE001 - see docstring
         pass

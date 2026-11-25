@@ -13,7 +13,7 @@ Setup, endpoints, deployment and the reasoning behind the design are in the
 python -m venv .venv
 .venv/Scripts/activate            # source .venv/bin/activate on macOS/Linux
 pip install -r requirements.txt   # add -r requirements-dev.txt for notebooks and backtest/ml
-cp .env.example .env              # Supabase URL, service role key, DATABASE_URL, backfill token
+cp .env.example .env              # DATABASE_URL, backfill token
 
 uvicorn main:app --reload --port 8000
 ```
@@ -29,7 +29,6 @@ uvicorn main:app --reload --port 8000
 | `frontier.py` | mean-variance optimisation: trace, tangency, risk decomposition |
 | `market.py` | price and cash-rate reads from the serving layer, with their caches |
 | `jobs.py` | records each pipeline stage to `job_runs` |
-| `db.py` | Supabase REST access to `public`: one client, one retry policy, paging |
 | `factors.py` | Ken French download and parse (used by `ingest.py`) |
 | `config.py` | the universe, credentials, shared constants |
 | `backtest/` | the frozen backtest dataset loader, leak tests, and `ml/` model scripts |

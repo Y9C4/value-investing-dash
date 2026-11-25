@@ -4,21 +4,15 @@ rate, with the caches that keep a solve from paying for them twice."""
 from __future__ import annotations
 
 import time
-from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from threading import Lock
 
-import numpy as np
 import pandas as pd
 from fastapi import HTTPException
 
 import config
-import db
+import dw
 
-RETURNS_LOOKBACK_DAYS = 252
-
-# Paged price reads are independent round trips, so they overlap.
-PRICE_FETCH_MAX_WORKERS = 6
 # Closes for a settled session do not change, and re-reading them per request
 # was most of what an optimisation spent its time on.
 PRICE_CACHE_TTL_SECONDS = 900
@@ -50,49 +44,16 @@ def average_risk_free_rate() -> float:
         ):
             return _risk_free_rate
 
-    rows = db.read(
-        lambda client: client.table("market_summary").select("short_rate").execute()
-    ).data
+    rows = dw.fetch("select short_rate from public.market_summary")
 
-    if not rows or rows[0]["short_rate"] is None:
+    if not rows or rows[0][0] is None:
         raise HTTPException(status_code=404, detail="No risk-free rate data")
 
     with _risk_free_lock:
-        _risk_free_rate = float(rows[0]["short_rate"])
+        _risk_free_rate = float(rows[0][0])
         _risk_free_stamp = time.time()
 
     return _risk_free_rate
-
-
-def returns_df(ticker: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Daily log returns for `ticker` alongside ^GSPC on the same dates, plus
-    their 2x2 variance-covariance matrix.
-
-    Rows with any missing return are dropped: a ticker's first trading day has
-    no prior close to diff against.
-    """
-    symbol = ticker.upper()
-    closes = prices_df([symbol, config.SP500_INDEX_TICKER])
-    if symbol not in closes.columns or config.SP500_INDEX_TICKER not in closes.columns:
-        raise HTTPException(status_code=404, detail=f"No return data for '{symbol}'")
-
-    closes = closes[[symbol, config.SP500_INDEX_TICKER]].dropna()
-    logs = np.log(closes / closes.shift(1))
-    frame = pd.DataFrame(
-        {
-            "close": closes[symbol],
-            "stock_log_return": logs[symbol],
-            "market_log_return": logs[config.SP500_INDEX_TICKER],
-        }
-    )
-    frame["excess_log_return"] = frame["stock_log_return"] - frame["market_log_return"]
-    frame.index.name = "date"
-    frame = frame.dropna()
-
-    returns = frame[["stock_log_return", "market_log_return"]]
-    centered = returns - returns.mean()
-    varcov = centered.T @ centered / len(centered)
-    return frame, varcov
 
 
 def clear_price_cache() -> None:
@@ -105,33 +66,8 @@ def clear_price_cache() -> None:
         _risk_free_rate = None
 
 
-def _window_start() -> str:
-    return (date.today() - timedelta(days=config.PRICE_WINDOW_DAYS)).isoformat()
-
-
-def _fetch_price_page(chunk: list[str], start: int) -> list[dict]:
-    return db.read(
-        lambda client: client.table("stock_prices")
-        .select("date, ticker, adj_close")
-        .in_("ticker", chunk)
-        .gte("date", _window_start())
-        .order("date")
-        .order("ticker")
-        .range(start, start + config.SELECT_PAGE_SIZE - 1)
-        .execute()
-    ).data
-
-
-def _fetch_price_chunk(chunk: list[str]) -> list[dict]:
-    rows: list[dict] = []
-    start = 0
-    while True:
-        page = _fetch_price_page(chunk, start)
-        rows.extend(page)
-        if len(page) < config.SELECT_PAGE_SIZE:
-            break
-        start += config.SELECT_PAGE_SIZE
-    return rows
+def _window_start() -> date:
+    return date.today() - timedelta(days=config.PRICE_WINDOW_DAYS)
 
 
 def prices_df(tickers: list[str]) -> pd.DataFrame:
@@ -139,13 +75,11 @@ def prices_df(tickers: list[str]) -> pd.DataFrame:
     `config.PRICE_WINDOW_DAYS`, pivoted wide (index=date, columns=ticker).
 
     Adjusted, so expected returns include dividends. Windowed, because
-    `raw.daily_prices` holds history back to 2015 and an unbounded read paged
-    through ~1.45M rows on every cold start.
+    `raw.daily_prices` holds history back to 2015 and an unbounded read pulled
+    ~1.45M rows on every cold start.
 
-    Three details, together worth ~80s per optimisation:
+    Two details, together worth ~80s per optimisation:
 
-    - The whole index is ~380 pages over the window and they do not depend on
-      each other, so they are issued in parallel.
     - The ticker list is pushed down into the query. Optimising ten screened
       names used to pay for reading all 500.
     - Columns are cached per ticker rather than per request, so a small solve
@@ -160,21 +94,14 @@ def prices_df(tickers: list[str]) -> pd.DataFrame:
         missing = [t for t in tickers if t not in _price_column_cache]
 
     if missing:
-        # Build the client's lazy internals on this thread first. Letting six
-        # workers race that construction produced rare errors from inside the
-        # library on the first wide read after the cache emptied.
-        db.client().table("stock_prices")
-
-        chunks = list(db.chunk(missing, config.FETCH_CHUNK_SIZE))
-        with ThreadPoolExecutor(max_workers=PRICE_FETCH_MAX_WORKERS) as executor:
-            fetched = list(executor.map(_fetch_price_chunk, chunks))
-
-        rows = [row for chunk_rows in fetched for row in chunk_rows]
+        rows = dw.fetch(
+            "select date, ticker, adj_close::float8 from public.stock_prices"
+            " where ticker = any(%s) and date >= %s order by date, ticker",
+            (missing, _window_start()),
+        )
         if rows:
-            frame = pd.DataFrame(rows)
+            frame = pd.DataFrame(rows, columns=["date", "ticker", "adj_close"])
             frame["date"] = pd.to_datetime(frame["date"])
-            frame["adj_close"] = pd.to_numeric(frame["adj_close"])
-            frame = frame.drop_duplicates(subset=["date", "ticker"])
             wide = frame.pivot(index="date", columns="ticker", values="adj_close")
             with _price_cache_lock:
                 for ticker in wide.columns:

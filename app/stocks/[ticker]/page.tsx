@@ -25,13 +25,14 @@ export default async function StockPage({ params }: PageProps<"/stocks/[ticker]"
   const { ticker } = await params
   const symbol = decodeURIComponent(ticker).toUpperCase()
 
-  const [{ stocks, riskFreeRate, marketReturn }, closes] = await Promise.all([
-    loadUniverse(),
-    readStoredCloses(symbol).catch(() => null),
-  ])
+  // The universe first, so a made-up ticker costs no price read. It is cached,
+  // so this is not a second round trip for a real one.
+  const { stocks, riskFreeRate, marketReturn } = await loadUniverse()
   const stock = stocks.find((item) => item.ticker === symbol)
 
   if (!stock) notFound()
+
+  const closes = await readStoredCloses(symbol).catch(() => null)
 
   // Ranked over the whole index at all four models, as the screener opens.
   const valueMomentum = rankUniverse(stocks, [], ["value", "momentum"])

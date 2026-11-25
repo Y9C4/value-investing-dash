@@ -63,6 +63,7 @@ def _result(
     rows_fetched: int,
     rows_upserted: int,
     errors: list[str],
+    notes: list[str] | None = None,
 ) -> dict:
     """The shape every stage returns, so job_runs and the data page read one format."""
     return {
@@ -73,6 +74,9 @@ def _result(
         "rows_upserted": rows_upserted,
         "duration_seconds": round(time.monotonic() - started, 1),
         "errors": errors,
+        # Things worth reading that are not failures. Kept out of `errors`, or a
+        # normal day (a dividend somewhere in 500 stocks) records as "partial".
+        "notes": notes or [],
     }
 
 
@@ -233,8 +237,11 @@ def prices(full: bool = False) -> dict:
 
     for chunk in _chunks(sorted(restated), PRICE_CHUNK_SIZE):
         collect(chunk, PRICE_START, incremental=False)
-    if restated:
-        errors.append("re-pulled in full after a dividend or split: " + ", ".join(sorted(restated)))
+    notes = (
+        ["re-pulled in full after a dividend or split: " + ", ".join(sorted(restated))]
+        if restated
+        else []
+    )
 
     with dw.connect() as conn:
         upserted = dw.upsert(
@@ -251,6 +258,7 @@ def prices(full: bool = False) -> dict:
         rows_fetched=len(price_rows),
         rows_upserted=upserted,
         errors=errors,
+        notes=notes,
     )
 
 

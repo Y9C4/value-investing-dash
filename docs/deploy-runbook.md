@@ -12,7 +12,7 @@
 >   (see `python-api/notebooks/backtests.md` §17).
 > - `/valuations`, `/backfill/valuations`, `/quote`, `/info` and `/history` no
 >   longer exist on the service. Ignore the steps and smoke tests that call
->   them. The remaining routes are `/health`, `/returns/{t}`, `/backfill/*`
+>   them. The remaining routes are `/health`, `/backfill/*`
 >   and `/efficient-frontier`.
 > - `deploy-readiness-plan.md` is archived in `docs/archive/`.
 
@@ -406,8 +406,7 @@ Cloud Scheduler ping reaching `/health` with a 200.
 
 | variable | Cloud Run | Vercel | local |
 |---|---|---|---|
-| `SUPABASE_URL` | yes | — | `python-api/.env` |
-| `SUPABASE_SERVICE_ROLE_KEY` | secret | **never** | `python-api/.env` |
+| `DATABASE_URL` | secret | **never** | `python-api/.env` |
 | `NEXT_PUBLIC_SUPABASE_URL` | — | yes | `.env` |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | — | yes | `.env` |
 | `MARKET_DATA_API_URL` | — | yes | `.env` |
@@ -523,9 +522,8 @@ Server render: the same `loadUniverse()` call, which supplies the verdicts,
 Client fetch: `components/ticker-history.tsx` calls
 `GET /api/close-history/[ticker]`, which reads the last 252 rows of
 `daily_close_prices` straight from Postgres (`order=date.desc&limit=252`, then
-reversed). Cloud Run's `GET /returns/{ticker}` is the fallback for the case the
-anon path cannot cover — no Supabase credentials, or a database the solver can
-reach and Vercel cannot.
+reversed). There is no fallback to Cloud Run: the service is public and scales
+to zero, so one made every unknown ticker wake it. An unknown ticker is a 404.
 
 This route used to proxy the solver unconditionally, which is why a
 scaled-to-zero service produced a 502 on the price chart. The response now
@@ -558,7 +556,7 @@ The stored payload is rewritten on the way out: `cached` is forced to `true`
 | Next route | upstream | guard |
 |---|---|---|
 | `POST /api/efficient-frontier` | `frontier_snapshot`, else Cloud Run | per-IP rate limit, then `X-Margin-Origin` |
-| `GET /api/close-history/[ticker]` | `daily_close_prices`, else Cloud Run | none needed — anon-readable, cached |
+| `GET /api/close-history/[ticker]` | `stock_prices` view | none needed — anon-readable, cached |
 | `POST /api/backfill/*` (6) | Cloud Run | `ENABLE_DATA_PAGE`, then `X-Backfill-Token` |
 
 `GET /api/valuations` and `GET /api/history/[ticker]` used to sit here too:

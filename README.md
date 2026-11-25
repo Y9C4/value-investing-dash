@@ -187,7 +187,6 @@ docs/                   deployment runbook and design notes
 | Endpoint | What |
 |---|---|
 | `GET /health` | Liveness check |
-| `GET /returns/{ticker}` | Daily log returns and the risk-free rate |
 | `POST /efficient-frontier` | Solve the frontier (see below) |
 | `POST /backfill/all` | Every stage, in order, then the warehouse refresh |
 | `POST /backfill/prices` | Daily bars, dividends and splits |
@@ -212,7 +211,7 @@ POST /efficient-frontier
 ## Deployment
 
 - **Frontend → Vercel.** Set `MARKET_DATA_API_URL`, the Supabase URL and publishable key, and `MARGIN_ORIGIN_SECRET`.
-- **Data API → Google Cloud Run** from [`python-api/Dockerfile`](python-api/Dockerfile). Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `ALLOWED_ORIGINS`, `BACKFILL_TOKEN` and `MARGIN_ORIGIN_SECRET`.
+- **Data API → Google Cloud Run** from [`python-api/Dockerfile`](python-api/Dockerfile). Set `DATABASE_URL`, `ALLOWED_ORIGINS`, `BACKFILL_TOKEN` and `MARGIN_ORIGIN_SECRET`.
 - **Database → Supabase.** `supabase db push` applies the migrations.
 
 The service role key skips row-level security, so it only ever lives in the Data API and never on Vercel. The full walkthrough including the scheduled jobs is in [`docs/deploy-runbook.md`](docs/deploy-runbook.md).
