@@ -131,7 +131,10 @@ export function PortfolioList({
   }, [selected])
 
   return (
-    <Panel className="min-w-0">
+    // The outer box takes the height of the chart beside it without adding to
+    // it; the panel inside is only as tall as its rows, up to that height.
+    <div className="relative hidden min-w-0 @3xl:block">
+    <Panel className="absolute inset-x-0 top-0 max-h-full">
       <PanelHeader>
         <PanelTitle>Portfolios</PanelTitle>
         <PanelMeta>
@@ -140,13 +143,11 @@ export function PortfolioList({
             : "pick one to inspect"}
         </PanelMeta>
       </PanelHeader>
-      {/* Beside the chart (the builder's `@5xl` row) the list fills the
-          height the chart sets and scrolls inside it; stacked, it caps itself. */}
-      <PanelBody className="relative px-0 py-0 @5xl:min-h-64 @5xl:flex-1">
+      <PanelBody className="flex min-h-0 flex-col px-0 py-0">
         {/* Tighter and smaller than the app's default table: four columns in a
             panel a third the width of the page, where at standard padding the
             last of them scrolled out of sight. */}
-        <Table containerClassName="overflow-y-auto overflow-x-hidden max-h-[26rem] @5xl:absolute @5xl:inset-0 @5xl:max-h-none [&_td]:px-2 [&_th]:px-2 [&_td]:py-1.5 [&_td]:text-xs [&_th]:text-xs">
+        <Table containerClassName="overflow-y-auto overflow-x-hidden min-h-0 [&_td]:px-2 [&_th]:px-2 [&_td]:py-1.5 [&_td]:text-xs [&_th]:text-xs [&_td:first-child]:whitespace-normal">
           <TableHeader className="sticky top-0 z-10 bg-card [&_tr]:border-b-0">
             {/* An inset shadow rather than a border: a sticky row's own border
                 is painted with the cell and scrolls out from under it. */}
@@ -256,5 +257,6 @@ export function PortfolioList({
         </Table>
       </PanelBody>
     </Panel>
+    </div>
   )
 }

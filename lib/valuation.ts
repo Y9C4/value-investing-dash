@@ -137,6 +137,8 @@ export type StockRatios = {
 
 export type Stock = {
   ticker: string
+  /** Listing exchange, for display. Absent in the sample universe. */
+  exchange?: string | null
   name: string
   sector: string
   price: number

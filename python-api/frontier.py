@@ -26,6 +26,7 @@ from pypfopt import EfficientFrontier, expected_returns, objective_functions, ri
 import config
 import dw
 import market
+import membership
 
 # Default per-stock cap: the UCITS single-issuer limit (Directive 2009/65/EC,
 # art. 52). A user setting overrides it. `sum(w) == 1` with `w <= cap` needs
@@ -650,11 +651,12 @@ def _select_universe(tickers: list[str] | None) -> list[str]:
     Too few known names is refused rather than silently falling back to the
     full index, which would misreport what was solved.
     """
+    members = membership.tickers()
     if not tickers:
-        return config.SP500_TICKERS
+        return members
 
     requested = {t.strip().upper() for t in tickers if t.strip()}
-    universe = [t for t in config.SP500_TICKERS if t.upper() in requested]
+    universe = [t for t in members if t.upper() in requested]
 
     if len(universe) < MIN_FRONTIER_TICKERS:
         raise HTTPException(
@@ -933,10 +935,11 @@ def precompute_default() -> dict:
     """
     started = time.monotonic()
 
-    n_points, _ = resolve_point_count(ENVELOPE_POINTS, len(config.SP500_TICKERS))
-    key = cache_key(config.SP500_TICKERS, False, None, None, DEFAULT_L2_GAMMA, n_points)
-
     try:
+        members = membership.tickers()
+        n_points, _ = resolve_point_count(ENVELOPE_POINTS, len(members))
+        key = cache_key(members, False, None, None, DEFAULT_L2_GAMMA, n_points)
+
         payload = build(False, ENVELOPE_POINTS, scheduled=True)
         stamp = datetime.now(timezone.utc).isoformat()
         # Two rows, one payload. The hashed key is what this service's own

@@ -153,6 +153,7 @@ type Num = number | null
 
 type ScreenerRow = {
   ticker: string
+  exchange?: string | null
   name: string
   sector: string
   as_of: string
@@ -261,6 +262,7 @@ function toSignals(row: ScreenerRow["signals"]): StockSignals | undefined {
 function toStock(row: ScreenerRow): Stock {
   return {
     ticker: row.ticker,
+    exchange: row.exchange,
     name: row.name,
     sector: row.sector,
     price: row.price,

@@ -706,10 +706,10 @@ export function PortfolioBuilder({
                 </StatStrip>
               </div>
 
-              {/* The frontier is the hero: full width where the results are
-                  narrow, two thirds beside the list of its portfolios where
-                  they are wide. The list fills whatever height the chart sets. */}
-              <div className="grid gap-4 @5xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+              {/* The frontier is the hero, with the list of its portfolios to
+                  its right, no taller than the chart. Where the two do not fit
+                  side by side the list is hidden. */}
+              <div className="grid gap-4 @3xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
                 <FrontierChart
                   data={data}
                   isBaseline={isBaseline}

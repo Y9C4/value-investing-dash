@@ -525,7 +525,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
                   variant={canOptimiseTicked ? "outline" : "default"}
                   className="px-3"
                   nativeButton={false}
-                  render={<Link href={portfolioHref(filtered.map((stock) => stock.ticker))} />}
+                  render={<Link href={portfolioHref(filtered.map((stock) => stock.ticker), stocks.map((stock) => stock.ticker))} />}
                 >
                   Optimise these {filtered.length}
                   {!canOptimiseTicked && <RiArrowRightLine />}
@@ -533,7 +533,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
               )}
 
               {canOptimiseTicked && (
-                <Button size="sm" className="px-3" nativeButton={false} render={<Link href={portfolioHref(selected)} />}>
+                <Button size="sm" className="px-3" nativeButton={false} render={<Link href={portfolioHref(selected, stocks.map((stock) => stock.ticker))} />}>
                   Optimise {selected.length} ticked
                   <RiArrowRightLine />
                 </Button>

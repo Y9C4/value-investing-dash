@@ -30,6 +30,7 @@ from fastapi.responses import JSONResponse
 import config
 import frontier
 import market
+import membership
 import pipeline
 
 
@@ -46,7 +47,7 @@ def _warm_price_cache() -> None:
     /health, or the platform will restart it in a loop.
     """
     try:
-        market.prices_df(config.SP500_TICKERS)
+        market.prices_df(membership.tickers())
     except Exception:  # noqa: BLE001 - see docstring
         pass
 

@@ -18,6 +18,8 @@ RISK_FREE_TICKER = "^IRX"
 # discounting long-lived cash flows (reverse DCF), where ^IRX is the short rate.
 LONG_RISK_FREE_TICKER = "^TNX"
 
+# A seed for an empty database, and the frozen universe the backtest was run on.
+# Today's members are in the database: see membership.py.
 with open(SP500_TICKERS_PATH, encoding="utf-8") as f:
     SP500_TICKERS: list[str] = json.load(f)
 

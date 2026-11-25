@@ -366,7 +366,7 @@ export function FrontierChart({
           )}
           <ChartContainer
             config={chartConfig}
-            className="aspect-auto h-80 w-full sm:aspect-[2/1] sm:h-auto"
+            className="aspect-auto h-80 w-full sm:aspect-[2/1] sm:h-auto @3xl:aspect-[4/3] @6xl:aspect-[2/1]"
           >
           <ComposedChart margin={{ left: 12, right: 16, top: 12, bottom: 28 }}>
             <CartesianGrid vertical={false} stroke="var(--color-grid)" />

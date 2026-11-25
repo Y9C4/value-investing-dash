@@ -1,0 +1,13 @@
+# What `gcloud run deploy --source` uploads to Cloud Storage. .dockerignore only
+# shapes the image, so without this file .env (secrets) is uploaded too.
+.gcloudignore
+.env*
+.venv
+__pycache__/
+.pytest_cache
+.ipynb_checkpoints
+notebooks
+backtest
+tests
+README.md
+requirements-dev.txt

@@ -37,7 +37,7 @@ export default async function PortfolioPage({
   )
   const snapshot = row ? { data: row.payload, computedAt: row.computed_at } : null
 
-  const decoded = set ? decodeTickerSet(set) : null
+  const decoded = set ? decodeTickerSet(set, stocks.map((stock) => stock.ticker)) : null
 
   const screened =
     decoded && !decoded.stale

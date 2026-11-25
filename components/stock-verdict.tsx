@@ -1,6 +1,5 @@
 import { missingReason } from "@/components/stock-readings"
 import { formatMarketCap, formatPct, formatPp, formatSharePrice } from "@/lib/format"
-import exchanges from "@/lib/exchanges.json"
 import { histogram } from "@/lib/rank"
 import { cn } from "@/lib/utils"
 import {
@@ -13,13 +12,6 @@ import {
 } from "@/lib/valuation"
 
 const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1)
-
-/**
- * Listing exchange by ticker, for display only: a one-off pull of Yahoo's
- * fullExchangeName, since the warehouse does not store it.
- * shortcut: static file, move into raw.company_profile if the universe starts changing often.
- */
-const EXCHANGE: Record<string, string> = exchanges
 
 /** One line of the stacked sum: sign, what it is, the rate. */
 function Line({ sign, label, note, value }: { sign?: string; label: string; note: string; value: string }) {
@@ -202,7 +194,7 @@ export function StockVerdict({
         <div className="flex flex-col gap-0.5">
           <h2 className="font-heading text-2xl">{stock.name}</h2>
           <span className="font-figure text-sm text-muted-foreground">
-            {EXCHANGE[stock.ticker] ? `${EXCHANGE[stock.ticker]}: ` : ""}
+            {stock.exchange ? `${stock.exchange}: ` : ""}
             {stock.ticker} · {formatSharePrice(stock.price)}
             {stock.marketCap !== null && ` · ${formatMarketCap(stock.marketCap)}`} · {stock.sector}
           </span>
@@ -223,7 +215,7 @@ export function StockVerdict({
           </div>
         </dl>
 
-      <p className="text-base leading-relaxed">
+      <p className="text-sm leading-relaxed">
         {rates === null ? (
           <>
             {stock.ticker} has no value rank:{" "}

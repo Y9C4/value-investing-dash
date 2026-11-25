@@ -6,6 +6,7 @@ import {
   BarChart,
   CartesianGrid,
   LabelList,
+  type LabelProps,
   XAxis,
   YAxis,
 } from "recharts"
@@ -53,6 +54,24 @@ import {
  * exactly is held", and keeping them apart lets the chart sit beside the
  * sector split, which is the comparison a reader actually makes.
  */
+
+/**
+ * A bar's value, right of its right-hand end: the tip for a long, the zero line
+ * for a short. Recharts' own "right" flips to the left of a negative bar, where
+ * it ran into the axis names.
+ */
+function barValue({ x, y, width, height, value }: LabelProps) {
+  return (
+    <text
+      x={Math.max(Number(x), Number(x) + Number(width)) + 8}
+      y={Number(y) + Number(height) / 2}
+      dominantBaseline="central"
+      className="fill-muted-foreground font-figure text-xs"
+    >
+      {formatPercent(Number(value))}
+    </text>
+  )
+}
 
 // How many names the chart plots, and how much height each one gets.
 //
@@ -232,15 +251,7 @@ export function HoldingsChart({
             >
               {/* Only the weight bar is labelled. A number on every mark of a
                   paired chart doubles the ink and halves the legibility. */}
-              {!hasRisk && (
-                <LabelList
-                  dataKey="weight"
-                  position="right"
-                  offset={8}
-                  className="fill-muted-foreground font-figure text-xs"
-                  formatter={(value) => formatPercent(Number(value))}
-                />
-              )}
+              {!hasRisk && <LabelList dataKey="weight" content={barValue} />}
             </Bar>
             {hasRisk && (
               <Bar
@@ -474,9 +485,9 @@ export function SectorExposure({
               dataKey="sector"
               tickLine={false}
               axisLine={false}
-              // Narrow enough to leave a phone room for the bars; recharts
-              // wraps "Communication Services" onto two lines within it.
-              width={124}
+              // "Consumer Defensive" was clipped at 124; this still leaves a
+              // phone room for the bars.
+              width={140}
               tickMargin={6}
               className="text-xs"
             />
@@ -502,13 +513,7 @@ export function SectorExposure({
               radius={[0, 3, 3, 0]}
               isAnimationActive={false}
             >
-              <LabelList
-                dataKey="weight"
-                position="right"
-                offset={8}
-                className="fill-muted-foreground font-figure text-xs"
-                formatter={(value) => formatPercent(Number(value))}
-              />
+              <LabelList dataKey="weight" content={barValue} />
             </Bar>
           </BarChart>
         </ChartContainer>

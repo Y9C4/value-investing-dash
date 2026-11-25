@@ -11,7 +11,8 @@ four years of statements yfinance returns at any one time.
 
 Three stages, each returning the shape `job_runs` records:
 
-    prices()        daily bars, dividends and splits      (daily, incremental)
+    prices()        daily bars, dividends and splits,     (daily, incremental)
+                    index membership and listing exchange
     factor_returns() Fama-French daily factors            (daily)
     fundamentals()  statements, share counts, earnings, profiles  (weekly)
 """
@@ -29,6 +30,7 @@ import yfinance as yf
 import config
 import dw
 import factors
+import membership
 
 # History depth for a ticker seen for the first time, and for a ticker whose
 # adjusted history Yahoo has just restated. 2015 matches the backtest dataset.
@@ -165,11 +167,31 @@ def prices(full: bool = False) -> dict:
     ticker's whole adjusted history (a split rescales the closes too), so the
     stored rows are no longer in the same basis as the new ones. Those tickers
     are re-pulled in full; on a normal day that is a handful of names.
+
+    Membership is synced first, so a company that joined gets its full history
+    (and its statements) in this same run.
     """
     started = time.monotonic()
-    tickers = [*config.SP500_TICKERS, *EXTRA_PRICE_TICKERS]
     failed: list[str] = []
     errors: list[str] = []
+    notes: list[str] = []
+    added: list[str] = []
+
+    try:
+        changes = membership.sync()
+        added = changes["added"]
+        for label, key in (("joined the index", "added"), ("left the index", "removed")):
+            if changes[key]:
+                notes.append(f"{label}: " + ", ".join(changes[key]))
+        if changes["unknown"]:
+            errors.append("listed but not quoted by Yahoo: " + ", ".join(changes["unknown"]))
+    except Exception as exc:  # noqa: BLE001 - the stored list still works
+        # job_runs is browser-readable, so only our own messages are quoted.
+        reason = str(exc) if isinstance(exc, ValueError) else type(exc).__name__
+        errors.append(f"membership unchanged: {reason}")
+
+    members = membership.tickers()
+    tickers = [*members, *EXTRA_PRICE_TICKERS]
 
     with dw.connect() as conn:
         newest = dict(dw.query(conn, "select ticker, max(date) from raw.daily_prices group by ticker"))
@@ -237,11 +259,8 @@ def prices(full: bool = False) -> dict:
 
     for chunk in _chunks(sorted(restated), PRICE_CHUNK_SIZE):
         collect(chunk, PRICE_START, incremental=False)
-    notes = (
-        ["re-pulled in full after a dividend or split: " + ", ".join(sorted(restated))]
-        if restated
-        else []
-    )
+    if restated:
+        notes.append("re-pulled in full after a dividend or split: " + ", ".join(sorted(restated)))
 
     with dw.connect() as conn:
         upserted = dw.upsert(
@@ -250,6 +269,18 @@ def prices(full: bool = False) -> dict:
         )
         dw.upsert(conn, "raw.dividends", ["ticker", "ex_date", "amount"], ["ticker", "ex_date"], dividend_rows)
         dw.upsert(conn, "raw.splits", ["ticker", "date", "ratio"], ["ticker", "date"], split_rows)
+
+    try:
+        moved = membership.update_exchanges(members)
+        if moved:
+            notes.append("exchange set: " + ", ".join(moved))
+    except Exception as exc:  # noqa: BLE001 - display only; prices are already saved
+        errors.append(f"exchanges unchanged: {type(exc).__name__}")
+
+    # Without statements a new member has no implied return, and the weekly pull
+    # could be six days off.
+    if added:
+        errors.extend(fundamentals(added)["errors"])
 
     return _result(
         started,
@@ -355,7 +386,6 @@ def _fetch_company(symbol: str) -> dict:
             info.get("sector"),
             info.get("industry"),
             info.get("currency"),
-            True,
             fetched_at,
         )
     except Exception as exc:  # noqa: BLE001
@@ -398,7 +428,7 @@ def fundamentals(tickers: list[str] | None = None) -> dict:
     keeps whatever an earlier pull stored, since nothing here deletes.
     """
     started = time.monotonic()
-    universe = tickers or config.SP500_TICKERS
+    universe = tickers or membership.tickers()
     items: list[tuple] = []
     shares: list[tuple] = []
     earnings: list[tuple] = []
@@ -431,18 +461,10 @@ def fundamentals(tickers: list[str] | None = None) -> dict:
         upserted += dw.upsert(conn, "raw.earnings",
                               ["ticker", "report_date", "eps_estimate", "reported_eps"],
                               ["ticker", "report_date"], earnings)
+        # in_universe and exchange are left to membership.py.
         upserted += dw.upsert(conn, "raw.company_profile",
-                              ["ticker", "name", "sector", "industry", "currency", "in_universe", "fetched_at"],
+                              ["ticker", "name", "sector", "industry", "currency", "fetched_at"],
                               ["ticker"], profiles)
-        # Membership follows the ticker list on a full pull, so a company that
-        # leaves the index keeps its history and drops off the screener.
-        if tickers is None:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "update raw.company_profile set in_universe = (ticker = any(%s))",
-                    (list(config.SP500_TICKERS),),
-                )
-            conn.commit()
 
     return _result(
         started,
