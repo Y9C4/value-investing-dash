@@ -122,7 +122,7 @@ export function HoldingsChart({
   portfolio,
   sectors,
   scope,
-  title = "Weight against risk",
+  title = "Weight vs share of risk",
 }: {
   portfolio: Portfolio
   sectors?: Record<string, string>
@@ -288,11 +288,11 @@ export function HoldingsChart({
               </span>
             </>
           ) : (
-            <span>Risk shares arrive with a live solve.</span>
+            <span>Run the optimisation to see risk shares.</span>
           )}
           {tail.length > 0 && (
             <span>
-              Remaining {tail.length} in the ledger ·{" "}
+              {tail.length} more in the holdings table ·{" "}
               {formatPercent(tailWeight)}
             </span>
           )}
@@ -331,7 +331,7 @@ export function HoldingsTable({
   )
 
   return (
-    <Panel className={PAIR_COLORS}>
+    <Panel className={`@container ${PAIR_COLORS}`}>
       <PanelHeader>
         <PanelTitle>{title}</PanelTitle>
         <PanelMeta>
@@ -346,8 +346,8 @@ export function HoldingsTable({
                 is painted with the cell and scrolls out from under it. */}
             <TableRow className="shadow-[inset_0_-1px_0_0_var(--color-border)] hover:bg-card">
               <TableHead>Ticker</TableHead>
-              {/* Dropped on a phone so the risk share stays on screen. */}
-              <TableHead className="hidden sm:table-cell">Sector</TableHead>
+              {/* Dropped in a narrow panel so the risk share stays on screen. */}
+              <TableHead className="hidden @md:table-cell">Sector</TableHead>
               <TableHead className="text-right">Weight</TableHead>
               {hasRisk && (
                 <TableHead className="text-right">Risk share</TableHead>
@@ -365,7 +365,7 @@ export function HoldingsTable({
                     {row.ticker}
                   </Link>
                 </TableCell>
-                <TableCell className="hidden text-muted-foreground sm:table-cell">
+                <TableCell className="hidden text-muted-foreground @md:table-cell">
                   {row.sector ?? "—"}
                 </TableCell>
                 <TableCell>
@@ -519,8 +519,8 @@ export function SectorExposure({
             thing the chart cannot show: weight that is missing from it. */}
         {covered < 0.995 && (
           <p className="text-xs text-muted-foreground">
-            {formatPercent(1 - covered)} of the portfolio has no sector on file
-            and is not shown.
+            {formatPercent(1 - covered)} of the portfolio has no sector
+            information and is not shown.
           </p>
         )}
       </PanelBody>

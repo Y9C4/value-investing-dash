@@ -238,7 +238,7 @@ export function PriceChartCard({ data }: { data: ReturnsResponse }) {
       <PanelHeader>
         <PanelTitle>{data.ticker} · price, 1 year</PanelTitle>
         <PanelMeta>
-          {formatSignedPct(change)} over {chartData.length} sessions to {formatLongDate(last.date)}
+          {formatSignedPct(change)} over {chartData.length} trading days to {formatLongDate(last.date)}
         </PanelMeta>
       </PanelHeader>
       <PanelBody>
@@ -303,7 +303,7 @@ export function PriceChartCard({ data }: { data: ReturnsResponse }) {
           </ChartContainer>
         </figure>
         <p className="mt-2 text-xs text-muted-foreground">
-          Daily closes, split-adjusted; dividends are not added back.
+          Daily closing prices, adjusted for stock splits. Dividends are not included.
         </p>
       </PanelBody>
     </Panel>
@@ -318,15 +318,15 @@ export function PriceChartLoader({ ticker }: { ticker: string }) {
   const { data, loading, error } = useTickerReturns(ticker)
   if (error) {
     return (
-      <div className="border border-border bg-card px-4 py-3">
+      <div className="rounded-lg border border-border bg-card px-4 py-3">
         <p className="text-sm text-destructive">{error}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Only the price chart is affected: everything else on this page is precomputed.
+          Only the price chart is affected. The rest of the page is complete.
         </p>
       </div>
     )
   }
-  if (loading || !data) return <div className="h-[21rem] animate-pulse border border-border bg-card" />
+  if (loading || !data) return <div className="h-[21rem] animate-pulse rounded-lg border border-border bg-card" />
   return data.candles.length > 0 ? <PriceChartCard data={data} /> : null
 }
 
@@ -358,34 +358,34 @@ export function KeyStatisticsCard({
     <Panel>
       <PanelHeader>
         <PanelTitle>Key statistics</PanelTitle>
-        <PanelMeta>252-day window</PanelMeta>
+        <PanelMeta>past 252 trading days</PanelMeta>
       </PanelHeader>
       <PanelBody>
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
           <Stat
             label="Beta"
             value={beta?.toFixed(2) ?? "—"}
-            hint="against the market, shrunk (Levi & Welch)"
+            hint="sensitivity to the market, adjusted toward average (Levi & Welch)"
           />
           <Stat
-            label="Risk-free rate, 3-month T-bill"
+            label="3-month T-bill"
             value={formatPct(riskFreeRate)}
-            hint="252-day average: the cash rate over this window, and the optimiser's Sharpe ratios"
+            hint="average over the period; the cash rate behind Sharpe ratios"
           />
           <Stat
-            label="Realised return"
+            label="Stock’s return"
             value={formatSignedPct(realisedReturn)}
-            hint="log, annualised: mean daily log return × 252"
+            hint="annualised log return, dividends included"
           />
           <Stat
-            label="Market return"
+            label="S&P 500 return"
             value={formatSignedPct(marketReturn)}
-            hint="S&P 500, log, annualised, same window"
+            hint="same method, same period"
           />
         </div>
-        <p className="mt-3 border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-          Required returns use the 10-year Treasury instead, the horizon a
-          DCF discounts over (see Required return and risk inputs).
+        <p className="mt-3 border-t border-border pt-3 text-sm leading-relaxed text-muted-foreground">
+          Required returns use the 10-year Treasury instead, to match the long
+          horizon of a DCF (see How the required return is built).
         </p>
       </PanelBody>
     </Panel>

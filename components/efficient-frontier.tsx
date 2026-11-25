@@ -137,7 +137,7 @@ function PointCard({ point }: { point: Partial<Point> }) {
   if (typeof point.sharpe === "number") rows.push(["Sharpe", point.sharpe.toFixed(2)])
 
   return (
-    <div className="grid min-w-36 gap-1 bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-sm ring-1 ring-foreground/10">
+    <div className="grid min-w-36 gap-1 rounded-md bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-sm ring-1 ring-foreground/10">
       <span className="font-medium">{point.name}</span>
       {rows.map(([label, value]) => (
         <span key={label} className="flex justify-between gap-4">
@@ -342,8 +342,8 @@ export function FrontierChart({
             toolbar; this says only what the curve is made of. */}
         <PanelMeta>
           {isBaseline
-            ? "Illustrative baseline"
-            : `${data.n_portfolios} solved points${data.resolution_capped ? ` (capped from ${data.n_portfolios_requested})` : ""}`}
+            ? "Made-up example"
+            : `${data.n_portfolios} portfolios${data.resolution_capped ? ` (capped from ${data.n_portfolios_requested})` : ""}`}
         </PanelMeta>
       </PanelHeader>
       <PanelBody className="flex flex-col gap-4">
@@ -593,9 +593,8 @@ export function FrontierChart({
             is missing rather than merely off screen. */}
         {!isBaseline && !drawCml && (
           <p className="text-xs leading-relaxed text-muted-foreground">
-            No capital market line: nothing the constraints allow out-earned
-            the {formatPercent(data.risk_free_rate)} risk-free rate, so there
-            is no portfolio to draw one through.
+            No capital market line: no portfolio allowed by these settings beat
+            the {formatPercent(data.risk_free_rate)} risk-free rate.
           </p>
         )}
       </PanelBody>
@@ -638,7 +637,7 @@ export function SharpeCurve({
   return (
     <Panel>
       <PanelHeader>
-        <PanelTitle>Sharpe along the frontier</PanelTitle>
+        <PanelTitle>Sharpe ratio by risk level</PanelTitle>
         {/* The paragraph that used to sit under this chart said the peak, the
             volatility it sits at and that it is the portfolio every panel
             below describes. The first two are facts and belong in the meta;
@@ -733,7 +732,7 @@ export function SharpeCurve({
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <LegendDot />
           {TANGENCY_LABEL}
-          {isBaseline && " · illustrative baseline"}
+          {isBaseline && " · made-up example"}
         </div>
       </PanelBody>
     </Panel>

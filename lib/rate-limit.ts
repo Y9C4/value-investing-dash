@@ -110,7 +110,7 @@ export function checkRateLimit(key: string): RateLimitVerdict {
       retryAfterSeconds,
       detail:
         `Too many optimisations: the limit is ${over.limit} per ${over.per}. ` +
-        `Each solve is real convex optimisation on a small free-tier machine. ` +
+        `This demo runs on a small free server. ` +
         `Try again in ${retryAfterSeconds} seconds.`,
     }
   }

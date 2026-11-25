@@ -70,7 +70,7 @@ export async function proxyBackfill(
     })
   } catch {
     return Response.json(
-      { detail: "Market data service is unreachable" },
+      { detail: "The data service is unavailable right now. Try again shortly." },
       { status: 502 }
     )
   }

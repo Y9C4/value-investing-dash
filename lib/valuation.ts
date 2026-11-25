@@ -68,7 +68,7 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     label: "Revenue",
     full: "Reverse revenue DCF",
     blurb:
-      "Grows revenue and fades the cash margin toward the sector median, then solves for the return that justifies the enterprise value. Speaks for companies whose cash flow is temporarily negative. Measured against WACC.",
+      "Grows revenue and fades the cash margin toward the sector median, then solves for the return that justifies the enterprise value. Works for companies whose cash flow is temporarily negative. Measured against WACC.",
     formula: "EV = Σ Revₜ · marginₜ / (1 + r)ᵗ + terminal, solved for r",
     against: "wacc",
     refusesWhen: [
@@ -296,18 +296,18 @@ export function valuationBand(percentile: number | null): ValuationBand {
  * caveat cannot drift away from what it describes.
  */
 export const BAND_BASIS =
-  "Quintiles of today's S&P 500 ranked by implied excess return over the models selected, with breakpoints recomputed at every refresh (Fama & French 1992). Q5 is the cheapest 20%. They rank a company against the index; they do not say it is cheap in absolute terms."
+  "Stocks are split into five equal groups by return gap, from Q5 (the cheapest 20% of the S&P 500) to Q1 (the most expensive 20%), redrawn at every data refresh (Fama & French 1992). This compares a stock with the rest of the index, so Q5 does not mean cheap in absolute terms."
 
 /** Shown behind the info trigger on the value column and tiles. */
 export const IMPLIED_BASIS =
-  "The annual return today's price implies, minus the return the stock's risk requires (WACC for FCFF and revenue, CAPM cost of equity for RIM and shareholder yield), averaged over the selected reverse-DCF models. +2 pp means the price implies 2 percentage points a year more than the stock's risk requires. The backtest found its rank useful and its size not, so the screener ranks on the percentile."
+  "The return gap is the yearly return today's price implies, minus the return the stock's risk requires (WACC for FCFF and revenue, cost of equity for residual income and shareholder yield), averaged over the selected reverse-DCF models. +2 pp means the price implies 2 percentage points a year more than required. In testing, the order of stocks by this gap was informative but its size was not, so we rank on it and do not treat it as a forecast."
 
 export const BAND_LABELS: Record<ValuationBand, string> = {
   "deep-value": "Q5 · cheapest",
   undervalued: "Q4",
   fair: "Q3",
   overvalued: "Q2",
-  expensive: "Q1 · dearest",
+  expensive: "Q1 · most expensive",
   unrated: "Not valued",
 }
 

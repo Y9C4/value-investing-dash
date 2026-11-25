@@ -69,22 +69,22 @@ export function DiscountRatePanel({
           note={
             rates.costOfEquity === null
               ? "none: no beta measured"
-              : "CAPM; what residual income and shareholder yield must beat"
+              : "CAPM; the hurdle for residual income and shareholder yield"
           }
         />
         <Figure
           label="WACC"
           value={formatPct(rates.wacc)}
           formula="ke(E/V) + kd(D/V)(1 − t)"
-          note={noWaccReason(stock) ?? "what FCFF and revenue must beat"}
+          note={noWaccReason(stock) ?? "the hurdle for FCFF and revenue"}
         />
         <Figure
           label="Beta"
           value={beta === null ? "—" : beta.toFixed(2)}
           note={
             rates.betaRaw === null || rates.betaRaw === undefined
-              ? "shrunk (Levi & Welch 2017)"
-              : `shrunk from a raw ${rates.betaRaw.toFixed(2)} (Levi & Welch 2017)`
+              ? "adjusted toward the market average (Levi & Welch 2017)"
+              : `adjusted from a measured ${rates.betaRaw.toFixed(2)} (Levi & Welch 2017)`
           }
         />
         <Figure
@@ -109,15 +109,13 @@ export function DiscountRatePanel({
         />
       </dl>
 
-      <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-        Beta is the 252-day regression on Fama-French market excess
-        returns, shrunk toward the index mean by its own standard error
-        (Vasicek), then a quarter of the way toward 0.9 (Levi &amp; Welch
-        2017). The premium is the long-run average of that series. The cost
-        of debt follows Damodaran&rsquo;s synthetic rating table (January
-        2026). The risk-free rate here is the 10-year Treasury because a DCF
-        discounts cash flows over decades; the 3-month T-bill under Key
-        statistics is the cash rate for the realised 252-day window.
+      <p className="border-t border-border pt-3 text-sm leading-relaxed text-muted-foreground">
+        Beta comes from 252 days of returns against the Fama-French market
+        factor, pulled toward the index average according to how noisy it is
+        (Vasicek), then a quarter of the way toward 0.9 (Levi &amp; Welch 2017).
+        The market premium is that factor&rsquo;s long-run average. Cost of debt
+        uses Damodaran&rsquo;s synthetic rating table (January 2026). We use the
+        10-year Treasury here because a DCF discounts cash flows over decades.
       </p>
     </div>
   )

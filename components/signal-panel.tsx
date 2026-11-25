@@ -2,6 +2,7 @@ import { SignalBar } from "@/components/signal-scale"
 import { compositeQuintileLabel } from "@/components/stock-readings"
 import { ValueBar } from "@/components/valuation-scale"
 import {
+  Details,
   Panel,
   PanelBody,
   PanelHeader,
@@ -75,8 +76,8 @@ export function SignalPanel({
   return (
     <Panel>
       <PanelHeader>
-        <PanelTitle>Factor percentiles</PanelTitle>
-        <PanelMeta>0–100 across today&rsquo;s S&amp;P 500</PanelMeta>
+        <PanelTitle>How it ranks</PanelTitle>
+        <PanelMeta>0–100 across the S&amp;P 500</PanelMeta>
       </PanelHeader>
 
       {/* The two tested composites first: these are what the screener ranks on. */}
@@ -106,8 +107,8 @@ export function SignalPanel({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead>Factor</TableHead>
-            <TableHead className="hidden text-right sm:table-cell">Raw value</TableHead>
+            <TableHead>Ingredient</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">Reading</TableHead>
             <TableHead className="w-[45%] sm:w-[40%]">Percentile</TableHead>
           </TableRow>
         </TableHeader>
@@ -151,10 +152,14 @@ export function SignalPanel({
         </TableBody>
       </Table>
 
-      <PanelBody className="border-t border-border">
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {SIGNAL_EVIDENCE}
+      <PanelBody className="flex flex-col gap-2 border-t border-border">
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          100 is the best in the index on that measure. The two scores at the top
+          average the ingredients named.
         </p>
+        <Details summary="How well has this worked?">
+          <p>{SIGNAL_EVIDENCE}</p>
+        </Details>
       </PanelBody>
     </Panel>
   )

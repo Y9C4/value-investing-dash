@@ -36,7 +36,7 @@ export function MethodologyToc({ sections }: { sections: readonly (readonly [str
 
   return (
     <nav aria-label="On this page" className="xl:sticky xl:top-20 xl:self-start">
-      <p className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">On this page</p>
+      <p className="mb-2 text-xs font-semibold text-muted-foreground">On this page</p>
       <ol className="flex flex-wrap gap-x-5 gap-y-1.5 xl:flex-col xl:gap-0 xl:border-l xl:border-border">
         {sections.map(([id, title]) => (
           <li key={id}>

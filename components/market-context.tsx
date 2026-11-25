@@ -111,7 +111,7 @@ export function MarketContext({
 
 
       {riskFreeRate !== null && (
-        <Field label="T-bill (3M)">{(riskFreeRate * 100).toFixed(2)}%</Field>
+        <Field label="3-month T-bill">{(riskFreeRate * 100).toFixed(2)}%</Field>
       )}
 
 
@@ -122,7 +122,7 @@ export function MarketContext({
       >
         {isBaseline ? (
           <span className="text-status-warning">
-            illustrative sample, not market data
+            made-up example data, not market prices
           </span>
         ) : stamp ? (
           <span className={cn(isStale && "text-status-warning")}>

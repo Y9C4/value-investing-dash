@@ -1,5 +1,6 @@
 import { Info } from "@/components/info"
 import {
+  Details,
   Panel,
   PanelBody,
   PanelHeader,
@@ -34,18 +35,18 @@ function ImpliedGrowth({ stock }: { stock: Stock }) {
   const { impliedGrowth = null, impliedGrowthAboveMax = null } = stock.signals ?? {}
   const assumed = impliedGrowthAboveMax ? "over 100%" : formatPct(impliedGrowth)
   const why = impliedGrowthAboveMax
-    ? "a year: no five-year growth path up to 100% a year from today's cash flow reaches this price."
+    ? "a year: even 100% growth for five years would not justify this price."
     : impliedGrowth === null
       ? noGrowthReason(stock)
-      : "a year, fading to 2.5% over five years. Solved at WACC, so it is sensitive when WACC is near long-run growth."
+      : "a year to start, slowing to 2.5% over five years. Calculated at WACC, so it swings widely when WACC is close to 2.5%."
 
   return (
     <div className="grid grid-cols-2 gap-px border-b border-border bg-border [&>*]:bg-card [&>*]:px-4 [&>*]:py-3">
-      <Stat label="Implied FCFF growth" value={assumed} hint={why} />
+      <Stat label="FCFF growth the price assumes" value={assumed} hint={why} />
       <Stat
-        label="Trailing revenue growth"
+        label="Revenue growth so far"
         value={formatSignedPct(stock.revenueGrowth)}
-        hint={stock.revenueGrowth === null ? "no growth history" : "a year, trailing, as reported"}
+        hint={stock.revenueGrowth === null ? "no growth history" : "a year, from reported results"}
       />
     </div>
   )
@@ -64,12 +65,18 @@ export function ImpliedReturnPanel({ stock }: { stock: Stock }) {
       <PanelHeader>
         <PanelTitle>
           <span className="flex items-center gap-1.5">
-            Implied return, reverse DCF
-            <Info title="Implied excess return">{IMPLIED_BASIS}</Info>
+            What the price implies
+            <Info title="Return gap">{IMPLIED_BASIS}</Info>
           </span>
         </PanelTitle>
-        <PanelMeta>% a year</PanelMeta>
+        <PanelMeta>reverse DCF · % a year</PanelMeta>
       </PanelHeader>
+
+      <p className="border-b border-border px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+        Four reverse-DCF models each work out the return implied by today&rsquo;s
+        price. A positive gap means the price offers more than the stock&rsquo;s
+        risk calls for.
+      </p>
 
       <ImpliedGrowth stock={stock} />
 
@@ -81,7 +88,7 @@ export function ImpliedReturnPanel({ stock }: { stock: Stock }) {
             <TableHead>Model</TableHead>
             <TableHead className="hidden text-right sm:table-cell">Implied</TableHead>
             <TableHead className="hidden text-right sm:table-cell">Required</TableHead>
-            <TableHead className="text-right">Implied − required</TableHead>
+            <TableHead className="text-right">Gap</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -125,19 +132,24 @@ export function ImpliedReturnPanel({ stock }: { stock: Stock }) {
       </Table>
 
       <PanelBody className="border-t border-border">
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Each model solves for the return that makes five years of its cash
-          flow, then a perpetuity, worth today&rsquo;s price, searching from
-          long-run growth (2.5%) to 100% a year. The headline is the mean over
-          the models with both an implied and a required return. A dash under
-          Implied means the model did not solve (an input it needs is missing
-          or not positive, or no rate in that range fits); a dash under
-          Required means there is no WACC (not computed for financial firms,
-          or no cost of debt because no interest expense is reported). Each
-          such row says which. The quintile ranks this stock&rsquo;s reading
-          against the index; the backtest found the ranking useful and the
-          size not.
-        </p>
+        <Details>
+          <p>
+            Each model finds the return at which five years of its cash flow,
+            plus a terminal value, equals today&rsquo;s price. It searches from
+            long-run growth (2.5%) to 100% a year. The headline figure averages
+            the models that have both an implied and a required return.
+          </p>
+          <p>
+            A dash means the figure could not be calculated, and the row says
+            why. Under Implied, an input is missing or negative, or no rate in
+            that range fits. Under Required, there is no WACC: we do not
+            calculate it for financial firms, or no interest expense is reported.
+          </p>
+          <p>
+            The quintile compares this stock with the rest of the index. In
+            testing, that ranking was informative but the size of the gap was not.
+          </p>
+        </Details>
       </PanelBody>
     </Panel>
   )

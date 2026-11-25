@@ -85,28 +85,45 @@ export default async function NotebookPage({ params }: PageProps<"/research/[not
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <Link href="/research" className="flex items-center gap-1 hover:text-foreground">
           <RiArrowLeftLine className="size-3.5" aria-hidden="true" />
-          Backtest evidence
+          Backtest results
         </Link>
         <span className="font-mono">python-api/notebooks/{nb.slug}.ipynb</span>
       </div>
 
-      {nb.slug === "backtest" && (
-        <p className="border-l-2 border-border pl-3 text-xs leading-relaxed text-muted-foreground">
-          The development study (Mar 2023 – Jan 2025) that chose the specification. Its prose
-          cells predate the holdout; the out-of-sample result is in{" "}
-          <Link href="/research/evidence" className="underline underline-offset-2 hover:text-foreground">
-            Evidence for the dashboard&rsquo;s claims
-          </Link>
-          .
+      <aside className="flex max-w-3xl flex-col gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm leading-relaxed">
+        <p className="font-semibold">In plain terms</p>
+        {nb.slug === "backtest" ? (
+          <p className="text-muted-foreground">
+            This is the working research used to design the ranking, on data from
+            Mar 2023 to Jan 2025. It was written before the unseen test, whose
+            result is in{" "}
+            <Link href="/research/evidence" className="underline underline-offset-2 hover:text-foreground">
+              Evidence for the dashboard&rsquo;s claims
+            </Link>
+            .
+          </p>
+        ) : (
+          <p className="text-muted-foreground">
+            This notebook recalculates the numbers shown on the site. The ranking
+            was designed on one stretch of history, then tested once on later
+            months it had never seen. The short version: on unseen data it pointed
+            the right way, but not strongly enough to rule out luck.
+          </p>
+        )}
+        <p className="text-muted-foreground">
+          Rank IC: how well a ranking predicted the order of next month&rsquo;s
+          returns (0 is chance). Development: the months used for design. Holdout:
+          the months kept back for testing. Code is folded away; open any block to
+          read it.
         </p>
-      )}
+      </aside>
 
       {nb.cells.map((cell, i) =>
         cell.kind === "markdown" ? (
           <div key={i} className="notebook-prose max-w-3xl" dangerouslySetInnerHTML={{ __html: cell.html }} />
         ) : (
           <div key={i} className="flex flex-col">
-            <details className="group border border-border bg-card">
+            <details className="group overflow-clip rounded-lg border border-border bg-card">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-1.5 font-mono text-xs text-muted-foreground select-none hover:text-foreground">
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="shrink-0 text-foreground">

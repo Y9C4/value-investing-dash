@@ -60,7 +60,7 @@ export function CumulativeIcChart({
           x2={holdoutEnd}
           fill="var(--color-muted)"
           fillOpacity={0.6}
-          label={{ value: "Holdout", position: "insideTopLeft", fill: "var(--color-muted-foreground)", fontSize: 11 }}
+          label={{ value: "Unseen test", position: "insideTopLeft", fill: "var(--color-muted-foreground)", fontSize: 11 }}
         />
         <ReferenceLine y={0} stroke="var(--color-axis)" />
         <XAxis
@@ -112,7 +112,7 @@ export function CumulativeIcChart({
   )
 }
 
-const SAMPLE_LABELS = { development: "Development", holdout: "Holdout" }
+const SAMPLE_LABELS = { development: "Design period", holdout: "Unseen test" }
 
 /** Mean next-month factor-adjusted return by quintile, development beside holdout. */
 export function QuintileChart({
@@ -129,8 +129,8 @@ export function QuintileChart({
   return (
     <ChartContainer
       config={{
-        development: { label: "Development", color },
-        holdout: { label: "Holdout", color },
+        development: { label: "Design period", color },
+        holdout: { label: "Unseen test", color },
       }}
       className="aspect-auto h-52 w-full"
     >
@@ -198,8 +198,8 @@ export function CalibrationChart({
   return (
     <ChartContainer
       config={{
-        development: { label: "Development", color: "var(--cat-3)" },
-        holdout: { label: "Holdout", color: "var(--cat-3)" },
+        development: { label: "Design period", color: "var(--cat-3)" },
+        holdout: { label: "Unseen test", color: "var(--cat-3)" },
       }}
       className="aspect-square max-h-80 w-full"
     >
@@ -212,7 +212,7 @@ export function CalibrationChart({
           ]}
           stroke="var(--color-muted-foreground)"
           strokeDasharray="3 3"
-          label={{ value: "45°: calibrated", position: "insideTopRight", fill: "var(--color-muted-foreground)", fontSize: 11 }}
+          label={{ value: "perfect forecast", position: "insideTopRight", fill: "var(--color-muted-foreground)", fontSize: 11 }}
         />
         <ReferenceLine x={0} stroke="var(--color-axis)" />
         <ReferenceLine y={0} stroke="var(--color-axis)" />
@@ -224,7 +224,7 @@ export function CalibrationChart({
           tickLine={false}
           axisLine={false}
           tickFormatter={(v: number) => `${signed(v * 100, 0)}`}
-          label={{ value: "Predicted, pp a year", position: "insideBottom", offset: -4, fill: "var(--color-muted-foreground)", fontSize: 11 }}
+          label={{ value: "Predicted gap, pp a year", position: "insideBottom", offset: -4, fill: "var(--color-muted-foreground)", fontSize: 11 }}
         />
         <YAxis
           type="number"
@@ -244,9 +244,9 @@ export function CalibrationChart({
                 const p = item.payload as { predicted: number; realised: number; decile: number }
                 return (
                   <span className="flex flex-col gap-0.5">
-                    <span className="font-medium">Decile {p.decile}</span>
+                    <span className="font-medium">Group {p.decile} of 10</span>
                     <span className="text-muted-foreground">
-                      Predicted <span className="font-figure text-foreground">{signed(p.predicted * 100, 1)} pp</span>, realised{" "}
+                      Predicted <span className="font-figure text-foreground">{signed(p.predicted * 100, 1)} pp</span>, earned{" "}
                       <span className="font-figure text-foreground">{signed(p.realised * 100, 1)} pp</span>
                     </span>
                   </span>

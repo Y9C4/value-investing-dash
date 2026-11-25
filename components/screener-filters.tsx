@@ -78,7 +78,7 @@ function FilterGroup({
   )
 }
 
-/** A square, no-radius toggle used for every multi-select facet. */
+/** The toggle used for every multi-select facet. */
 function Chip({
   active,
   onClick,
@@ -96,7 +96,7 @@ function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
         // Foreground tones, not gold: gold is kept for primary actions and the strategy.
         active
           ? "border-foreground/60 bg-foreground/10 text-foreground"
@@ -125,8 +125,8 @@ function StrategyInfo() {
       <PopoverContent side="right" className="max-h-(--available-height) max-w-sm gap-3 overflow-y-auto">
         <PopoverTitle>Strategy</PopoverTitle>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          A strategy sets which factors the composite averages and which stocks are kept. Search and sector
-          filters apply on top. Changing a quintile filter or the composite&rsquo;s factors makes it custom.
+          A strategy sets what the score is made of and which stocks are kept. Search and sector filters apply
+          on top. Changing a quintile filter or the score&rsquo;s ingredients makes it custom.
         </p>
         <dl className="flex flex-col gap-2.5 border-t border-border pt-2.5">
           {PRESETS.map((preset) => (
@@ -177,9 +177,9 @@ function MethodInfo({
           {method.blurb}
         </p>
 
-        <div className="flex flex-col gap-1 border border-border px-3 py-2">
+        <div className="flex flex-col gap-1 rounded-md border border-border px-3 py-2">
           <span className="text-xs text-muted-foreground">
-            formula
+            Formula
           </span>
           <div className="text-xs leading-relaxed break-words">
             {method.formula}
@@ -187,14 +187,14 @@ function MethodInfo({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-xs text-destructive font-semibold">
-            fails when
+          <span className="text-xs font-semibold">
+            Can&rsquo;t be calculated when
           </span>
           <ul className="flex flex-col gap-1">
             {method.refusesWhen.map((reason) => (
               <li
                 key={reason}
-                className="flex gap-2 text-xs leading-relaxed text-destructive"
+                className="flex gap-2 text-xs leading-relaxed text-muted-foreground"
               >
                 <span aria-hidden="true">-</span>
                 <span>{reason}</span>
@@ -204,7 +204,7 @@ function MethodInfo({
         </div>
 
         <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-          This model solves for {coverage} of the {total} stocks
+          Works for {coverage} of {total} stocks
           {total > 0 && <> ({((coverage / total) * 100).toFixed(0)}%)</>}.
         </p>
       </PopoverContent>
@@ -237,7 +237,7 @@ export function MethodToggle({
   return (
     <div
       className={cn(
-        "flex items-start gap-1 border pr-1 transition-colors",
+        "flex items-start gap-1 rounded-md border pr-1 transition-colors",
         active ? "border-foreground/40" : "border-border"
       )}
     >
@@ -270,7 +270,7 @@ export function MethodToggle({
           </span>
         </span>
         <span className="text-xs text-muted-foreground tabular-nums">
-          solves {coverage} of {total}
+          covers {coverage} of {total}
         </span>
 
         {/* Coverage as a bar: how much of the universe this model can speak to. */}
@@ -313,7 +313,7 @@ function SignalToggle({
   return (
     <div
       className={cn(
-        "flex items-start gap-1 border pr-1 transition-colors",
+        "flex items-start gap-1 rounded-md border pr-1 transition-colors",
         active ? "border-foreground/40" : "border-border"
       )}
     >
@@ -343,7 +343,7 @@ function SignalToggle({
           </span>
         </span>
         <span className="text-xs text-muted-foreground tabular-nums">
-          {evidence && <>holdout IC {evidence.holdout.ic.toFixed(3)} · </>}scores {coverage} of {total}
+          {evidence && <>test rank IC {evidence.holdout.ic.toFixed(3)} · </>}covers {coverage} of {total}
         </span>
 
         <span className="h-0.5 w-full bg-muted" aria-hidden="true">
@@ -372,16 +372,16 @@ function SignalToggle({
             <p className="text-xs leading-relaxed text-muted-foreground">
               {component.blurb}
             </p>
-            <div className="flex flex-col gap-1 border border-border px-3 py-2">
+            <div className="flex flex-col gap-1 rounded-md border border-border px-3 py-2">
               <span className="text-xs text-muted-foreground">
-                formula
+                Formula
               </span>
               <div className="text-xs leading-relaxed break-words">
                 {component.formula}
               </div>
             </div>
             <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-              {evidence && describeEvidence(evidence)} Scores <span className="font-figure">{coverage}</span> of the{" "}
+              {evidence && describeEvidence(evidence)} Covers <span className="font-figure">{coverage}</span> of{" "}
               <span className="font-figure">{total}</span> stocks.
             </p>
           </PopoverContent>
@@ -446,7 +446,7 @@ export function ScreenerFilterRail({
   }
 
   return (
-    <div className="flex flex-col border border-border bg-card">
+    <div className="flex flex-col rounded-lg border border-border bg-card">
       {/* Sticky inside the rail's own scroll, so Reset and Close never scroll away. */}
       <div className="sticky top-0 z-10 flex flex-col gap-1 border-b border-border bg-card px-6 py-3">
         <div className="flex items-center justify-between">
@@ -484,7 +484,7 @@ export function ScreenerFilterRail({
                 tabIndex={active || (filters.preset === null && index === 0) ? 0 : -1}
                 onClick={() => onChange(applyPreset(filters, preset.id))}
                 className={cn(
-                  "flex flex-col border px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+                  "flex flex-col rounded-md border px-3 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
                   active ? "border-primary bg-primary/10" : "border-border hover:border-foreground/40"
                 )}
               >
@@ -497,7 +497,7 @@ export function ScreenerFilterRail({
           })}
           {filters.preset === null && (
             <p className="text-xs text-muted-foreground">
-              Custom: the quintile filters or composite factors differ from every strategy above.
+              Custom: your filters no longer match any strategy above.
             </p>
           )}
         </div>
@@ -550,11 +550,11 @@ export function ScreenerFilterRail({
       </FilterGroup>
 
       <FilterGroup
-        label="Composite quintile"
+        label="Score quintile"
         info={
-          <Info title="Composite quintile">
-            Quintiles of the composite percentile: Q5 is the 20% of scored
-            stocks ranked highest on the factors selected below.
+          <Info title="Score quintile">
+            Scored stocks split into five equal groups. Q5 is the top 20% on the
+            score.
           </Info>
         }
       >
@@ -574,11 +574,11 @@ export function ScreenerFilterRail({
 
       <details className="group/advanced border-t border-border">
         <summary className="cursor-pointer list-none px-6 py-4 text-xs font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-foreground">
-          <span className="group-open/advanced:hidden">+ Composite factors, valuation models, beta cap</span>
-          <span className="hidden group-open/advanced:inline">− Composite factors, valuation models, beta cap</span>
+          <span className="group-open/advanced:hidden">+ More: score ingredients, models, beta limit</span>
+          <span className="hidden group-open/advanced:inline">− More: score ingredients, models, beta limit</span>
         </summary>
 
-        <FilterGroup label="Factors averaged into the composite" info={<Info title="Evidence">{SIGNAL_EVIDENCE}</Info>}>
+        <FilterGroup label="What the score averages" info={<Info title="How it was tested">{SIGNAL_EVIDENCE}</Info>}>
           <div className="flex flex-col gap-1.5">
             {SIGNAL_COMPONENTS.map((component) => (
               <SignalToggle
@@ -603,21 +603,21 @@ export function ScreenerFilterRail({
             {evidence ? (
               <>
                 <span className="text-foreground">{evidence.label}</span>: {describeEvidence(evidence)}{" "}
-                <Link href="/research" className="underline underline-offset-2 hover:text-foreground">Backtest</Link>
+                <Link href="/research" className="underline underline-offset-2 hover:text-foreground">Backtest results</Link>
               </>
             ) : (
-              <>This combination was not tested in the backtest.</>
+              <>This combination has not been backtested.</>
             )}
           </p>
         </FilterGroup>
 
         <FilterGroup
-          label="Reverse-DCF models averaged into value"
+          label="Models used for value"
           info={
             <Info title="Reverse-DCF models">
-              Each model solves for the annual return today&rsquo;s price implies and subtracts the return the
-              stock&rsquo;s risk requires. Value averages the ones switched on, so turning some off re-ranks
-              every stock. The number beside a model is how many of the {total} stocks it can solve for.
+              Each reverse-DCF model finds the yearly return today&rsquo;s price implies and subtracts the return
+              the stock&rsquo;s risk requires. Value averages the ones switched on, so turning one off re-ranks
+              every stock. Each shows how many of the {total} stocks it works for.
             </Info>
           }
         >
@@ -642,17 +642,17 @@ export function ScreenerFilterRail({
             ))}
           </div>
           <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
-            Each stock averages whichever selected models solved for it, the rule the backtest used. Not valued
-            means none did. The backtest&rsquo;s figures are for all four.
+            Each stock averages whichever selected models work for it, as in the backtest. &ldquo;Not
+            valued&rdquo; means none did. Backtest figures use all four.
           </p>
         </FilterGroup>
 
         <FilterGroup
-          label="Maximum beta"
+          label="Beta limit"
           info={
             <Info title="Beta">
-              Sensitivity to the market, from 252 days of daily returns, shrunk toward the average (Levi &amp;
-              Welch 2017). A cap also drops stocks whose beta could not be measured.
+              Sensitivity to the market, from 252 days of daily returns, adjusted toward the average (Levi &amp;
+              Welch 2017). A limit also drops stocks whose beta could not be measured.
             </Info>
           }
         >
@@ -662,14 +662,14 @@ export function ScreenerFilterRail({
               checked={filters.maxBeta !== null}
               onChange={(e) => onChange({ ...filters, maxBeta: e.target.checked ? BETA_CAP_START : null })}
             />
-            <label htmlFor="beta-cap" className="cursor-pointer text-muted-foreground">Cap beta</label>
+            <label htmlFor="beta-cap" className="cursor-pointer text-muted-foreground">Limit beta</label>
             {filters.maxBeta !== null && (
               <span className="ml-auto font-figure tabular-nums">{filters.maxBeta.toFixed(2)}</span>
             )}
           </div>
           {filters.maxBeta !== null && (
             <input
-              aria-label="Maximum beta"
+              aria-label="Beta limit"
               type="range"
               min={25}
               max={300}

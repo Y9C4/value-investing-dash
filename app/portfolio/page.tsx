@@ -62,6 +62,17 @@ export default async function PortfolioPage({
 
   return (
     <div className="px-6 py-6 lg:px-10">
+      <div className="mb-5 flex max-w-3xl flex-col gap-2">
+        <h2 className="font-heading text-xl leading-snug sm:text-2xl">
+          Find the best mix of stocks for each level of risk
+        </h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          The curve below shows the highest expected return available at each
+          level of volatility (the efficient frontier). It starts on the mix with
+          the best Sharpe ratio. Figures are estimated from three years of past
+          prices, so treat them as a guide, not a forecast.
+        </p>
+      </div>
       <PortfolioBuilder
         // Keyed by scope: a client-side `?set=` / `?tickers=` change reuses this
         // page, and without a new key the previous scope's frontier stays up.

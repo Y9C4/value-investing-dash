@@ -63,7 +63,21 @@ export type Evidence = {
   valueAttribution: { longShort: number; alpha: number; alphaT: number; months: number }
 }
 
-export const EVIDENCE = evidence as unknown as Evidence
+/** The site's names for the notebook's signal ids, in plainer words than the export's. */
+const SIGNAL_NAMES: Record<string, string> = {
+  "composite:momentum+value": "Value + momentum",
+  "composite:momentum+surprise": "Momentum + earnings surprise",
+  value: "Value",
+  momentum: "Momentum",
+  surprise: "Earnings surprise",
+}
+
+const raw = evidence as unknown as Evidence
+
+export const EVIDENCE: Evidence = {
+  ...raw,
+  signals: raw.signals.map((s) => ({ ...s, label: SIGNAL_NAMES[s.id] ?? s.label })),
+}
 
 /** Evidence for a factor or composite, by sorted component ids; null if untested. */
 export function evidenceFor(ids: string[]): SignalEvidence | null {
@@ -75,15 +89,15 @@ export function evidenceFor(ids: string[]): SignalEvidence | null {
 export function significanceNote(e: SignalEvidence): string {
   const dev = e.development.t >= 2
   const hold = e.holdout.t >= 2
-  if (!dev && !hold) return "Neither is statistically significant."
-  if (dev && hold) return "Both clear the conventional t = 2 bar."
-  return hold ? "Only the holdout clears the conventional t = 2 bar." : "Only the development result clears the conventional t = 2 bar."
+  if (!dev && !hold) return "Neither result is strong enough to rule out luck."
+  if (dev && hold) return "Both results clear the usual bar for ruling out luck (t of 2)."
+  return hold ? "Only the unseen test clears the usual bar for ruling out luck (t of 2)." : "Only the design-period result clears the usual bar for ruling out luck (t of 2)."
 }
 
-/** The default strategy's holdout in one clause, for "...because it was the best blend in development, <clause>". */
+/** The default strategy's holdout in one clause, for "...because it did best in the design period, <clause>". */
 export function holdoutClause(e: SignalEvidence): string {
-  if (e.holdout.t >= 2) return "and it stayed significant in the holdout"
-  return `though it was ${e.holdout.ic < e.development.ic ? "weaker and " : ""}not significant in the holdout`
+  if (e.holdout.t >= 2) return "and it held up on unseen data"
+  return `though on unseen data it was ${e.holdout.ic < e.development.ic ? "weaker and " : ""}too weak to rule out luck`
 }
 
 /** A slope or t-stat to two decimals, with a true minus. */
@@ -104,9 +118,9 @@ export const HOLDOUT_SPAN = `${formatMonth(EVIDENCE.samples.Holdout.first)} – 
  * Colour follows the strategy in every chart (`--cat-*`, validated in both themes).
  */
 export const STRATEGIES = {
-  vm: { id: "composite:momentum+value", label: "Value + momentum composite", color: "var(--cat-1)" },
+  vm: { id: "composite:momentum+value", label: "Value + momentum", color: "var(--cat-1)" },
   ms: { id: "composite:momentum+surprise", label: "Momentum + earnings surprise", color: "var(--cat-2)" },
-  value: { id: "value", label: "Value (implied excess return)", color: "var(--cat-3)" },
+  value: { id: "value", label: "Value", color: "var(--cat-3)" },
 } as const
 
 export type StrategyKey = keyof typeof STRATEGIES

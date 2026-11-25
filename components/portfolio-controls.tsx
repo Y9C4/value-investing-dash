@@ -202,7 +202,7 @@ function ToggleRow({
   return (
     <div
       className={cn(
-        "flex items-start border transition-colors",
+        "flex items-start rounded-md border transition-colors",
         checked ? "border-foreground/40" : "border-border hover:border-ring"
       )}
     >
@@ -304,7 +304,7 @@ export function PortfolioControls({
   return (
     // A container, so the same groups stack in the 20rem rail and spread into
     // columns when the settings open as a section above the results.
-    <div className="@container flex flex-col border border-border bg-card">
+    <div className="@container flex flex-col overflow-clip rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <span className="font-heading text-sm font-semibold">
           Optimiser settings
@@ -333,11 +333,11 @@ export function PortfolioControls({
             <span className="font-figure text-foreground tabular-nums">
               {solved} of {requested}
             </span>{" "}
-            solved
+            used
             {excluded.length > 0 && (
               <>
                 {" "}
-                · {excluded.length} excluded for short price history:{" "}
+                · {excluded.length} left out for too little price history:{" "}
                 <span className="font-figure">{excluded.join(", ")}</span>
               </>
             )}
@@ -345,7 +345,7 @@ export function PortfolioControls({
         )}
         {dirty && (
           <span className="text-xs text-status-warning">
-            Settings changed since this solve · run to apply
+            Settings changed · run again to apply
           </span>
         )}
       </div>
@@ -386,11 +386,11 @@ export function PortfolioControls({
       <ControlGroup label="Diversification">
         <SliderField
           id="gamma"
-          label="L2 penalty (γ)"
+          label="Spread weights evenly"
           info={
-            <Info title="L2 penalty">
-              Adds a cost for concentrated positions, so the optimiser spreads weight across more stocks. At 0 there
-              is no penalty, and higher values push the weights toward an even spread at some cost to risk-adjusted return.
+            <Info title="L2 penalty (γ)">
+              Penalises large positions so weight spreads across more stocks. 0 means no penalty. Higher values
+              give a more even split, at some cost to the Sharpe ratio.
             </Info>
           }
           value={gamma}
@@ -404,10 +404,10 @@ export function PortfolioControls({
         />
       </ControlGroup>
 
-      <ControlGroup label="Resolution">
+      <ControlGroup label="Curve detail">
         <SliderField
           id="n-portfolios"
-          label="Frontier points"
+          label="Portfolios on the curve"
           value={portfolios}
           display={String(portfolios)}
           min={MIN_PORTFOLIOS}
@@ -434,15 +434,15 @@ export function PortfolioControls({
           need the button. */}
       <ControlGroup label="Valuation models">
         <span className="text-xs leading-snug text-muted-foreground">
-          Which reverse-DCF models the weighted implied excess return
-          averages. Applies at once; no re-run needed.
+          Which reverse-DCF models count towards the return gap of holdings.
+          Updates straight away and does not change the portfolios.
         </span>
         <div className="flex flex-col gap-1.5">
           {VALUATION_METHODS.map((method) => (
             <ToggleRow
               key={method.id}
               label={method.label}
-              note={`Solves for ${methodCoverage[method.id] ?? 0} of ${heldCount} holdings`}
+              note={`Works for ${methodCoverage[method.id] ?? 0} of ${heldCount} holdings`}
               info={<Info title={method.full}>{method.blurb}</Info>}
               checked={methods.length === 0 || methods.includes(method.id)}
               onChange={() => {

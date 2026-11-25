@@ -304,7 +304,7 @@ export function PortfolioBuilder({
 
       if (!res.ok) {
         throw new Error(
-          body?.detail ?? "Failed to build the efficient frontier",
+          body?.detail ?? "The efficient frontier could not be built",
         )
       }
 
@@ -431,12 +431,12 @@ export function PortfolioBuilder({
   const showResults = !isBaseline || (!screened && !error)
 
   const runBlocked = tooFew
-    ? `A frontier needs at least ${MIN_FRONTIER_TICKERS} recognised tickers; this set has ${tickers.length}.`
+    ? `The optimiser needs at least ${MIN_FRONTIER_TICKERS} recognised tickers; this set has ${tickers.length}.`
     : Object.keys(errors).length > 0
       ? "Fix the settings marked in red to run."
       : null
 
-  const solving = `Solving ${Number(settings.portfolios) || 0} portfolios over ${tickers.length || data.n_assets || stocks.length} stocks · ${elapsed}s`
+  const solving = `Calculating ${Number(settings.portfolios) || 0} portfolios from ${tickers.length || data.n_assets || stocks.length} stocks · ${elapsed}s`
   const stamp = solvedAt === null ? "" : formatDataTimestamp(new Date(solvedAt).toISOString())
   // Live, nightly or restored is the one thing a reader cannot tell from the
   // curve itself, so it is said once, here, with the shared as-of format.
@@ -444,15 +444,15 @@ export function PortfolioBuilder({
     ? solving
     : source === "baseline"
       ? screened
-        ? "not solved yet"
-        : "illustrative example, not solved"
+        ? "not calculated yet"
+        : "made-up example, not calculated"
       : source === "nightly"
-        ? `nightly solve · ${stamp}`
+        ? `updated overnight · ${stamp}`
         : source === "restored"
-          ? `solved ${stamp} · kept from earlier in this tab`
+          ? `calculated ${stamp} · kept from earlier in this tab`
           : data.cached
-            ? `retrieved ${stamp} · the solver's cached result`
-            : `solved ${stamp}`
+            ? `loaded ${stamp} · saved result`
+            : `calculated ${stamp}`
 
   return (
     <div className="flex flex-col gap-4">
@@ -548,16 +548,16 @@ export function PortfolioBuilder({
           decoded back to the set it promised, so the scope silently widens to
           the whole index unless that is said out loud. */}
       {staleSet && (
-        <p role="status" className="border border-border bg-card px-4 py-2.5 text-sm">
-          That screener link points at an older version of the index and
-          can&rsquo;t be read back. Optimising over the full index; run the
-          screen again for a fresh link.
+        <p role="status" className="rounded-lg border border-border bg-card px-4 py-2.5 text-sm">
+          That screener link was made for an older version of the index and
+          can&rsquo;t be read. This is the full index instead. Filter again in
+          the screener for a fresh link.
         </p>
       )}
 
       {unknownTickers.length > 0 && (
-        <p role="status" className="border border-border bg-card px-4 py-2.5 text-sm">
-          Not in the S&amp;P 500 dataset, so left out:{" "}
+        <p role="status" className="rounded-lg border border-border bg-card px-4 py-2.5 text-sm">
+          Not in the S&amp;P 500, so left out:{" "}
           <span className="font-figure">{unknownTickers.join(", ")}</span>
         </p>
       )}
@@ -601,7 +601,7 @@ export function PortfolioBuilder({
             resolved={resolvedBounds}
             cappedNote={
               !isBaseline && data.resolution_capped
-                ? `Cut to ${data.n_portfolios} from ${data.n_portfolios_requested}: every point is its own solve over ${data.n_assets ?? 0} stocks.`
+                ? `Cut to ${data.n_portfolios} from ${data.n_portfolios_requested}: each point is calculated separately across ${data.n_assets ?? 0} stocks.`
                 : undefined
             }
             methods={methods}
@@ -615,7 +615,7 @@ export function PortfolioBuilder({
             depends on whether the rail is open — not by the viewport's. */}
         <div className="@container flex min-w-0 flex-col gap-4">
           {error && (
-            <div className="flex flex-col gap-1 border border-destructive/40 bg-destructive/5 px-4 py-3">
+            <div className="flex flex-col gap-1 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3">
               <span className="text-xs font-semibold text-destructive">
                 Not optimised
               </span>
@@ -624,8 +624,8 @@ export function PortfolioBuilder({
                   plausible curve, and the curve is the thing people believe. */}
               {showResults && (
                 <p className="text-xs text-muted-foreground">
-                  Everything below is the previous successful solve, not a
-                  result for these settings.
+                  Everything below is from the last successful run, not these
+                  settings.
                 </p>
               )}
             </div>
@@ -645,8 +645,8 @@ export function PortfolioBuilder({
                   frontier, so the header names it once. One hairline-divided
                   strip of readings at one size, scanned left to right. */}
               <div className="flex flex-col">
-                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border border-b-0 border-border bg-card px-4 py-2">
-                  <h2 className="text-xs font-semibold text-muted-foreground">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-t-lg border border-b-0 border-border bg-card px-4 py-3">
+                  <h2 className="text-sm font-semibold">
                     {activeLabel}
                   </h2>
                   <span className="font-figure text-xs text-muted-foreground">
@@ -655,7 +655,7 @@ export function PortfolioBuilder({
                 </div>
 
                 {/* The fifth reading spans the gap a 2- or 3-column wrap would leave. */}
-                <StatStrip className="border sm:grid-cols-3 xl:grid-cols-5 [&>*:last-child]:col-span-2 xl:[&>*:last-child]:col-span-1">
+                <StatStrip className="rounded-t-none border sm:grid-cols-3 xl:grid-cols-5 [&>*:last-child]:col-span-2 xl:[&>*:last-child]:col-span-1">
                   <Stat
                     label="Sharpe ratio"
                     value={active.sharpe.toFixed(2)}
@@ -678,9 +678,9 @@ export function PortfolioBuilder({
                     }
                   />
                   <Stat
-                    label="T-bill (3M)"
+                    label="3-month T-bill"
                     value={formatPercent(data.risk_free_rate)}
-                    hint={isBaseline ? "illustrative, not today's rate" : "13-week T-bill, the risk-free rate"}
+                    hint={isBaseline ? "example, not today's rate" : "used as the risk-free rate"}
                   />
                   {/* The one figure here that is not a property of the solve:
                       what the reverse-DCF models say about the book it picked,
@@ -691,7 +691,7 @@ export function PortfolioBuilder({
                         ? gapTextClass(consensus.impliedAlpha)
                         : undefined
                     }
-                    label="Implied excess return, weighted"
+                    label="Return gap of holdings"
                     value={
                       consensus.ratedHoldings > 0
                         ? formatPp(consensus.impliedAlpha)
@@ -699,7 +699,7 @@ export function PortfolioBuilder({
                     }
                     hint={
                       consensus.ratedHoldings > 0
-                        ? `implied − required, by position weight · ${formatAxisPercent(consensus.coverage)} of weight valued`
+                        ? `price-implied minus required, weighted · ${formatAxisPercent(consensus.coverage)} of portfolio valued`
                         : undefined
                     }
                   />
@@ -743,7 +743,7 @@ export function PortfolioBuilder({
                       <p className="text-sm text-muted-foreground">
                         {isBaseline
                           ? "Run the optimisation to see the sector split."
-                          : "No sector labels on file for these holdings."}
+                          : "No sector information for these holdings."}
                       </p>
                     </PanelBody>
                   </Panel>
@@ -781,16 +781,16 @@ export function PortfolioBuilder({
                       ? "Optimising…"
                       : error
                         ? "No frontier for this set"
-                        : "Not solved yet"}
+                        : "Not calculated yet"}
                 </p>
                 <p className="max-w-prose text-sm text-muted-foreground">
                   {tooFew
-                    ? `A mean–variance frontier needs at least ${MIN_FRONTIER_TICKERS} recognised tickers; this set has ${tickers.length}. Add names in the screener or to the URL.`
+                    ? `The optimiser needs at least ${MIN_FRONTIER_TICKERS} recognised tickers; this set has ${tickers.length}. Add more in the screener or the web address.`
                     : loading
-                      ? `${solving}. A solve usually takes five to twenty seconds.`
+                      ? `${solving}. This usually takes five to twenty seconds.`
                       : error
-                        ? "The optimiser refused the request (reason above). Nothing is plotted: the illustrative baseline is not a result for this set."
-                        : `Press Run optimisation to solve over these ${tickers.length} stocks.`}
+                        ? "The optimiser could not run (reason above). Nothing is plotted, because the example curve is not a result for this set."
+                        : `Press Run optimisation to calculate using these ${tickers.length} stocks.`}
                 </p>
                 {tooFew && (
                   <Link href="/screener" className="text-sm underline underline-offset-4">

@@ -35,9 +35,9 @@ export default function GlobalError({
             Market data is unavailable
           </h1>
           <p style={{ margin: "0 0 20px", lineHeight: 1.5, color: "#98a2b0" }}>
-            The dashboard could not read the warehouse, and there is no earlier
-            copy to show. Nothing is displayed rather than numbers that may be
-            wrong.
+            We could not load the data, and there is no saved copy to show.
+            Rather than risk showing wrong numbers, we show none. Try again in a
+            few minutes.
             {error.digest && ` Reference: ${error.digest}.`}
           </p>
           <button

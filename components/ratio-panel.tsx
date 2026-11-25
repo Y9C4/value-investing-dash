@@ -1,5 +1,5 @@
 import { Info } from "@/components/info"
-import { Panel, PanelBody, PanelHeader, PanelMeta, PanelTitle } from "@/components/ui/panel"
+import { Details, Panel, PanelBody, PanelHeader, PanelMeta, PanelTitle } from "@/components/ui/panel"
 import {
   Table,
   TableBody,
@@ -21,9 +21,14 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
   return (
     <Panel>
       <PanelHeader>
-        <PanelTitle>Multiples and fundamentals vs sector</PanelTitle>
+        <PanelTitle>Multiples against the sector</PanelTitle>
         <PanelMeta>{sector}</PanelMeta>
       </PanelHeader>
+      <p className="border-b border-border px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+        The dot shows where this stock sits among its sector peers, lowest on the
+        left; the tick is the sector median. For P/E, P/B and EV/EBITDA, further
+        left is cheaper. For yields, further right is cheaper.
+      </p>
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -89,15 +94,14 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
         </TableBody>
       </Table>
       <PanelBody className="border-t border-border">
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          The dot shows the stock&rsquo;s rank among sector peers that report
-          the figure, with the lowest on the left, and the tick marks the sector
-          median. For P/E, P/B and EV/EBITDA a low rank is cheap, while for the
-          yields a high rank is cheap. These ratios are context and are not
-          inputs to the factor ranks. In the backtest, each plain ratio had a
-          lower mean IC than the reverse-DCF model built on the same figures,
-          though no difference was statistically significant.
-        </p>
+        <Details summary="Do these feed the ranking?">
+          <p>
+            No. They are here for context. In the backtest, each simple ratio
+            predicted returns slightly less well than the reverse-DCF model built
+            on the same figures, though the differences were too small to rule out
+            luck.
+          </p>
+        </Details>
       </PanelBody>
     </Panel>
   )

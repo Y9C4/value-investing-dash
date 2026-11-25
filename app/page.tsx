@@ -4,6 +4,7 @@ import { ExcessReturnHistogram } from "@/components/excess-return-histogram"
 import { CumulativeIcChart } from "@/components/research-charts"
 import { TStat } from "@/components/t-stat"
 import {
+  Details,
   Panel,
   PanelBody,
   PanelHeader,
@@ -20,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { buttonVariants } from "@/components/ui/button"
 import { WorkedExample } from "@/components/worked-example"
 import type { FrontierResponse } from "@/lib/baseline-frontier"
 import { DEVELOPMENT_SPAN, EVIDENCE, HOLDOUT_SPAN, cumulativeIc, evidenceFor } from "@/lib/evidence"
@@ -48,10 +50,10 @@ export default async function OverviewPage() {
   const kept = Math.round((holdout.ic / dev.ic) * 100)
   const verdict =
     holdout.t >= 2
-      ? "Yes, and it held up out of sample."
+      ? "the ranking held up."
       : holdout.ic > 0
-        ? "Weakly: positive out of sample, but not significant."
-        : "Not out of sample."
+        ? "the ranking leaned the right way, but by too little to rule out luck."
+        : "the ranking did not work."
 
   // The worked example: today's top stock on the default composite.
   const ranked = stocks
@@ -78,92 +80,114 @@ export default async function OverviewPage() {
 
   return (
     <div className="flex flex-col gap-10 px-6 py-6 lg:px-10">
-      {/* The question and its answer, the way a paper's abstract gives them. */}
+      {/* What the site is, and the honest answer to whether it works. */}
       <section aria-labelledby="question" className="flex flex-col gap-5">
-        <div className="flex max-w-4xl flex-col gap-3">
+        <div className="flex max-w-3xl flex-col gap-3">
           <h2 id="question" className="font-heading text-2xl leading-snug sm:text-3xl">
-            Can a reverse-DCF value signal, blended with 12–1 momentum, rank
-            S&amp;P 500 stocks by next-month risk-adjusted return?
+            Which S&amp;P 500 stocks look cheap for the risk you take?
           </h2>
           <p className="text-base leading-relaxed">
-            <span className="font-semibold">{verdict}</span>{" "}
+            This site works out the yearly return each stock&rsquo;s current price
+            implies, compares it with the return its risk calls for, and ranks the
+            index on that gap together with recent price momentum.
+          </p>
+          <p className="text-base leading-relaxed">
+            <span className="font-semibold">Does it work?</span> On {holdout.months}{" "}
+            months of data it had never seen, {verdict}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <Link href="/screener" className={buttonVariants({ size: "sm" })}>
+              See the ranking
+            </Link>
+            <Link href="/research" className={buttonVariants({ size: "sm", variant: "outline" })}>
+              See how it was tested
+            </Link>
+          </div>
+        </div>
+
+        <StatStrip className="sm:grid-cols-3 xl:grid-cols-3 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
+          <Stat
+            size="lead"
+            label="Rank IC, design period"
+            value={dev.ic.toFixed(3)}
+            hint={`t = ${dev.t.toFixed(2)}${bestInDevelopment ? ` · best of ${EVIDENCE.signals.length} signals tried` : ""}`}
+          />
+          <Stat
+            size="lead"
+            label="Rank IC, unseen test"
+            value={holdout.ic.toFixed(3)}
+            hint={`t = ${holdout.t.toFixed(2)} · ${holdout.months} months`}
+          />
+          <Stat
+            size="lead"
+            label="Test months it pointed the right way"
+            value={`${Math.round(holdout.hit * 100)}%`}
+            hint={`${Math.round(holdout.hit * holdout.months)} of ${holdout.months} months`}
+          />
+        </StatStrip>
+        <Details summary="What these numbers mean">
+          <p>
             Rank IC measures how closely each month&rsquo;s ranking matched the
-            next month&rsquo;s returns, where 0 means no information.{" "}
+            order of the next month&rsquo;s returns. 0 means no better than chance
+            and 1 would be a perfect call. A t-stat of about 2 or more suggests a
+            result is unlikely to be luck.
+          </p>
+          <p>
             {bestInDevelopment ? (
               <>
-                We tested {EVIDENCE.signals.length} signals on {dev.months}{" "}
-                development months ({DEVELOPMENT_SPAN}). The value + momentum
-                composite had the highest rank IC ({dev.ic.toFixed(3)}, t ={" "}
-                {dev.t.toFixed(2)}), so it became the default.
+                We tried {EVIDENCE.signals.length} signals on a design period of{" "}
+                {dev.months} months ({DEVELOPMENT_SPAN}). Value plus momentum did
+                best (rank IC {dev.ic.toFixed(3)}, t = {dev.t.toFixed(2)}), so it
+                became the default.
               </>
             ) : (
               <>
-                Over {dev.months} development months ({DEVELOPMENT_SPAN}), the
-                default value + momentum composite had a rank IC of{" "}
+                Over a design period of {dev.months} months ({DEVELOPMENT_SPAN}),
+                the default value plus momentum signal had a rank IC of{" "}
                 {dev.ic.toFixed(3)} (t = {dev.t.toFixed(2)}).
               </>
             )}{" "}
-            We then froze the specification and ran it once on {holdout.months}{" "}
-            months it had never seen ({HOLDOUT_SPAN}), where it kept {kept}% of
-            that IC ({holdout.ic.toFixed(3)}, t = {holdout.t.toFixed(2)}).{" "}
-            {clearing.length === 1 && clearing[0].id !== chosen.id && (
-              <>
-                Only {clearing[0].label.toLowerCase()} cleared the stricter bar of
-                t ≥ 3 out of sample (t = {clearing[0].holdout.t.toFixed(2)}). We did
-                not switch the default to it, because choosing again on the
-                holdout would leave nothing out of sample.
-              </>
-            )}
+            We then locked the rules and tested them once on {holdout.months} new
+            months ({HOLDOUT_SPAN}). The signal kept {kept}% of its strength (rank
+            IC {holdout.ic.toFixed(3)}, t = {holdout.t.toFixed(2)}).
           </p>
-        </div>
-        <StatStrip className="sm:grid-cols-3 xl:grid-cols-3">
-          <Stat
-            size="lead"
-            label="Development IC · default"
-            value={dev.ic.toFixed(3)}
-            hint={`t = ${dev.t.toFixed(2)}${bestInDevelopment ? `, best of ${EVIDENCE.signals.length}` : ""}`}
-          />
-          <Stat
-            size="lead"
-            label="Holdout IC · default"
-            value={holdout.ic.toFixed(3)}
-            hint={`t = ${holdout.t.toFixed(2)}, ${holdout.months} months`}
-          />
-          <Stat
-            size="lead"
-            label="Holdout months with IC > 0"
-            value={`${Math.round(holdout.hit * 100)}%`}
-            hint={`${Math.round(holdout.hit * holdout.months)} of ${holdout.months}`}
-          />
-        </StatStrip>
+          {clearing.length === 1 && clearing[0].id !== chosen.id && (
+            <p>
+              {clearing[0].label} on its own passed the stricter bar of t ≥ 3 in
+              the test (t = {clearing[0].holdout.t.toFixed(2)}). We kept the
+              original default anyway: picking a new winner after seeing the test
+              would mean nothing had been tested on unseen data.
+            </p>
+          )}
+        </Details>
       </section>
 
-      <section aria-label="Backtest evidence" className="grid items-start gap-6 2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <section aria-label="Backtest results" className="grid items-start gap-6 2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Panel>
           <PanelHeader>
-            <PanelTitle>Cumulative monthly rank IC</PanelTitle>
-            <PanelMeta>holdout shaded</PanelMeta>
+            <PanelTitle>Has the ranking kept working?</PanelTitle>
+            <PanelMeta>unseen test shaded</PanelMeta>
           </PanelHeader>
-          <PanelBody>
-            <CumulativeIcChart {...cumulativeIc()} />
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              Each month adds that month&rsquo;s IC to the running total. A line
-              that keeps rising means the ranking kept working, and a flat
-              stretch means it stopped.
+          <PanelBody className="flex flex-col gap-2">
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Running total of each month&rsquo;s rank IC. A rising line means the
+              ranking kept working; a flat or falling one means it did not.
             </p>
+            <CumulativeIcChart {...cumulativeIc()} />
           </PanelBody>
         </Panel>
 
         <Panel>
           <PanelHeader>
-            <PanelTitle>Rank IC for every candidate</PanelTitle>
+            <PanelTitle>Every signal we tried</PanelTitle>
+            <PanelMeta>rank IC and t-stat</PanelMeta>
           </PanelHeader>
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead rowSpan={2} className="align-bottom">Signal</TableHead>
-                <TableHead colSpan={2} className="border-l border-border text-center">Development</TableHead>
-                <TableHead colSpan={2} className="border-l border-border text-center">Holdout</TableHead>
+                <TableHead colSpan={2} className="border-l border-border text-center">Design period</TableHead>
+                <TableHead colSpan={2} className="border-l border-border text-center">Unseen test</TableHead>
               </TableRow>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="border-l border-border text-right">IC</TableHead>
@@ -178,9 +202,7 @@ export default async function OverviewPage() {
                   <TableCell className="whitespace-normal">
                     <span className="font-medium">{s.label}</span>
                     {s.id === chosen.id && (
-                      <span className="ml-2 border border-border px-1 py-px text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                        default
-                      </span>
+                      <span className="ml-2 text-xs text-muted-foreground">default</span>
                     )}
                   </TableCell>
                   <TableCell className="border-l border-border text-right font-figure">{s.development.ic.toFixed(3)}</TableCell>
@@ -191,20 +213,21 @@ export default async function OverviewPage() {
               ))}
             </TableBody>
           </Table>
-          <PanelBody className="flex flex-col gap-2 border-t border-border text-xs leading-relaxed text-muted-foreground">
-            <p>
-              Each signal is scored against {EVIDENCE.target[0].toLowerCase() + EVIDENCE.target.slice(1)}.
-              The t-statistic asks how far the average monthly IC is from zero,
-              given how much it varies. One star marks |t| of 2 or more, and two
-              stars mark |t| of 3 or more, the stricter bar Harvey, Liu and Zhu
-              (2016) recommend when many factors have been tried.
-            </p>
-            <p>
+          <PanelBody className="flex flex-col gap-2 border-t border-border">
+            <p className="text-sm text-muted-foreground">
+              * t of 2 or more · ** t of 3 or more.{" "}
               <Link href="/research" className="underline underline-offset-2 hover:text-foreground">
-                Backtest evidence
-              </Link>{" "}
-              has the quintile returns, the calibration and the notebooks.
+                Full results
+              </Link>
             </p>
+            <Details>
+              <p>
+                Each signal is scored against {EVIDENCE.target[0].toLowerCase() + EVIDENCE.target.slice(1)}.
+                The t-stat asks how far the average monthly rank IC is from zero,
+                given how much it varies. 2 is the conventional bar. Harvey, Liu
+                and Zhu (2016) recommend 3 when many factors have been tried.
+              </p>
+            </Details>
           </PanelBody>
         </Panel>
       </section>
@@ -228,16 +251,16 @@ export default async function OverviewPage() {
               "No stock in the index could be valued at today's prices."
             ) : (
               <>
-                The median S&amp;P 500 stock is priced to return{" "}
+                Today the typical S&amp;P 500 stock is priced to return{" "}
                 {pp(Math.abs(gapMedian)).replace(/^[+−]/, "")} a year{" "}
-                {gapMedian < 0 ? "less" : "more"} than its risk requires.
+                {gapMedian < 0 ? "less" : "more"} than its risk calls for.
               </>
             )}
           </h2>
         </div>
         <div className="flex flex-col gap-4">
           {gapMedian !== null && (
-            <dl className="grid grid-cols-3 gap-px border border-border bg-border [&>div]:bg-card [&>div]:px-3 [&>div]:py-2.5">
+            <dl className="grid grid-cols-3 gap-px overflow-clip rounded-lg border border-border bg-border [&>div]:bg-card [&>div]:px-3 [&>div]:py-2.5">
               <div>
                 <dt className="text-xs text-muted-foreground">Median implied return</dt>
                 <dd className="font-figure text-xl">{percent(impliedMedian)}</dd>
@@ -247,29 +270,32 @@ export default async function OverviewPage() {
                 <dd className="font-figure text-xl">{percent(requiredMedian)}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Median stock&rsquo;s implied − required</dt>
+                <dt className="text-xs text-muted-foreground">Median return gap</dt>
                 <dd className={`font-figure text-xl ${gapMedian < 0 ? "text-overvalued" : gapMedian > 0 ? "text-undervalued" : ""}`}>
                   {pp(gapMedian)}
                 </dd>
                 <dd className="text-xs leading-tight text-muted-foreground">
-                  median of per-stock gaps, not {percent(impliedMedian)} − {percent(requiredMedian)}
+                  middle of each stock&rsquo;s own gap, so not {percent(impliedMedian)} − {percent(requiredMedian)}
                 </dd>
               </div>
             </dl>
           )}
           <p className="text-sm leading-relaxed text-muted-foreground">
-            These figures cover the {pairs.length} stocks that at least one model
-            can value. The other {notValued} have no valuation. Of the{" "}
-            {pairs.length}, {above} ({Math.round((above / Math.max(pairs.length, 1)) * 100)}%)
-            have an implied return above their required return. The backtest
-            found that the ranking is informative but the size of the gap is
-            not, so treat this as a reading of relative pricing rather than a
-            forecast. The{" "}
-            <Link href="/methodology" className="underline underline-offset-2 hover:text-foreground">
-              methodology page
-            </Link>{" "}
-            explains how each number is built.
+            {above} of {pairs.length} stocks ({Math.round((above / Math.max(pairs.length, 1)) * 100)}%)
+            are priced to return more than their risk calls for. Read this as how
+            stocks compare with each other, not as a forecast: in testing, the
+            order was informative but the size of the gap was not.
           </p>
+          <Details summary="What is counted">
+            <p>
+              The figures cover the {pairs.length} stocks that at least one model
+              can value. The other {notValued} have no valuation. The{" "}
+              <Link href="/methodology" className="underline underline-offset-2 hover:text-foreground">
+                methodology page
+              </Link>{" "}
+              explains how each number is built.
+            </p>
+          </Details>
         </div>
         {gapMedian !== null && (
           <div className="flex flex-col pt-1">

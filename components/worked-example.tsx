@@ -2,7 +2,7 @@ import Link from "next/link"
 
 import { DistributionStrip } from "@/components/stock-verdict"
 import type { FrontierResponse } from "@/lib/baseline-frontier"
-import { DEVELOPMENT_SPAN, EVIDENCE, HOLDOUT_SPAN, evidenceFor, formatStat } from "@/lib/evidence"
+import { DEVELOPMENT_SPAN, EVIDENCE, HOLDOUT_SPAN, evidenceFor } from "@/lib/evidence"
 import { DASH, formatPct, formatPp } from "@/lib/format"
 import type { Ranking } from "@/lib/screen"
 import { DEFAULT_SIGNALS, formatComposite, formatScore } from "@/lib/signals"
@@ -23,7 +23,7 @@ import {
  * nothing is squashed at a narrow width.
  *
  * Colour roles follow the rest of the site: teal/magenta for cheap/dear, indigo
- * for the composite, gold for the one stock being traced, greys for the rest.
+ * for the combined score, the accent for the one stock being traced, greys for the rest.
  */
 
 function Swatch({ className, style }: { className?: string; style?: React.CSSProperties }) {
@@ -53,7 +53,7 @@ function Step({
         <span className="font-figure text-muted-foreground">{n}</span>
         {title}
       </h3>
-      <p className="min-h-[5rem] text-xs leading-relaxed text-muted-foreground">{text}</p>
+      <p className="min-h-[4.5rem] text-sm leading-relaxed text-muted-foreground">{text}</p>
       <div className="flex min-h-44 flex-1 flex-col justify-center">{children}</div>
       <p className="text-xs leading-relaxed text-muted-foreground">{caption}</p>
       <Link href={href} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
@@ -192,7 +192,7 @@ function ImpliedFigure({ stock }: { stock: Stock }) {
               )}
             </div>
             <span className="w-[4.25rem] shrink-0 text-right font-figure text-sm">
-              {row.implied === null ? <span className="font-sans text-[11px] text-muted-foreground">no solution</span> : formatPct(row.implied)}
+              {row.implied === null ? <span className="font-sans text-[11px] text-muted-foreground">can&rsquo;t solve</span> : formatPct(row.implied)}
               {row.implied !== null && row.implied > hi && <span aria-hidden="true" className="text-muted-foreground"> ▸</span>}
             </span>
           </div>
@@ -209,7 +209,7 @@ function ImpliedFigure({ stock }: { stock: Stock }) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span aria-hidden="true" className="size-2 rounded-full" style={{ background: "var(--color-undervalued)" }} />
-          implied above required
+          above required
           <span aria-hidden="true" className="ml-1 size-2 rounded-full" style={{ background: "var(--color-overvalued)" }} />
           below
         </span>
@@ -249,7 +249,7 @@ function CompositeFigure({
       <span className="text-[11px] text-muted-foreground" aria-hidden="true">↑ momentum percentile</span>
       <div
         role="img"
-        aria-label={`Value percentile against momentum percentile for ${dots.length} stocks; ${stock.ticker} and the other nine highest composites are marked.`}
+        aria-label={`Value percentile against momentum percentile for ${dots.length} stocks; ${stock.ticker} and the other nine highest scores are marked.`}
         className="relative mr-12 h-28 border-b border-l border-border"
       >
         <span className="absolute inset-y-0 left-1/2 w-px bg-border" aria-hidden="true" />
@@ -262,7 +262,7 @@ function CompositeFigure({
         {dots.filter((d) => topTen.has(d.ticker) && d.ticker !== stock.ticker).map((d) => (
           <span
             key={d.ticker}
-            title={`${d.ticker}: value ${formatScore(d.v)}, momentum ${formatScore(d.m)}, composite ${formatComposite(ranking.score.get(d.ticker) ?? null)}`}
+            title={`${d.ticker}: value ${formatScore(d.v)}, momentum ${formatScore(d.m)}, score ${formatComposite(ranking.score.get(d.ticker) ?? null)}`}
             className="absolute size-[7px] -translate-x-1/2 translate-y-1/2 rounded-full ring-1 ring-card"
             style={{ ...place(d), background: "var(--color-signal-q5)" }}
           />
@@ -311,13 +311,13 @@ function ValidationFigure() {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex gap-0.5 text-[11px] text-muted-foreground" aria-hidden="true">
-        <span style={grow(dev.months)} className="min-w-0">choices made here</span>
-        <span style={grow(embargo)} className="flex min-w-0 justify-center overflow-visible whitespace-nowrap">embargo</span>
-        <span style={grow(holdout.months)} className="min-w-0 text-right text-foreground">run once</span>
+        <span style={grow(dev.months)} className="min-w-0">design period</span>
+        <span style={grow(embargo)} className="flex min-w-0 justify-center overflow-visible whitespace-nowrap">gap</span>
+        <span style={grow(holdout.months)} className="min-w-0 text-right text-foreground">unseen test</span>
       </div>
       <div
         role="img"
-        aria-label={`${dev.months} development months, a ${embargo}-month embargo, then ${holdout.months} holdout months, drawn to scale.`}
+        aria-label={`${dev.months} design months, a ${embargo}-month gap, then ${holdout.months} unseen test months, drawn to scale.`}
         className="flex h-5 gap-0.5"
       >
         <span style={grow(dev.months)} className="bg-muted-foreground/40" />
@@ -328,9 +328,9 @@ function ValidationFigure() {
       </div>
       <div className="flex gap-0.5 pt-1">
         {[
-          { months: dev.months, ic: dev.ic, t: dev.t, span: DEVELOPMENT_SPAN, name: "Development" },
+          { months: dev.months, ic: dev.ic, t: dev.t, span: DEVELOPMENT_SPAN, name: "Design" },
           { months: embargo, ic: null, t: 0, span: "", name: "" },
-          { months: holdout.months, ic: holdout.ic, t: holdout.t, span: HOLDOUT_SPAN, name: "Holdout" },
+          { months: holdout.months, ic: holdout.ic, t: holdout.t, span: HOLDOUT_SPAN, name: "Test" },
         ].map((cell, i) => (
           <div key={i} style={grow(cell.months)} className="min-w-0">
             {cell.ic !== null && (
@@ -355,7 +355,7 @@ function FrontierFigure({ frontier }: { frontier: FrontierResponse | null }) {
   const env = frontier?.envelope ?? []
   if (!frontier || env.length < 3) {
     return (
-      <dl className="grid grid-cols-2 gap-px border border-border bg-border [&>div]:bg-card [&>div]:px-3 [&>div]:py-2">
+      <dl className="grid grid-cols-2 gap-px overflow-clip rounded-lg border border-border bg-border [&>div]:bg-card [&>div]:px-3 [&>div]:py-2">
         <div>
           <dt className="text-[11px] text-muted-foreground">Estimation window</dt>
           <dd className="font-figure text-sm font-medium">3 years, daily</dd>
@@ -475,24 +475,24 @@ export function WorkedExample({
     <section aria-labelledby="steps" className="flex flex-col gap-4">
       <div className="flex max-w-4xl flex-col gap-1.5">
         <h2 id="steps" className="font-heading text-xl leading-snug sm:text-2xl">
-          How a stock gets its rank: today&rsquo;s #1, {ticker}
+          How the ranking works, using today&rsquo;s top stock: {ticker}
         </h2>
         <p className="text-sm text-muted-foreground">
-          We follow {stock.name} through each step of the model, using today&rsquo;s data.
+          Six steps, with live numbers for {stock.name}.
         </p>
       </div>
 
-      <ol className="grid gap-px border border-border bg-border md:grid-cols-2 xl:grid-cols-3">
+      <ol className="grid gap-px overflow-clip rounded-lg border border-border bg-border md:grid-cols-2 xl:grid-cols-3">
         <Step
           n={1}
-          title="Required return"
-          text="This is what the stock must earn for its risk. We use the CAPM cost of equity, and WACC, which adds after-tax debt priced from a synthetic credit rating."
+          title="What return should it earn?"
+          text="Riskier stocks should pay more. We estimate the required return two ways: cost of equity (CAPM) and WACC, with the cost of debt taken from a synthetic credit rating."
           caption={
             <>
               {betaRaw != null && stock.beta !== null ? (
-                <>The beta is {stock.beta.toFixed(2)}, shrunk from a raw {betaRaw.toFixed(2)} (Levi and Welch 2017). </>
+                <>Beta is {stock.beta.toFixed(2)}, adjusted from a measured {betaRaw.toFixed(2)} toward the market average (Levi and Welch 2017). </>
               ) : null}
-              {stock.discountRates?.syntheticRating ? <>Its debt carries a synthetic rating of {stock.discountRates.syntheticRating}.</> : null}
+              {stock.discountRates?.syntheticRating ? <>Synthetic credit rating: {stock.discountRates.syntheticRating}.</> : null}
             </>
           }
           href="/methodology#assumptions"
@@ -503,15 +503,15 @@ export function WorkedExample({
 
         <Step
           n={2}
-          title="Implied return · reverse DCF"
-          text="For each model, we solve for the discount rate at which forecast cash flows are worth today’s price, then compare it with the required return."
+          title="What return does the price imply?"
+          text="A reverse DCF works backwards from today’s price to the return a buyer would earn if the forecast cash flows arrive. Four models each give an answer."
           caption={
             pair ? (
               <>
-                {solved} of the {VALUATION_METHODS.length} models solve for this stock. Their mean implied return is {formatPct(pair.implied)}, against a required return of {formatPct(pair.required)}.
+                {solved} of {VALUATION_METHODS.length} models work for this stock. They average {formatPct(pair.implied)}, against a required {formatPct(pair.required)}.
               </>
             ) : (
-              <>No model solves at today&rsquo;s price.</>
+              <>No model can be solved at today&rsquo;s price.</>
             )
           }
           href={`/stocks/${ticker}`}
@@ -522,22 +522,22 @@ export function WorkedExample({
 
         <Step
           n={3}
-          title="Value signal"
-          text={`The gap is the implied return minus the required return, averaged over the models that solve and then ranked across the index. It is a rank and not a forecast, since the gap’s calibration slope was ${formatStat(EVIDENCE.calibration.development.slope)} in development and ${formatStat(EVIDENCE.calibration.holdout.slope)} out of sample.`}
+          title="How big is the gap?"
+          text="Implied return minus required return gives the return gap. We rank every stock on it. The order has been useful; the size of the gap has not been a reliable forecast."
           caption={
             alpha === null ? (
               <>No value reading.</>
             ) : (
               <>
-                The gap is {formatPp(alpha)}, which is above {below} of the {gaps.length} valued stocks and gives a value percentile of {formatScore(ranking.value.get(ticker) ?? null)}.
+                A gap of {formatPp(alpha)} beats {below} of {gaps.length} stocks: value percentile {formatScore(ranking.value.get(ticker) ?? null)}.
               </>
             )
           }
           href="/methodology#value"
-          link="How the value signal is built"
+          link="How value is measured"
         >
           {alpha === null ? (
-            <p className="text-xs text-muted-foreground">No model could value {ticker}.</p>
+            <p className="text-sm text-muted-foreground">No model could value {ticker}.</p>
           ) : (
             <DistributionStrip values={gaps} alpha={alpha} ticker={ticker} className="max-w-none" heightClass="h-24" />
           )}
@@ -545,11 +545,11 @@ export function WorkedExample({
 
         <Step
           n={4}
-          title="Momentum and the composite"
-          text="Momentum is the past year’s return leaving out the latest month, which tends to reverse. The value and momentum percentiles are then averaged and re-ranked into the composite."
+          title="Is the market noticing?"
+          text="Momentum is the past year’s price change, skipping the latest month. We average the value and momentum percentiles into one score from 0 to 100."
           caption={
             <>
-              {ticker}&rsquo;s composite is {formatComposite(ranking.score.get(ticker) ?? null)}, the highest of the {ranked.length} stocks scored. The next three are{" "}
+              {ticker} scores {formatComposite(ranking.score.get(ticker) ?? null)}, the highest of {ranked.length} stocks. Next:{" "}
               {ranked.slice(1, 4).map((s, i, next) => (
                 <span key={s.ticker}>
                   {i > 0 && (i === next.length - 1 ? " and " : ", ")}
@@ -566,40 +566,40 @@ export function WorkedExample({
           <CompositeFigure stock={stock} stocks={stocks} ranking={ranking} topTen={topTen} />
           <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5"><span aria-hidden="true" className="size-2 rounded-full bg-primary" />{ticker}</span>
-            <span className="flex items-center gap-1.5"><span aria-hidden="true" className="size-2 rounded-full" style={{ background: "var(--color-signal-q5)" }} />top ten composites</span>
+            <span className="flex items-center gap-1.5"><span aria-hidden="true" className="size-2 rounded-full" style={{ background: "var(--color-signal-q5)" }} />top ten scores</span>
             <span className="flex items-center gap-1.5"><span aria-hidden="true" className="size-1 rounded-full bg-muted-foreground/60" />the rest</span>
           </p>
         </Step>
 
         <Step
           n={5}
-          title="Out-of-sample test"
-          text="Each month, we measure the rank correlation (IC) between the ranking and the next month’s factor-adjusted return. All design choices were made on the early months only."
+          title="Was it tested fairly?"
+          text="We made every choice on the earlier months, locked the rules, then scored them once on later months the model had never seen."
           caption={
             chosen && kept !== null ? (
               <>
-                On months it never saw, the default composite kept {kept}% of its development IC, and its t-stat moved from {chosen.development.t.toFixed(2)} to {chosen.holdout.t.toFixed(2)}.
+                On unseen data the score kept {kept}% of its rank IC, and the t-stat fell from {chosen.development.t.toFixed(2)} to {chosen.holdout.t.toFixed(2)}.
               </>
             ) : null
           }
           href="/research"
-          link="Backtest evidence and notebooks"
+          link="Backtest results and notebooks"
         >
           <ValidationFigure />
         </Step>
 
         <Step
           n={6}
-          title="Portfolio"
-          text="The optimiser finds the best risk-adjusted mix of the stocks ticked in the screener, using Bayes–Stein expected returns and a Ledoit–Wolf covariance matrix."
+          title="Build a portfolio"
+          text="The optimiser takes the stocks you pick and finds the mix with the most expected return for its risk, using Bayes–Stein returns and Ledoit–Wolf covariance."
           caption={
             tan ? (
               <>
-                The maximum-Sharpe portfolio scores {tan.sharpe.toFixed(2)}
-                {frontier?.market ? <>, against {frontier.market.sharpe.toFixed(2)} for the S&amp;P 500</> : null}, spread over {positions} positions. These figures are in-sample, on three years of daily prices.
+                The best mix has a Sharpe ratio of {tan.sharpe.toFixed(2)}
+                {frontier?.market ? <> (S&amp;P 500: {frontier.market.sharpe.toFixed(2)})</> : null} across {positions} stocks. These figures are fitted to the last three years of prices, so they are not a forecast.
               </>
             ) : (
-              <>This runs on the stocks ticked in the screener, using three years of daily prices and a 10% position cap.</>
+              <>Runs on the stocks you tick, using three years of daily prices and a 10% cap per stock.</>
             )
           }
           href="/portfolio"

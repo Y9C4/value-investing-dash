@@ -136,8 +136,8 @@ export function PortfolioList({
         <PanelTitle>Portfolios</PanelTitle>
         <PanelMeta>
           {isBaseline
-            ? `${rows.length} anchors`
-            : `${data.envelope.length} solved points + tangency`}
+            ? `${rows.length} examples`
+            : "pick one to inspect"}
         </PanelMeta>
       </PanelHeader>
       {/* Beside the chart (the builder's `@5xl` row) the list fills the
@@ -151,7 +151,7 @@ export function PortfolioList({
             {/* An inset shadow rather than a border: a sticky row's own border
                 is painted with the cell and scrolls out from under it. */}
             <TableRow className="shadow-[inset_0_-1px_0_0_var(--color-border)] hover:bg-card">
-              <TableHead>Frontier portfolio</TableHead>
+              <TableHead>Portfolio</TableHead>
               <TableHead className="text-right">Return</TableHead>
               <TableHead className="text-right">Vol.</TableHead>
               <TableHead className="text-right">Sharpe</TableHead>

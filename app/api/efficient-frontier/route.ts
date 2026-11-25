@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     })
   } catch {
     return Response.json(
-      { detail: "Market data service is unreachable" },
+      { detail: "The optimiser is unavailable right now. Try again shortly." },
       { status: 502 }
     )
   }

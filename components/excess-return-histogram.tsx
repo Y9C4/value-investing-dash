@@ -27,15 +27,17 @@ export function ExcessReturnHistogram({
 
   return (
     <figure className="flex flex-col gap-2">
-      <figcaption className="text-xs text-muted-foreground">
-        Implied excess return, pp a year, across {values.length} valued stocks. Each bar is a
-        bin of {((bins[0].hi - bins[0].lo) * 100).toFixed(1)} pp (Freedman–Diaconis); the
-        outer bars include the tails.
+      <figcaption
+        className="text-sm text-muted-foreground"
+        title={`Bin width ${((bins[0].hi - bins[0].lo) * 100).toFixed(1)} pp (Freedman–Diaconis rule)`}
+      >
+        Return gap for {values.length} stocks, in percentage points (pp) a year. Taller
+        bars mean more stocks; the end bars include everything beyond them.
       </figcaption>
 
       <div
         role="img"
-        aria-label={`${below} of ${values.length} stocks have an implied return below their required return; the median implied excess return is ${pp(median)} percentage points.`}
+        aria-label={`${below} of ${values.length} stocks have an implied return below their required return; the median return gap is ${pp(median)} percentage points.`}
         className="relative mt-6 h-36"
       >
         <div className="absolute inset-0 flex items-end gap-0.5">
@@ -81,8 +83,8 @@ export function ExcessReturnHistogram({
         <span className="absolute right-0">{pp(hi)}</span>
       </div>
       <div className="flex flex-col gap-0.5 text-xs text-muted-foreground sm:flex-row sm:justify-between sm:gap-4" aria-hidden="true">
-        <span>← implied &lt; required: priced dear</span>
-        <span className="sm:text-right">implied &gt; required: priced cheap →</span>
+        <span>← priced to return less than required: expensive</span>
+        <span className="sm:text-right">more than required: cheap →</span>
       </div>
     </figure>
   )

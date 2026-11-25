@@ -11,7 +11,7 @@ import { ImageResponse } from "next/og"
  */
 
 export const alt =
-  "Value Investing Dash: rank the S&P 500 on what each price implies against what its risk requires, then build a portfolio from the screen"
+  "Value Investing Dash: see which S&P 500 stocks look cheap for their risk, then build a portfolio from your picks"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
@@ -38,7 +38,7 @@ export default function Image() {
             <span style={{ fontSize: 60, lineHeight: 1.1, color: MUTED }}>What does the risk require?</span>
           </div>
           <span style={{ fontSize: 22, color: MUTED, fontFamily: "sans-serif" }}>
-            S&amp;P 500 · reverse DCF · momentum · portfolio optimiser
+            S&amp;P 500 stock ranking, track record and portfolio builder
           </span>
         </div>
         <div style={{ display: "flex", flex: 1, flexDirection: "column", justifyContent: "center", gap: 18, padding: "0 56px", background: CARD }}>

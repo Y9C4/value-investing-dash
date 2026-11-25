@@ -64,9 +64,9 @@ export function StockDetail({
 
       {/* Absent on the offline sample, which has no rates to report. */}
       {stock.discountRates && (
-        <details className="group border border-border bg-card">
-          <summary className="cursor-pointer px-4 py-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase select-none hover:text-foreground">
-            Required return and risk inputs
+        <details className="group overflow-clip rounded-lg border border-border bg-card">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold select-none hover:text-muted-foreground">
+            How the required return is built
           </summary>
           <div className="border-t border-border">
             <DiscountRatePanel stock={stock} rates={stock.discountRates} />

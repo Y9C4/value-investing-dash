@@ -78,6 +78,8 @@ type Column = {
   key: SortKey
   label: string
   align: "left" | "right"
+  /** Fixed, so rows arriving after the first paint cannot resize the column. */
+  width: string
   /** Absent: always shown. */
   group?: ColumnGroup
   help?: Help
@@ -104,6 +106,7 @@ const percentile = (rank: number | null) => (rank === null ? DASH : Math.round(r
 const COLUMNS: Column[] = [
   {
     key: "ticker",
+    width: "w-32 sm:w-44",
     label: "Stock",
     align: "left",
     cell: (stock) => (
@@ -115,20 +118,21 @@ const COLUMNS: Column[] = [
         className="flex flex-col group-hover:underline sm:flex-row sm:items-baseline sm:gap-2"
       >
         <span className="font-figure font-medium">{stock.ticker}</span>
-        <span className="max-w-[6.5rem] truncate text-xs text-muted-foreground sm:max-w-[8rem] 2xl:max-w-[10rem]">{stock.name}</span>
+        <span className="min-w-0 truncate text-xs text-muted-foreground">{stock.name}</span>
       </Link>
     ),
   },
   {
     key: "score",
-    label: "Composite",
+    width: "w-28 sm:max-[1919px]:w-34 min-[1920px]:w-60",
+    label: "Score",
     align: "left",
     help: {
-      title: "Composite percentile",
-      body: "The equal-weight average of the selected factor percentiles (value + momentum by default), re-ranked 0–100 across the index. A rank, not a forecast return.",
+      title: "Score",
+      body: "The average of the selected percentiles (value and momentum by default), re-ranked from 0 to 100 across the index. It orders stocks; it does not forecast a return.",
       points: [
-        "Shown to one decimal: about 500 stocks put neighbouring ranks 0.2 apart, so whole numbers would print several different ranks as the same figure.",
-        "Blank means a selected factor could not be measured for this stock.",
+        "One decimal, because about 500 stocks put neighbouring ranks only 0.2 apart.",
+        "Blank means one of the selected measures could not be calculated for this stock.",
         `Value + momentum: ${describeEvidence(evidenceFor(["value", "momentum"])!)} ${significanceNote(evidenceFor(["value", "momentum"])!)}`,
       ],
     },
@@ -147,14 +151,15 @@ const COLUMNS: Column[] = [
   },
   {
     key: "value",
+    width: "w-24 sm:w-48",
     label: "Value",
     align: "left",
     help: {
       title: "Value percentile",
       body: IMPLIED_BASIS,
       points: [
-        "The bar and number are the stock's percentile, 0–100, on implied excess return. 100 is the cheapest in the index.",
-        "The signed figure is the implied excess return itself, in percentage points (pp) a year.",
+        "The bar and number are the percentile, 0–100, on the return gap. 100 is the cheapest stock in the index.",
+        "The signed figure is the gap itself, in percentage points (pp) a year.",
         BAND_BASIS,
       ],
     },
@@ -178,15 +183,16 @@ const COLUMNS: Column[] = [
   },
   {
     key: "momentum",
-    label: "Momentum (12–1)",
+    width: "w-32",
+    label: "Momentum",
     align: "left",
     help: {
-      title: "Momentum (12–1) percentile",
-      body: "Rank on 12–1 month price momentum: the total return from twelve months ago to one month ago, on dividend-adjusted closes (Jegadeesh & Titman 1993). Skipping the last month avoids its short-term reversal.",
+      title: "Momentum percentile",
+      body: "The price return from twelve months ago to one month ago, dividends included, often called 12–1 momentum (Jegadeesh & Titman 1993). The latest month is skipped because it tends to reverse.",
       points: [
-        "The number is the stock's percentile, 0–100, across the index. 100 rose the most.",
-        "The signed figure is the 12–1 return itself.",
-        "Blank when there is not yet a year of prices to measure it.",
+        "The number is the percentile, 0–100. 100 rose the most.",
+        "The signed figure is the return itself.",
+        "Blank when there is not yet a year of prices.",
       ],
     },
     cell: (stock) => (
@@ -202,18 +208,21 @@ const COLUMNS: Column[] = [
   },
   {
     key: "price",
+    width: "w-24",
     label: "Price",
     align: "right",
     cell: (stock) => formatSharePrice(stock.price),
   },
   {
     key: "marketCap",
+    width: "w-28",
     label: "Market cap",
     align: "right",
     cell: (stock) => (stock.marketCap === null ? DASH : formatMarketCap(stock.marketCap)),
   },
   {
     key: "peRatio",
+    width: "w-20",
     label: "P/E",
     align: "right",
     help: { title: "Price / earnings", body: "Market capitalisation over trailing-twelve-month net income. Blank when earnings are negative or a quarter is missing." },
@@ -221,6 +230,7 @@ const COLUMNS: Column[] = [
   },
   {
     key: "pbRatio",
+    width: "w-24",
     label: "P/B",
     align: "right",
     group: "ratios",
@@ -229,6 +239,7 @@ const COLUMNS: Column[] = [
   },
   {
     key: "evEbitda",
+    width: "w-32",
     label: "EV/EBITDA",
     align: "right",
     group: "ratios",
@@ -237,22 +248,25 @@ const COLUMNS: Column[] = [
   },
   {
     key: "fcfYield",
+    width: "w-28",
     label: "FCF yield",
     align: "right",
     group: "ratios",
-    help: { title: "Free cash flow yield", body: "Free cash flow to the firm over enterprise value: the plain ratio the reverse FCFF model is built from." },
+    help: { title: "Free cash flow yield", body: "Free cash flow to the firm over enterprise value." },
     cell: (stock) => formatPct(stock.fcfYield),
   },
   {
     key: "shareholderYield",
+    width: "w-40",
     label: "Shareholder yield",
     align: "right",
     group: "ratios",
-    help: { title: "Shareholder yield", body: "Dividends plus net buybacks over market cap: cash returned to shareholders, the base of the shareholder-yield model." },
+    help: { title: "Shareholder yield", body: "Dividends plus net buybacks over market cap: the cash returned to shareholders." },
     cell: (stock) => formatPct(stock.shareholderYield),
   },
   {
     key: "roe",
+    width: "w-24",
     label: "ROE",
     align: "right",
     group: "ratios",
@@ -261,6 +275,7 @@ const COLUMNS: Column[] = [
   },
   {
     key: "revenueGrowth",
+    width: "w-36",
     label: "Revenue growth",
     align: "right",
     group: "ratios",
@@ -269,6 +284,7 @@ const COLUMNS: Column[] = [
   },
   {
     key: "surprise",
+    width: "w-40",
     label: "Earnings surprise",
     align: "right",
     group: "trend",
@@ -277,18 +293,20 @@ const COLUMNS: Column[] = [
   },
   {
     key: "realisedReturn",
+    width: "w-28",
     label: "Return, 1y",
     align: "right",
     group: "risk",
     help: {
       title: "Annualised return",
       body: "Mean daily log return over the last 252 sessions × 252, on dividend-adjusted closes.",
-      points: ["Past returns are a poor forecast of future ones; the optimiser shrinks them (Bayes–Stein) before use."],
+      points: ["Past returns are a poor guide to future ones, so the optimiser tones them down (Bayes–Stein) before using them."],
     },
     cell: (stock) => formatSignedPct(stock.realisedReturn),
   },
   {
     key: "volatility",
+    width: "w-32",
     label: "Volatility, 1y",
     align: "right",
     group: "risk",
@@ -297,12 +315,13 @@ const COLUMNS: Column[] = [
   },
   {
     key: "beta",
+    width: "w-24",
     label: "Beta",
     align: "right",
     group: "risk",
     help: {
       title: "Beta",
-      body: "Sensitivity to the market: a CAPM regression of 252 days of daily excess returns on the market factor, shrunk toward the cross-sectional mean by its own standard error, then 25% toward 0.9 (Levi & Welch 2017).",
+      body: "Sensitivity to the market, from 252 days of daily returns, adjusted toward the index average according to how noisy it is, then 25% toward 0.9 (Levi & Welch 2017).",
       points: ["The same beta sets the stock's cost of equity."],
     },
     cell: (stock) => (stock.beta === null ? DASH : stock.beta.toFixed(2)),
@@ -382,10 +401,10 @@ export function ScreenerTable({
 
   if (stocks.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 border border-border bg-card px-6 py-16 text-center">
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-6 py-16 text-center">
         <p className="text-sm font-semibold">No stocks pass these filters</p>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Loosen a filter, or reset to the value + momentum composite.
+          Remove a filter, or reset to the default value + momentum ranking.
         </p>
         <Button size="sm" variant="outline" onClick={onReset}>
           Reset filters
@@ -398,8 +417,9 @@ export function ScreenerTable({
   const someSelected = !allSelected && stocks.some((s) => selected.has(s.ticker))
 
   return (
-    <div className="relative border border-border bg-card">
+    <div className="relative overflow-clip rounded-lg border border-border bg-card">
       <Table
+        className="table-fixed"
         // The scroll port is this container rather than the page; see
         // `useScrollPane`. The lg class is the pre-measurement fallback. Below
         // lg the page scrolls, but this box must still bound its height: it
@@ -431,6 +451,7 @@ export function ScreenerTable({
                   key={column.key}
                   className={cn(
                     "px-2",
+                    column.width,
                     column.align === "right" && "text-right",
                     column.key === "ticker" && cn("left-8", FROZEN, FROZEN_EDGE)
                   )}

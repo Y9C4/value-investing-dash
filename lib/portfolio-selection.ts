@@ -79,7 +79,7 @@ export function resolvePortfolio(
   }
 }
 
-export const TANGENCY_LABEL = "Tangency (max Sharpe)"
+export const TANGENCY_LABEL = "Max Sharpe (tangency)"
 export const MIN_VARIANCE_LABEL = "Minimum variance"
 
 /**
@@ -110,6 +110,6 @@ export function selectionLabel(
     case "minVolatility":
       return MIN_VARIANCE_LABEL
     case "envelope":
-      return `Frontier portfolio ${pointLabel(canonicalised.index)} of ${data.envelope.length}`
+      return `Portfolio ${pointLabel(canonicalised.index)} of ${data.envelope.length}`
   }
 }

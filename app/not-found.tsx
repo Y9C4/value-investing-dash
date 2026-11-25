@@ -25,15 +25,15 @@ export default function NotFound() {
       </h2>
       <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
         {ticker
-          ? "The dashboard covers current index members only. Search by ticker or company name in the bar above (share classes use a hyphen, as in BRK-B), or browse the whole index in the screener."
-          : "The page may have moved. Every section of the dashboard is linked below."}
+          ? "This site covers current S&P 500 members only. Search by ticker or company name above (share classes use a hyphen, as in BRK-B), or browse them all in the screener."
+          : "It may have moved. Try one of these."}
       </p>
       <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
         {[
           ["/", "Overview"],
           ["/screener", "Stock screener"],
           ["/portfolio", "Portfolio optimiser"],
-          ["/research", "Backtest evidence"],
+          ["/research", "Backtest results"],
           ["/methodology", "Methodology"],
         ].map(([href, label]) => (
           <li key={href}>

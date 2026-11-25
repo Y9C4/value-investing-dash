@@ -205,23 +205,23 @@ function ScreenerGuide() {
 
   const items = [
     {
-      term: "Value percentile",
-      text: "This ranks stocks on implied excess return, which is the annual return today's price implies (reverse DCF) minus the return the stock's risk requires. A score of 100 is the cheapest stock in the index.",
+      term: "Value",
+      text: "Is the price low for the risk? We compare the return today's price implies (reverse DCF) with the return the stock's risk requires. 100 is the cheapest stock in the index.",
     },
     {
-      term: "Momentum (12–1) percentile",
-      text: "This ranks stocks on 12–1 month price momentum, which is the return from twelve months ago to one month ago (Jegadeesh & Titman 1993).",
+      term: "Momentum",
+      text: "Has the price been rising? The return over the past year, leaving out the latest month. 100 rose the most.",
     },
     {
-      term: "Composite",
-      text: `This is the equal-weight average of the selected factor percentiles, re-ranked 0–100. Value + momentum is the default because it was the best blend in development, ${holdoutClause(evidenceFor(DEFAULT_SIGNALS)!)}.`,
+      term: "Score",
+      text: `The average of the two, re-ranked 0–100. We use this mix by default because it did best in the design period, ${holdoutClause(evidenceFor(DEFAULT_SIGNALS)!)}.`,
     },
   ]
 
   return (
     <section
       aria-label="How to read the screener"
-      className="relative grid gap-x-6 gap-y-2 border border-border bg-card px-4 py-3 pr-10 md:grid-cols-3"
+      className="relative grid gap-x-6 gap-y-2 rounded-lg border border-border bg-card px-4 py-3 pr-10 md:grid-cols-3"
     >
       <dl className="grid gap-x-6 gap-y-2 md:col-span-3 md:grid-cols-3">
         {items.map((item) => (
@@ -235,7 +235,7 @@ function ScreenerGuide() {
         href="/methodology"
         className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground md:col-span-3"
       >
-        Methodology: the four reverse-DCF models and the backtest
+        How each measure is calculated and tested
       </Link>
       <button
         type="button"
@@ -489,7 +489,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
                       )
                     }
                     className={cn(
-                      "border px-2 py-1.5 text-xs whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+                      "rounded-md border px-2 py-1.5 text-xs whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
                       on
                         ? "border-foreground/60 bg-foreground/10 text-foreground"
                         : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"

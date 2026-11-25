@@ -53,8 +53,8 @@ export default async function StockPage({ params }: PageProps<"/stocks/[ticker]"
         ratios={ratioContext(stocks, stock)}
         closes={closes}
         blends={[
-          { label: "Value + momentum composite", score },
-          { label: "Momentum + earnings surprise composite", score: momentumSurprise.score.get(stock.ticker) ?? null },
+          { label: "Value + momentum score", score },
+          { label: "Momentum + earnings surprise score", score: momentumSurprise.score.get(stock.ticker) ?? null },
         ]}
       />
     </>

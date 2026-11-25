@@ -12,7 +12,7 @@ const LABELS: Record<string, string> = {
   "/": "Overview",
   "/screener": "Stock screener",
   "/portfolio": "Portfolio optimiser",
-  "/research": "Backtest evidence",
+  "/research": "Backtest results",
   "/methodology": "Methodology",
   "/data": "Data maintenance",
 }

@@ -35,7 +35,7 @@ export type SignalComponent = {
 }
 
 /** Stated wherever an IC is shown. */
-export const SIGNAL_EVIDENCE = `Rank IC is the Spearman correlation between a month's ranking and the next month's factor-adjusted returns. Every design choice was made on the development months (${DEVELOPMENT_SPAN}, ${EVIDENCE.signals[0].development.months} months). The holdout months (${HOLDOUT_SPAN}, ${EVIDENCE.signals[0].holdout.months} months) were untouched until the specification was frozen, and were then run once. A t-stat of about 2 is the usual bar for significance.`
+export const SIGNAL_EVIDENCE = `Rank IC measures how well one month's ranking predicted the order of the next month's returns, after removing common market factors. 0 means no better than chance. We designed everything on ${DEVELOPMENT_SPAN} (${EVIDENCE.signals[0].development.months} months), locked the rules, then tested them once on ${HOLDOUT_SPAN} (${EVIDENCE.signals[0].holdout.months} months), which they had never seen. A t-stat of about 2 or more suggests a result is unlikely to be luck.`
 
 /** "0.054 (t = 1.92)". */
 export function formatIc(stats: { ic: number; t: number }): string {
@@ -44,32 +44,32 @@ export function formatIc(stats: { ic: number; t: number }): string {
 
 /** One sentence for a popover: both samples, development first. */
 export function describeEvidence(evidence: SignalEvidence): string {
-  return `Rank IC ${formatIc(evidence.development)} in development; ${formatIc(evidence.holdout)} in the holdout.`
+  return `Rank IC ${formatIc(evidence.development)} in the design period and ${formatIc(evidence.holdout)} in the unseen test.`
 }
 
 export const SIGNAL_COMPONENTS: SignalComponent[] = [
   {
     id: "value",
     label: "Value",
-    full: "Implied excess return, reverse DCF",
+    full: "Return gap from reverse DCF",
     blurb:
-      "The return today's price implies minus the return the stock's risk requires, averaged over four reverse-DCF models (FCFF, residual income, revenue and shareholder yield). It is solved from the price and not discounted to a fair value.",
-    formula: "α = r(implied) − WACC or kₑ, averaged over 4 models",
+      "The yearly return today's price implies, minus the return the stock's risk requires, averaged over four reverse-DCF models (FCFF, residual income, revenue and shareholder yield). We solve for the return from the price instead of estimating a fair value.",
+    formula: "gap = implied return − WACC or cost of equity, averaged over 4 models",
   },
   {
     id: "momentum",
     label: "Momentum",
-    full: "12–1 month price momentum",
+    full: "Price change over the past year, skipping the latest month",
     blurb:
-      "The return from twelve months ago to one month ago (Jegadeesh & Titman 1993). Skipping the latest month avoids its short-term reversal. Alongside value, it shows whether the market has started to re-rate the stock.",
-    formula: "P(t−21) ÷ P(t−252) − 1, on dividend-adjusted closes",
+      "The return from twelve months ago to one month ago, often written 12–1 momentum (Jegadeesh & Titman 1993). The latest month is left out because it tends to reverse. It shows whether the market has started to re-rate the stock.",
+    formula: "price 1 month ago ÷ price 12 months ago − 1, dividends included",
   },
   {
     id: "surprise",
     label: "Earnings surprise",
-    full: "Price-scaled earnings surprise, latest quarter",
+    full: "Latest quarter's earnings beat or miss, relative to price",
     blurb:
-      "How far the latest quarter's EPS beat or missed the analyst consensus, scaled by price (Livnat & Mendenhall 2006). Only reports from the last 100 days count.",
+      "How far the latest quarter's EPS came in above or below the analyst consensus, divided by the share price (Livnat & Mendenhall 2006). Only reports from the last 100 days count.",
     formula: "(reported EPS − estimated EPS) ÷ price",
   },
 ]

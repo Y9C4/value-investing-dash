@@ -51,7 +51,7 @@ function PopoverContent({
         <BasePopover.Popup
           className={cn(
             // Square corners, per the project's no-radius rule.
-            "flex max-w-xs flex-col gap-2 border border-border bg-popover px-4 py-3",
+            "flex max-w-xs flex-col gap-2 rounded-lg border border-border bg-popover px-4 py-3",
             "text-popover-foreground shadow-lg outline-none",
             "origin-[var(--transform-origin)] transition-[opacity,scale] duration-100 ease-out",
             "data-starting-style:scale-[0.98] data-starting-style:opacity-0",

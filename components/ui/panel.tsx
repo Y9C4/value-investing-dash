@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
  * wear it.
  *
  * A panel is a hairline box with a two-line header strip and a dense body:
- * the same border, the same tracked uppercase label, the same tabular figures
+ * the same border, the same title, the same tabular figures
  * as every strip on the screener. Roughly 90px of vertical chrome per panel
  * becomes about 30px, and — more to the point — a page of panels reads as one
  * instrument rather than as a stack of separate cards.
@@ -18,7 +18,7 @@ function Panel({ className, ...props }: React.ComponentProps<"section">) {
     <section
       data-slot="panel"
       className={cn(
-        "flex min-w-0 flex-col border border-border bg-card",
+        "flex min-w-0 flex-col overflow-clip rounded-lg border border-border bg-card",
         className
       )}
       {...props}
@@ -35,7 +35,7 @@ function PanelHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="panel-header"
       className={cn(
-        "flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border px-4 py-2",
+        "flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border px-4 py-3",
         className
       )}
       {...props}
@@ -55,7 +55,7 @@ function PanelTitle({ className, ...props }: React.ComponentProps<"h2">) {
       className={cn(
         // Foreground, not muted: the title is the panel's anchor, and in the
         // muted ink it read the same as every label and caption beneath it.
-        "flex items-center gap-1.5 text-xs font-semibold tracking-wider text-foreground uppercase",
+        "flex items-center gap-1.5 text-sm font-semibold text-foreground",
         className
       )}
       {...props}
@@ -146,7 +146,7 @@ function StatStrip({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="stat-strip"
       className={cn(
-        "grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-3 xl:grid-cols-6 [&>*]:bg-card [&>*]:px-4 [&>*]:py-2.5",
+        "grid grid-cols-2 gap-px overflow-clip rounded-lg border border-border bg-border sm:grid-cols-3 xl:grid-cols-6 [&>*]:bg-card [&>*]:px-4 [&>*]:py-2.5",
         className
       )}
       {...props}
@@ -154,4 +154,26 @@ function StatStrip({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-export { Panel, PanelHeader, PanelTitle, PanelMeta, PanelBody, Stat, StatStrip }
+/** The detail a reader opens when they want it, so panels lead with the plain reading. */
+function Details({
+  summary = "How this is calculated",
+  className,
+  children,
+}: {
+  summary?: string
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <details className={cn("group text-sm", className)}>
+      <summary className="flex w-fit cursor-pointer list-none items-center gap-2 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground [&::-webkit-details-marker]:hidden">
+        <span aria-hidden="true" className="w-3 text-center font-figure group-open:hidden">+</span>
+        <span aria-hidden="true" className="hidden w-3 text-center font-figure group-open:inline">−</span>
+        {summary}
+      </summary>
+      <div className="mt-2 flex max-w-3xl flex-col gap-2 pl-5 leading-relaxed text-muted-foreground">{children}</div>
+    </details>
+  )
+}
+
+export { Panel, PanelHeader, PanelTitle, PanelMeta, PanelBody, Stat, StatStrip, Details }

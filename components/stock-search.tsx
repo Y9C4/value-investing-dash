@@ -96,7 +96,7 @@ export function StockSearch({
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={expanded ? `${listId}-${active}` : undefined}
-          placeholder="Find a stock: ticker or name"
+          placeholder="Search ticker or company"
           autoComplete="off"
           spellCheck={false}
           value={query}
@@ -118,7 +118,7 @@ export function StockSearch({
           id={listId}
           role="listbox"
           aria-label="Matching stocks"
-          className="absolute top-full right-0 z-50 mt-1 w-full border border-border bg-popover py-1 sm:w-72 shadow-lg"
+          className="absolute top-full right-0 z-50 mt-1 w-full overflow-clip rounded-lg border border-border bg-popover py-1 sm:w-72 shadow-lg"
         >
           {matches.map((stock, i) => (
             <li
@@ -147,7 +147,7 @@ export function StockSearch({
       {error && (
         <p
           role="alert"
-          className="absolute top-full right-0 z-40 mt-1 w-64 border border-border bg-popover px-2 py-1 text-xs text-destructive"
+          className="absolute top-full right-0 z-40 mt-1 w-64 rounded-md border border-border bg-popover px-2 py-1 text-xs text-destructive"
         >
           {error}
         </p>

@@ -16,12 +16,6 @@ import {
 
 const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1)
 
-const QUINTILE_GLOSS: Partial<Record<ReturnType<typeof valuationBand>, string>> = {
-  "deep-value": ", the cheapest 20% of the index",
-  fair: ", the middle of the index",
-  expensive: ", the dearest 20% of the index",
-}
-
 function Figure({
   label,
   value,
@@ -99,11 +93,11 @@ export function DistributionStrip({
   return (
     <figure className={cn("flex w-full max-w-xl flex-col gap-1", className)}>
       <figcaption className="text-xs text-muted-foreground">
-        Implied excess return across the {values.length} valued S&amp;P 500 stocks, pp a year
+        Return gap across {values.length} S&amp;P 500 stocks, pp a year
       </figcaption>
       <div
         role="img"
-        aria-label={`${ticker}'s implied excess return of ${formatPp(alpha)} is higher than ${below} of ${values.length} valued stocks.`}
+        aria-label={`${ticker}'s return gap of ${formatPp(alpha)} is higher than ${below} of ${values.length} valued stocks.`}
         className={cn("relative mt-5", heightClass)}
       >
         <div className="absolute inset-0 flex items-end gap-0.5">
@@ -156,11 +150,18 @@ export function DistributionStrip({
   )
 }
 
+const VALUE_PLACE: Record<ReturnType<typeof valuationBand>, string> = {
+  "deep-value": "in the cheapest fifth of the S&P 500",
+  undervalued: "in the second cheapest fifth of the S&P 500",
+  fair: "in the middle fifth of the S&P 500",
+  overvalued: "in the second most expensive fifth of the S&P 500",
+  expensive: "in the most expensive fifth of the S&P 500",
+  unrated: "unranked",
+}
+
 /**
  * The stock page's verdict: the two rates and their gap as the anchor, the
- * quintiles in words, where the gap sits in the index, and one sentence. The
- * left rule is teal when the price implies more than the risk requires, magenta
- * when less, and plain when there is no reading.
+ * quintiles in words, where the gap sits in the index, and one sentence.
  */
 export function StockVerdict({
   stock,
@@ -195,12 +196,7 @@ export function StockVerdict({
   const compositeBand = signalBand(composite)
 
   return (
-    <header
-      className={cn(
-        "flex flex-col gap-4 border-b border-l-4 border-b-border px-4 py-5 sm:px-6 lg:px-10",
-        alpha === null ? "border-l-border" : alpha > 0 ? "border-l-undervalued" : "border-l-overvalued"
-      )}
-    >
+    <header className="flex flex-col gap-4 border-b border-border px-4 py-5 sm:px-6 lg:px-10">
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <h2 className="font-heading text-2xl">{stock.name}</h2>
         <span className="font-figure text-sm text-muted-foreground">
@@ -222,11 +218,11 @@ export function StockVerdict({
           <Figure
             label="Required return"
             value={formatPct(rates?.required)}
-            note="a year, for its risk"
+            note="a year, given its risk"
           />
           <Operator>=</Operator>
           <Figure
-            label="Implied excess return"
+            label="Return gap"
             value={formatPp(alpha)}
             note="a year"
             className={gapTextClass(alpha)}
@@ -234,10 +230,10 @@ export function StockVerdict({
         </div>
         <p className="max-w-3xl text-xs text-muted-foreground">
           {counted.length > 0
-            ? `Means over the ${counted.length === 1 ? "one model" : `${counted.length} of 4 models`} with both readings (${counted.map((m) => m.label).join(", ")}).${counted.length < 4 ? " The model table says why the rest are out." : ""}`
+            ? `Average of ${counted.length === 1 ? "the one model" : `${counted.length} of 4 models`} that could be calculated (${counted.map((m) => m.label).join(", ")}).${counted.length < 4 ? " The model table says why the others could not." : ""}`
             : solved.length > 0
               ? `${solved.length === 1 ? "One model solves" : `${solved.length} models solve`}, but none has a required return: ${lowerFirst(missingReason(stock, solved[0]) ?? "")}.`
-              : "No reverse-DCF model solves at this price."}
+              : "No reverse-DCF model can be solved at this price."}
         </p>
       </div>
 
@@ -260,7 +256,7 @@ export function StockVerdict({
           <span className="font-medium whitespace-nowrap">{compositeQuintileLabel(compositeBand)}</span>
           {composite !== null && (
             <span className="whitespace-nowrap text-muted-foreground">
-              value + momentum composite {formatComposite(composite)}
+              value + momentum score {formatComposite(composite)}
             </span>
           )}
         </span>
@@ -273,22 +269,21 @@ export function StockVerdict({
           <>
             {stock.ticker} has no value rank:{" "}
             {solved.length === 0
-              ? "none of the four reverse-DCF models solves at this price."
-              : "the models that solve have no required return to be measured against."}
+              ? "none of the four reverse-DCF models can be solved at this price."
+              : "the models that solve have no required return to compare against."}
           </>
         ) : (
           <>
-            At {formatSharePrice(stock.price)}, the price implies a return of {formatPct(rates.implied)} a
-            year; {stock.ticker}&rsquo;s risk requires {formatPct(rates.required)}. That places it in{" "}
-            {valueQuintileLabel(band).toLowerCase().replace(/ · .*/, "")}
-            {QUINTILE_GLOSS[band] ?? ""}
+            Buying {stock.ticker} at {formatSharePrice(stock.price)} implies a return of{" "}
+            {formatPct(rates.implied)} a year,{" "}
+            {rates.implied >= rates.required ? "more" : "less"} than the{" "}
+            {formatPct(rates.required)} its risk calls for. On value that puts it{" "}
+            {VALUE_PLACE[band]}.
             {composite !== null && (
               <>
-                , with a value + momentum composite of {formatComposite(composite)} of 100 (
-                {compositeQuintileLabel(compositeBand).toLowerCase().replace(" · ", ", the ")})
+                {" "}With momentum added, it scores {formatComposite(composite)} out of 100.
               </>
             )}
-            .
           </>
         )}
       </p>

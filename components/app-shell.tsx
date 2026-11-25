@@ -16,10 +16,10 @@ import { PROFILE } from "@/lib/profile"
 import { cn } from "@/lib/utils"
 
 const NAV = [
-  { href: "/", label: "Overview", hint: "The question, the evidence, the model", icon: RiDashboardLine },
-  { href: "/screener", label: "Stock screener", hint: "Rank the S&P 500 by factor percentile", icon: RiFilter3Line },
-  { href: "/portfolio", label: "Portfolio optimiser", hint: "Mean–variance efficient frontier", icon: RiPieChartLine },
-  { href: "/research", label: "Backtest evidence", hint: "Out-of-sample ICs, notebooks", icon: RiFlaskLine },
+  { href: "/", label: "Overview", hint: "What this does and what we found", icon: RiDashboardLine },
+  { href: "/screener", label: "Stock screener", hint: "Rank and filter the S&P 500", icon: RiFilter3Line },
+  { href: "/portfolio", label: "Portfolio optimiser", hint: "Build a mix from your picks", icon: RiPieChartLine },
+  { href: "/research", label: "Backtest results", hint: "How well the ranking worked", icon: RiFlaskLine },
   { href: "/methodology", label: "Methodology", hint: "Models, assumptions, sources", icon: RiInformationLine },
 ]
 
@@ -71,7 +71,7 @@ export function AppShell({
             past it read as "more", not as missing. */}
         <nav
           aria-label="Sections"
-          className="flex gap-1 overflow-x-auto px-3 pb-2 [mask-image:linear-gradient(to_right,black_85%,transparent)] lg:flex-col lg:overflow-visible lg:pb-0 lg:[mask-image:none]"
+          className="flex gap-1 overflow-x-auto px-2 pb-2 [mask-image:linear-gradient(to_right,black_85%,transparent)] lg:flex-col lg:overflow-visible lg:pb-0 lg:[mask-image:none]"
         >
           {NAV.map(({ href, label, hint, icon: Icon }) => {
             const active = isActive(pathname, href)
@@ -81,13 +81,13 @@ export function AppShell({
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex shrink-0 items-center gap-2 border-b-2 px-2.5 py-1.5 transition-colors lg:gap-3 lg:border-b-0 lg:border-l-2 lg:px-3 lg:py-2",
+                  "flex shrink-0 items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors lg:gap-3 lg:px-3 lg:py-2",
                   active
-                    ? "border-primary bg-sidebar-accent text-foreground"
-                    : "border-transparent text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+                    ? "bg-sidebar-accent text-foreground"
+                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
                 )}
               >
-                <Icon className="size-4 shrink-0" />
+                <Icon className={cn("size-4 shrink-0", active && "text-primary")} />
                 <span className="flex flex-col">
                   <span className="text-sm font-medium whitespace-nowrap">{label}</span>
                   <span className="hidden text-xs text-muted-foreground lg:block">{hint}</span>
