@@ -48,6 +48,19 @@ export type Evidence = {
     "development" | "holdout",
     { slope: number; t: number; deciles: [number, number][] }
   >
+  /** Development only: each reverse-DCF model against a plain ratio on the same stocks. */
+  modelVsRatio: {
+    model: string
+    ratio: string
+    modelIc: number
+    ratioIc: number
+    /** t-stat of the monthly IC difference; null for the composite row. */
+    t: number | null
+    /** Share of months the model's IC beat the ratio's; null for the composite row. */
+    wins: number | null
+  }[]
+  /** Development only: the value signal's top-minus-bottom quintile on raw returns, and its Fama–French alpha. */
+  valueAttribution: { longShort: number; alpha: number; alphaT: number; months: number }
 }
 
 export const EVIDENCE = evidence as unknown as Evidence
@@ -56,6 +69,21 @@ export const EVIDENCE = evidence as unknown as Evidence
 export function evidenceFor(ids: string[]): SignalEvidence | null {
   const key = ids.length === 1 ? ids[0] : `composite:${[...ids].sort().join("+")}`
   return EVIDENCE.signals.find((s) => s.id === key) ?? null
+}
+
+/** Whether a signal's development and holdout t-stats clear the conventional t = 2 bar, in words. */
+export function significanceNote(e: SignalEvidence): string {
+  const dev = e.development.t >= 2
+  const hold = e.holdout.t >= 2
+  if (!dev && !hold) return "Neither is statistically significant."
+  if (dev && hold) return "Both clear the conventional t = 2 bar."
+  return hold ? "Only the holdout clears the conventional t = 2 bar." : "Only the development result clears the conventional t = 2 bar."
+}
+
+/** The default strategy's holdout in one clause, for "...because it was the best blend in development, <clause>". */
+export function holdoutClause(e: SignalEvidence): string {
+  if (e.holdout.t >= 2) return "and it stayed significant in the holdout"
+  return `though it was ${e.holdout.ic < e.development.ic ? "weaker and " : ""}not significant in the holdout`
 }
 
 /** A slope or t-stat to two decimals, with a true minus. */

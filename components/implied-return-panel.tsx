@@ -15,21 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  missingReason,
-  noGrowthReason,
-  valueQuintileLabel,
-} from "@/components/stock-readings"
-import { ImpliedReturnBar } from "@/components/valuation-scale"
+import { missingReason, noGrowthReason } from "@/components/stock-readings"
 import { formatPct, formatPp, formatSignedPct } from "@/lib/format"
 import {
   gapTextClass,
   IMPLIED_BASIS,
   VALUATION_METHODS,
-  impliedAlpha,
   methodAlpha,
   requiredReturn,
-  valuationBand,
   type Stock,
 } from "@/lib/valuation"
 
@@ -63,19 +56,8 @@ function ImpliedGrowth({ stock }: { stock: Stock }) {
  * rate the stock is required to earn, and their average — the number the
  * screener's value rank is taken from.
  */
-export function ImpliedReturnPanel({
-  stock,
-  valuePercentile,
-}: {
-  stock: Stock
-  /** This stock's value percentile in the index, which sets its band. */
-  valuePercentile: number | null
-}) {
+export function ImpliedReturnPanel({ stock }: { stock: Stock }) {
   if (!stock.signals) return null
-
-  const alpha = impliedAlpha(stock)
-  const band = valuationBand(valuePercentile)
-  const counted = VALUATION_METHODS.filter((method) => methodAlpha(stock, method.id) !== null).length
 
   return (
     <Panel>
@@ -88,30 +70,6 @@ export function ImpliedReturnPanel({
         </PanelTitle>
         <PanelMeta>% a year</PanelMeta>
       </PanelHeader>
-
-      <div className="border-b border-border px-4 py-3">
-        <Stat
-          label={
-            counted > 0
-              ? `Implied excess return (implied − required), mean of ${counted} of 4 models`
-              : "Implied excess return (implied − required): no model has both readings"
-          }
-          className={gapTextClass(alpha)}
-          value={
-            <span className="flex items-baseline gap-2">
-              <span>{alpha === null ? "—" : formatPp(alpha)}</span>
-              <span className="font-sans text-xs font-normal">
-                {valueQuintileLabel(band)}
-              </span>
-            </span>
-          }
-          size="lead"
-        >
-          {alpha !== null && (
-            <ImpliedReturnBar alpha={alpha} className="mt-1 w-full max-w-xl" />
-          )}
-        </Stat>
-      </div>
 
       <ImpliedGrowth stock={stock} />
 

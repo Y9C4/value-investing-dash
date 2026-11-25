@@ -25,7 +25,8 @@ import {
   type MethodId,
   type Stock,
 } from "@/lib/valuation"
-import { SIGNAL_COMPONENTS, type SignalId } from "@/lib/signals"
+import { evidenceFor, holdoutClause } from "@/lib/evidence"
+import { DEFAULT_SIGNALS, SIGNAL_COMPONENTS, type SignalId } from "@/lib/signals"
 import {
   DEFAULT_FILTERS,
   activeFilterCount,
@@ -37,6 +38,7 @@ import {
 } from "@/lib/screen"
 import { MIN_FRONTIER_TICKERS } from "@/lib/portfolio-settings"
 import { portfolioHref } from "@/lib/ticker-set"
+import { useMinWidth } from "@/lib/use-min-width"
 import { useScrollPane } from "@/lib/use-scroll-pane"
 import { cn } from "@/lib/utils"
 
@@ -204,15 +206,15 @@ function ScreenerGuide() {
   const items = [
     {
       term: "Value percentile",
-      text: "Rank on implied excess return: the annual return today's price implies (reverse DCF) minus the return the stock's risk requires. 100 is the cheapest stock in the index.",
+      text: "This ranks stocks on implied excess return, which is the annual return today's price implies (reverse DCF) minus the return the stock's risk requires. A score of 100 is the cheapest stock in the index.",
     },
     {
       term: "Momentum (12–1) percentile",
-      text: "Rank on 12–1 month price momentum: the return from twelve months ago to one month ago (Jegadeesh & Titman 1993).",
+      text: "This ranks stocks on 12–1 month price momentum, which is the return from twelve months ago to one month ago (Jegadeesh & Titman 1993).",
     },
     {
       term: "Composite",
-      text: "The equal-weight average of the selected factor percentiles, re-ranked 0–100. Value + momentum is the default: the best blend in development, weaker and not significant in the holdout.",
+      text: `This is the equal-weight average of the selected factor percentiles, re-ranked 0–100. Value + momentum is the default because it was the best blend in development, ${holdoutClause(evidenceFor(DEFAULT_SIGNALS)!)}.`,
     },
   ]
 
@@ -221,12 +223,14 @@ function ScreenerGuide() {
       aria-label="How to read the screener"
       className="relative grid gap-x-6 gap-y-2 border border-border bg-card px-4 py-3 pr-10 md:grid-cols-3"
     >
-      {items.map((item) => (
-        <p key={item.term} className="text-sm leading-relaxed text-muted-foreground">
-          <span className="font-semibold text-foreground">{item.term}. </span>
-          {item.text}
-        </p>
-      ))}
+      <dl className="grid gap-x-6 gap-y-2 md:col-span-3 md:grid-cols-3">
+        {items.map((item) => (
+          <div key={item.term}>
+            <dt className="text-sm font-semibold">{item.term}</dt>
+            <dd className="text-sm leading-relaxed text-muted-foreground">{item.text}</dd>
+          </div>
+        ))}
+      </dl>
       <Link
         href="/methodology"
         className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground md:col-span-3"
@@ -277,6 +281,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
    * toggle reads the width once and takes over.
    */
   const [railOpen, setRailOpen] = useState<boolean | null>(null)
+  const railWide = useMinWidth(RAIL_BREAKPOINT)
 
   function toggleRail() {
     // The first press flips whatever the viewport chose.
@@ -447,7 +452,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
               variant="outline"
               className="px-3"
               aria-controls="screener-filters"
-              aria-expanded={railOpen ?? undefined}
+              aria-expanded={railOpen ?? railWide}
               onClick={toggleRail}
             >
               <RiEqualizerLine />
@@ -478,7 +483,6 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
                     key={group.id}
                     type="button"
                     aria-pressed={on}
-                    title={group.columns}
                     onClick={() =>
                       setGroups((current) =>
                         on ? current.filter((g) => g !== group.id) : [...current, group.id]
@@ -493,6 +497,7 @@ export function Screener({ stocks }: { stocks: Stock[] }) {
                   >
                     {on ? "− " : "+ "}
                     {group.label}
+                    <span className="sr-only"> (columns: {group.columns})</span>
                   </button>
                 )
               })}

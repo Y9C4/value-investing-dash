@@ -2,7 +2,6 @@ import Link from "next/link"
 
 import { ExcessReturnHistogram } from "@/components/excess-return-histogram"
 import { CumulativeIcChart } from "@/components/research-charts"
-import { MoreLink } from "@/components/more-link"
 import { TStat } from "@/components/t-stat"
 import {
   Panel,
@@ -36,8 +35,6 @@ export const metadata = {
   title: "Overview",
 }
 
-const EYEBROW = "text-xs font-semibold tracking-wider text-muted-foreground uppercase"
-
 export default async function OverviewPage() {
   const { stocks } = await loadUniverse()
   const ranking = rankUniverse(stocks, [], DEFAULT_SIGNALS)
@@ -47,9 +44,8 @@ export default async function OverviewPage() {
   const dev = chosen.development
   const holdout = chosen.holdout
   const bestInDevelopment = EVIDENCE.signals.every((s) => s.development.ic <= dev.ic)
-  const bestInHoldout = EVIDENCE.signals.reduce((a, b) => (b.holdout.t > a.holdout.t ? b : a))
   const clearing = EVIDENCE.signals.filter((s) => s.holdout.t >= 3)
-  const kept = Math.round((holdout.ic / dev.ic) * 10) * 10
+  const kept = Math.round((holdout.ic / dev.ic) * 100)
   const verdict =
     holdout.t >= 2
       ? "Yes, and it held up out of sample."
@@ -85,44 +81,42 @@ export default async function OverviewPage() {
       {/* The question and its answer, the way a paper's abstract gives them. */}
       <section aria-labelledby="question" className="flex flex-col gap-5">
         <div className="flex max-w-4xl flex-col gap-3">
-          <p className={EYEBROW}>Research question</p>
           <h2 id="question" className="font-heading text-2xl leading-snug sm:text-3xl">
             Can a reverse-DCF value signal, blended with 12–1 momentum, rank
             S&amp;P 500 stocks by next-month risk-adjusted return?
           </h2>
           <p className="text-base leading-relaxed">
             <span className="font-semibold">{verdict}</span>{" "}
-            <span className="text-muted-foreground">
-              {bestInDevelopment ? (
-                <>
-                  Of the {EVIDENCE.signals.length} signals tested on {dev.months}{" "}
-                  development months ({DEVELOPMENT_SPAN}), the value + momentum
-                  composite had the highest rank IC ({dev.ic.toFixed(3)}, t ={" "}
-                  {dev.t.toFixed(2)}), so it became the default.
-                </>
-              ) : (
-                <>
-                  The default, the value + momentum composite, had a rank IC of{" "}
-                  {dev.ic.toFixed(3)} (t = {dev.t.toFixed(2)}) over {dev.months}{" "}
-                  development months ({DEVELOPMENT_SPAN}).
-                </>
-              )}{" "}
-              The specification was then frozen and run once on {holdout.months}{" "}
-              months it had never seen ({HOLDOUT_SPAN}), where it kept {kept}% of
-              that IC ({holdout.ic.toFixed(3)}, t = {holdout.t.toFixed(2)}).{" "}
-              {clearing.length === 1 && clearing[0].id !== chosen.id && (
-                <>
-                  {clearing[0].label} was the only signal to clear the
-                  multiple-testing bar of t ≥ 3 out of sample (t ={" "}
-                  {clearing[0].holdout.t.toFixed(2)}). The default is not switched
-                  to it: choosing again on the holdout would leave nothing out of
-                  sample.
-                </>
-              )}
-            </span>
+            Rank IC measures how closely each month&rsquo;s ranking matched the
+            next month&rsquo;s returns, where 0 means no information.{" "}
+            {bestInDevelopment ? (
+              <>
+                We tested {EVIDENCE.signals.length} signals on {dev.months}{" "}
+                development months ({DEVELOPMENT_SPAN}). The value + momentum
+                composite had the highest rank IC ({dev.ic.toFixed(3)}, t ={" "}
+                {dev.t.toFixed(2)}), so it became the default.
+              </>
+            ) : (
+              <>
+                Over {dev.months} development months ({DEVELOPMENT_SPAN}), the
+                default value + momentum composite had a rank IC of{" "}
+                {dev.ic.toFixed(3)} (t = {dev.t.toFixed(2)}).
+              </>
+            )}{" "}
+            We then froze the specification and ran it once on {holdout.months}{" "}
+            months it had never seen ({HOLDOUT_SPAN}), where it kept {kept}% of
+            that IC ({holdout.ic.toFixed(3)}, t = {holdout.t.toFixed(2)}).{" "}
+            {clearing.length === 1 && clearing[0].id !== chosen.id && (
+              <>
+                Only {clearing[0].label.toLowerCase()} cleared the stricter bar of
+                t ≥ 3 out of sample (t = {clearing[0].holdout.t.toFixed(2)}). We did
+                not switch the default to it, because choosing again on the
+                holdout would leave nothing out of sample.
+              </>
+            )}
           </p>
         </div>
-        <StatStrip className="sm:grid-cols-4 xl:grid-cols-4">
+        <StatStrip className="sm:grid-cols-3 xl:grid-cols-3">
           <Stat
             size="lead"
             label="Development IC · default"
@@ -141,35 +135,28 @@ export default async function OverviewPage() {
             value={`${Math.round(holdout.hit * 100)}%`}
             hint={`${Math.round(holdout.hit * holdout.months)} of ${holdout.months}`}
           />
-          <Stat
-            size="lead"
-            label="Best holdout t-stat"
-            value={bestInHoldout.holdout.t.toFixed(2)}
-            hint={`${bestInHoldout.label.toLowerCase()}, IC ${bestInHoldout.holdout.ic.toFixed(3)}`}
-          />
         </StatStrip>
       </section>
 
       <section aria-label="Backtest evidence" className="grid items-start gap-6 2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Panel>
           <PanelHeader>
-            <PanelTitle>Figure 1 · Cumulative monthly rank IC</PanelTitle>
+            <PanelTitle>Cumulative monthly rank IC</PanelTitle>
             <PanelMeta>holdout shaded</PanelMeta>
           </PanelHeader>
           <PanelBody>
             <CumulativeIcChart {...cumulativeIc()} />
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              Each month adds the Spearman correlation between that month&rsquo;s
-              ranking and the next month&rsquo;s factor-adjusted returns. A line
-              that keeps rising means the ranking kept working; a flat stretch
-              means it stopped.
+              Each month adds that month&rsquo;s IC to the running total. A line
+              that keeps rising means the ranking kept working, and a flat
+              stretch means it stopped.
             </p>
           </PanelBody>
         </Panel>
 
         <Panel>
           <PanelHeader>
-            <PanelTitle>Rank IC · every candidate</PanelTitle>
+            <PanelTitle>Rank IC for every candidate</PanelTitle>
           </PanelHeader>
           <Table>
             <TableHeader>
@@ -191,7 +178,7 @@ export default async function OverviewPage() {
                   <TableCell className="whitespace-normal">
                     <span className="font-medium">{s.label}</span>
                     {s.id === chosen.id && (
-                      <span className="ml-2 border border-border px-1 py-px text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+                      <span className="ml-2 border border-border px-1 py-px text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                         default
                       </span>
                     )}
@@ -206,11 +193,18 @@ export default async function OverviewPage() {
           </Table>
           <PanelBody className="flex flex-col gap-2 border-t border-border text-xs leading-relaxed text-muted-foreground">
             <p>
-              Target: {EVIDENCE.target[0].toLowerCase() + EVIDENCE.target.slice(1)}. t is Fama–MacBeth over
-              months; * marks |t| ≥ 2, ** marks |t| ≥ 3, the bar Harvey, Liu
-              &amp; Zhu (2016) set once many factors have been tried.
+              Each signal is scored against {EVIDENCE.target[0].toLowerCase() + EVIDENCE.target.slice(1)}.
+              The t-statistic asks how far the average monthly IC is from zero,
+              given how much it varies. One star marks |t| of 2 or more, and two
+              stars mark |t| of 3 or more, the stricter bar Harvey, Liu and Zhu
+              (2016) recommend when many factors have been tried.
             </p>
-            <MoreLink href="/research">Quintile returns, calibration and the notebooks</MoreLink>
+            <p>
+              <Link href="/research" className="underline underline-offset-2 hover:text-foreground">
+                Backtest evidence
+              </Link>{" "}
+              has the quintile returns, the calibration and the notebooks.
+            </p>
           </PanelBody>
         </Panel>
       </section>
@@ -229,7 +223,6 @@ export default async function OverviewPage() {
       {/* Today's reading: the live output of step 3 across the whole index. */}
       <section aria-labelledby="gauge" className="grid gap-x-10 gap-y-5 xl:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]">
         <div className="flex flex-col gap-1.5 xl:col-span-2">
-          <p className={EYEBROW}>Today&rsquo;s market reading · reverse DCF</p>
           <h2 id="gauge" className="max-w-4xl font-heading text-xl leading-snug sm:text-2xl">
             {gapMedian === null ? (
               "No stock in the index could be valued at today's prices."
@@ -265,14 +258,17 @@ export default async function OverviewPage() {
             </dl>
           )}
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Medians over the {pairs.length} stocks at least one model can value
-            ({notValued} cannot). {above} of them ({Math.round((above / Math.max(pairs.length, 1)) * 100)}%)
+            These figures cover the {pairs.length} stocks that at least one model
+            can value. The other {notValued} have no valuation. Of the{" "}
+            {pairs.length}, {above} ({Math.round((above / Math.max(pairs.length, 1)) * 100)}%)
             have an implied return above their required return. The backtest
-            found the cross-sectional rank informative and the level not, so
-            this is a reading of relative pricing, not a forecast.{" "}
+            found that the ranking is informative but the size of the gap is
+            not, so treat this as a reading of relative pricing rather than a
+            forecast. The{" "}
             <Link href="/methodology" className="underline underline-offset-2 hover:text-foreground">
-              Methodology
-            </Link>
+              methodology page
+            </Link>{" "}
+            explains how each number is built.
           </p>
         </div>
         {gapMedian !== null && (

@@ -42,7 +42,7 @@ import {
 } from "@/lib/valuation"
 import { SIGNAL_BAND_LABELS, describeEvidence, formatComposite, signalBand, warehouseRank } from "@/lib/signals"
 import type { Ranking } from "@/lib/screen"
-import { evidenceFor } from "@/lib/evidence"
+import { evidenceFor, significanceNote } from "@/lib/evidence"
 import { cn } from "@/lib/utils"
 
 export type SortKey =
@@ -68,7 +68,7 @@ export type ColumnGroup = "ratios" | "trend" | "risk"
 
 export const COLUMN_GROUPS: { id: ColumnGroup; label: string; columns: string }[] = [
   { id: "ratios", label: "Fundamentals", columns: "P/B, EV/EBITDA, FCF yield, shareholder yield, ROE, revenue growth" },
-  { id: "trend", label: "Earnings surprise", columns: "Earnings surprise, as a raw figure" },
+  { id: "trend", label: "Earnings surprise", columns: "The latest quarter's earnings surprise" },
   { id: "risk", label: "Risk & return", columns: "Trailing 1-year return, volatility and beta" },
 ]
 
@@ -129,7 +129,7 @@ const COLUMNS: Column[] = [
       points: [
         "Shown to one decimal: about 500 stocks put neighbouring ranks 0.2 apart, so whole numbers would print several different ranks as the same figure.",
         "Blank means a selected factor could not be measured for this stock.",
-        `Value + momentum: ${describeEvidence(evidenceFor(["value", "momentum"])!)} Neither is statistically significant.`,
+        `Value + momentum: ${describeEvidence(evidenceFor(["value", "momentum"])!)} ${significanceNote(evidenceFor(["value", "momentum"])!)}`,
       ],
     },
     cell: (stock, { ranking }) => {
@@ -163,7 +163,8 @@ const COLUMNS: Column[] = [
       const alpha = impliedAlpha(stock, methods)
       const band = valuationBand(rank)
       return (
-        <div className="flex items-center gap-3" title={BAND_LABELS[band]}>
+        <div className="flex items-center gap-3">
+          <span className="sr-only">{BAND_LABELS[band]}</span>
           <ValueBar percentile={rank} className="hidden w-16 shrink-0 sm:block" />
           <span className={cn("w-7 shrink-0 text-right font-figure text-sm tabular-nums", BAND_TEXT_CLASS[band])}>
             {percentile(rank)}
@@ -255,7 +256,7 @@ const COLUMNS: Column[] = [
     label: "ROE",
     align: "right",
     group: "ratios",
-    help: { title: "Return on equity", body: "Net income over book equity, latest annual statement." },
+    help: { title: "Return on equity", body: "Net income divided by book equity, from the latest annual statement. Heavy buybacks shrink book equity and can inflate it, so read it alongside P/B." },
     cell: (stock) => formatPct(stock.roe),
   },
   {
@@ -263,7 +264,7 @@ const COLUMNS: Column[] = [
     label: "Revenue growth",
     align: "right",
     group: "ratios",
-    help: { title: "Revenue growth", body: "Trailing revenue growth a year: the 2-year compound rate, else 1-year, as reported." },
+    help: { title: "Revenue growth", body: "How fast sales have grown, using the two-year compound rate where available and the one-year rate otherwise. Past growth rarely persists, so the models fade it toward the long-run rate." },
     cell: (stock) => formatSignedPct(stock.revenueGrowth),
   },
   {
@@ -291,7 +292,7 @@ const COLUMNS: Column[] = [
     label: "Volatility, 1y",
     align: "right",
     group: "risk",
-    help: { title: "Annualised volatility", body: "Standard deviation of daily log returns over the last 252 sessions × √252." },
+    help: { title: "Annualised volatility", body: "How much the price swings: the standard deviation of daily log returns over the last 252 sessions, scaled to a year. Higher means a bumpier ride." },
     cell: (stock) => formatPct(stock.volatility),
   },
   {

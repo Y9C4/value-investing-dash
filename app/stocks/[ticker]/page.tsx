@@ -25,7 +25,7 @@ export default async function StockPage({ params }: PageProps<"/stocks/[ticker]"
   const { ticker } = await params
   const symbol = decodeURIComponent(ticker).toUpperCase()
 
-  const [{ stocks, isBaseline, riskFreeRate, marketReturn }, closes] = await Promise.all([
+  const [{ stocks, riskFreeRate, marketReturn }, closes] = await Promise.all([
     loadUniverse(),
     readStoredCloses(symbol).catch(() => null),
   ])
@@ -41,16 +41,6 @@ export default async function StockPage({ params }: PageProps<"/stocks/[ticker]"
 
   return (
     <>
-      {isBaseline && (
-        <p
-          role="status"
-          className="border-b border-border bg-card px-6 py-3 text-xs text-muted-foreground lg:px-10"
-        >
-          Illustrative sample — the database is not configured. These figures
-          are a fixed snapshot, not current market data.
-        </p>
-      )}
-
       {/* The verdict first; every panel below is its evidence. */}
       <StockVerdict stock={stock} stocks={stocks} valueRank={valueRank} composite={score} />
 

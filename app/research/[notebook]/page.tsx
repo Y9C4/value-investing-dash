@@ -81,7 +81,7 @@ export default async function NotebookPage({ params }: PageProps<"/research/[not
   let figure = 0
 
   return (
-    <article className="mx-auto flex max-w-5xl flex-col gap-4 px-6 py-8 lg:px-10">
+    <article className="mx-auto flex max-w-5xl flex-col gap-4 px-6 py-6 lg:px-10">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <Link href="/research" className="flex items-center gap-1 hover:text-foreground">
           <RiArrowLeftLine className="size-3.5" aria-hidden="true" />

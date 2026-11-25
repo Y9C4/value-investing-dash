@@ -11,6 +11,7 @@ import { useRef } from "react"
 
 import { Info } from "@/components/info"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import {
   Popover,
@@ -203,8 +204,7 @@ function MethodInfo({
         </div>
 
         <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-          Solves for <span className="font-figure">{coverage}</span> of the{" "}
-          <span className="font-figure">{total}</span> stocks
+          This model solves for {coverage} of the {total} stocks
           {total > 0 && <> ({((coverage / total) * 100).toFixed(0)}%)</>}.
         </p>
       </PopoverContent>
@@ -215,10 +215,9 @@ function MethodInfo({
 /**
  * One model as its own switch, carrying its full name and its coverage.
  *
- * Exported because the portfolio page offers the same choice over the same
- * four models: which ones the implied excess return is averaged over. One control, so the
- * two pages cannot drift into disagreeing about what a model is called or
- * what switching it off looks like.
+ * The portfolio page offers the same choice over the same four models with
+ * its own `ToggleRow`; both read the labels from `VALUATION_METHODS`, so the
+ * two pages agree on what a model is called.
  */
 export function MethodToggle({
   method,
@@ -657,18 +656,17 @@ export function ScreenerFilterRail({
             </Info>
           }
         >
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-2 text-sm">
+            <Checkbox
+              id="beta-cap"
               checked={filters.maxBeta !== null}
               onChange={(e) => onChange({ ...filters, maxBeta: e.target.checked ? BETA_CAP_START : null })}
-              className="accent-primary"
             />
-            <span className="text-muted-foreground">Cap beta</span>
+            <label htmlFor="beta-cap" className="cursor-pointer text-muted-foreground">Cap beta</label>
             {filters.maxBeta !== null && (
               <span className="ml-auto font-figure tabular-nums">{filters.maxBeta.toFixed(2)}</span>
             )}
-          </label>
+          </div>
           {filters.maxBeta !== null && (
             <input
               aria-label="Maximum beta"

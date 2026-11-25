@@ -19,7 +19,7 @@ function PopoverTrigger({ className, ...props }: BasePopover.Trigger.Props) {
   return (
     <BasePopover.Trigger
       className={cn(
-        "inline-flex items-center justify-center text-muted-foreground transition-colors",
+        "relative inline-flex items-center justify-center text-muted-foreground transition-colors after:absolute after:-inset-1.5 after:content-['']",
         "hover:text-foreground data-popup-open:text-foreground",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         className

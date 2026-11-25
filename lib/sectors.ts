@@ -34,8 +34,8 @@ export const RATIO_FIELDS: RatioField[] = [
   { key: "fcfYield", label: "FCF yield", unit: "percent", help: "Free cash flow to the firm over enterprise value." },
   { key: "dividendYield", label: "Dividend yield", unit: "percent", help: "Dividends paid over the last year, over price." },
   { key: "shareholderYield", label: "Shareholder yield", unit: "percent", help: "Dividends plus net buybacks, over market cap." },
-  { key: "roe", label: "ROE", unit: "percent", help: "Net income over book equity." },
-  { key: "revenueGrowth", label: "Revenue growth", unit: "percent", help: "Trailing revenue growth a year, as reported (two-year where available)." },
+  { key: "roe", label: "ROE", unit: "percent", help: "Net income divided by book equity. Heavy buybacks shrink book equity and can inflate it, so read it alongside P/B." },
+  { key: "revenueGrowth", label: "Revenue growth", unit: "percent", help: "How fast sales have grown, using the two-year compound rate where available and the one-year rate otherwise. Past growth rarely persists, so the models fade it toward the long-run rate." },
 ]
 
 export function formatRatio(value: number | null, unit: RatioField["unit"]): string {

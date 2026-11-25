@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils"
  * wear it.
  *
  * A panel is a hairline box with a two-line header strip and a dense body:
- * the same border, the same tracked uppercase label, the same mono figures as
- * every strip on the screener. Roughly 90px of vertical chrome per panel
+ * the same border, the same tracked uppercase label, the same tabular figures
+ * as every strip on the screener. Roughly 90px of vertical chrome per panel
  * becomes about 30px, and — more to the point — a page of panels reads as one
  * instrument rather than as a stack of separate cards.
  */

@@ -198,7 +198,7 @@ export function PortfolioList({
                           event.stopPropagation()
                           onSelect(row.selection)
                         }}
-                        className="text-left outline-none disabled:cursor-default"
+                        className="text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:cursor-default"
                       >
                         {row.label}
                       </button>

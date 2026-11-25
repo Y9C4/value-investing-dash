@@ -122,7 +122,7 @@ export function MarketContext({
       >
         {isBaseline ? (
           <span className="text-status-warning">
-            illustrative — database not configured
+            illustrative sample, not market data
           </span>
         ) : stamp ? (
           <span className={cn(isStale && "text-status-warning")}>

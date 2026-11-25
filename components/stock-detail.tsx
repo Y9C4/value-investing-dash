@@ -37,10 +37,10 @@ export function StockDetail({
   marketReturn: number | null
 }) {
   return (
-    <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 lg:px-10">
+    <div className="flex flex-col gap-4 px-6 py-6 lg:px-10">
       <div className="grid items-start gap-4 2xl:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-4">
-          <ImpliedReturnPanel stock={stock} valuePercentile={valueRank} />
+          <ImpliedReturnPanel stock={stock} />
           <RatioPanel sector={stock.sector} context={ratios} />
         </div>
 

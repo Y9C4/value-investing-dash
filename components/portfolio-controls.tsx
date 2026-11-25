@@ -74,10 +74,12 @@ function SliderField({
   step,
   minLabel,
   maxLabel,
+  info,
   onChange,
 }: {
   id: string
   label: string
+  info?: React.ReactNode
   value: number
   display: string
   min: number
@@ -93,7 +95,10 @@ function SliderField({
         htmlFor={id}
         className="flex items-baseline justify-between text-xs font-normal"
       >
-        <span className="text-muted-foreground">{label}</span>
+        <span className="flex items-center gap-1 text-muted-foreground">
+          {label}
+          {info}
+        </span>
         <span className="font-figure text-sm tabular-nums">{display}</span>
       </Label>
       <input
@@ -117,9 +122,8 @@ function SliderField({
 }
 
 /**
- * Label above input rather than beside it. Labels in this app are uppercase
- * and letter-spaced, so a side-by-side row either wraps them onto two lines or
- * runs them into the field; both of which happened before this stacked.
+ * Label above input rather than beside it, so a long label never wraps onto
+ * two lines or runs into the field.
  *
  * Blank means the solver picks the bound. Once a solve has resolved it, that
  * value is the placeholder and an "auto" tag on the label says where it came
@@ -383,6 +387,12 @@ export function PortfolioControls({
         <SliderField
           id="gamma"
           label="L2 penalty (γ)"
+          info={
+            <Info title="L2 penalty">
+              Adds a cost for concentrated positions, so the optimiser spreads weight across more stocks. At 0 there
+              is no penalty, and higher values push the weights toward an even spread at some cost to risk-adjusted return.
+            </Info>
+          }
           value={gamma}
           display={gamma.toFixed(2)}
           min={0}

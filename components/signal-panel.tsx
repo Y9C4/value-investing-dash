@@ -45,8 +45,9 @@ function rawReading(stock: Stock, id: SignalId): string {
     return signals.momentum === null ? "—" : formatSignedPct(signals.momentum)
   }
   if (signals.surprise === null) return "—"
-  // In basis points: as a percent of price it would print +0.0% at one decimal.
-  return `${formatSignedPct(signals.surprise * 100).replace("%", " bp")} of price`
+  // Two decimals: the surprise is usually a few hundredths of a percent of price.
+  const pct = signals.surprise * 100
+  return `${pct < 0 ? "\u2212" : "+"}${Math.abs(pct).toFixed(2)}% of price`
 }
 
 /**

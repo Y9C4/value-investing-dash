@@ -49,7 +49,7 @@ const Checkbox = React.forwardRef<
   }
 
   return (
-    <label className={cn("inline-flex cursor-pointer", className)}>
+    <label className={cn("relative inline-flex cursor-pointer after:absolute after:-inset-1.5 after:content-['']", className)}>
       <input
         ref={inputRef}
         type="checkbox"

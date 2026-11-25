@@ -61,7 +61,7 @@ export default async function PortfolioPage({
   const staleSet = decoded?.stale === true && screened.length === 0
 
   return (
-    <div className="px-4 py-5 sm:px-6 lg:px-10">
+    <div className="px-6 py-6 lg:px-10">
       <PortfolioBuilder
         // Keyed by scope: a client-side `?set=` / `?tickers=` change reuses this
         // page, and without a new key the previous scope's frontier stays up.

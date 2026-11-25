@@ -36,7 +36,7 @@ export default async function DataPage() {
         The screener, the valuations, the signal and the frontier are all
         rebuilt from these rows by the refresh at the end.
       </p>
-      <div className="grid gap-6 px-6 py-8 lg:grid-cols-2 lg:px-10">
+      <div className="grid gap-6 px-6 py-6 lg:grid-cols-2 lg:px-10">
         <RefreshAllCard />
         <BackfillCard
           title="Prices"

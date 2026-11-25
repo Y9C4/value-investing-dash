@@ -35,12 +35,7 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
             <TableHead className="w-[38%] sm:w-[30%]">
               <span className="flex items-center gap-1">
                 <span className="sm:hidden">Rank in sector</span>
-                <span className="hidden sm:inline">Position in sector (low → high)</span>
-                <Info title="Position in sector">
-                  The stock&rsquo;s rank among sector peers that report the
-                  figure, counted from the lowest. For P/E, P/B and EV/EBITDA
-                  low is cheap; for the yields, high is cheap.
-                </Info>
+                <span className="hidden sm:inline">Rank in sector (low → high)</span>
               </span>
             </TableHead>
           </TableRow>
@@ -95,9 +90,11 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
       </Table>
       <PanelBody className="border-t border-border">
         <p className="text-xs leading-relaxed text-muted-foreground">
-          The dot is the stock&rsquo;s rank among peers with a reading, lowest
-          on the left; the tick is the sector median. These are context, not
-          inputs to the factor ranks: in the backtest each plain ratio had a
+          The dot shows the stock&rsquo;s rank among sector peers that report
+          the figure, with the lowest on the left, and the tick marks the sector
+          median. For P/E, P/B and EV/EBITDA a low rank is cheap, while for the
+          yields a high rank is cheap. These ratios are context and are not
+          inputs to the factor ranks. In the backtest, each plain ratio had a
           lower mean IC than the reverse-DCF model built on the same figures,
           though no difference was statistically significant.
         </p>

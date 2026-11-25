@@ -16,13 +16,13 @@ export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
 // Literal values of the dark tokens in globals.css (satori reads no CSS vars).
-const INK = "#141210"
-const CARD = "#1c1a17"
-const PAPER = "#ece6da"
-const MUTED = "#a39b8d"
-const BRASS = "#c9a45a"
-const TEAL = "#0ea48c"
-const RUST = "#d6683c"
+const INK = "#0f1217"
+const CARD = "#171b22"
+const PAPER = "#e6eaf0"
+const MUTED = "#98a2b0"
+const GREEN = "#46b087"
+const TEAL = "#2fb39d"
+const MAGENTA = "#c9609f"
 
 /** Implied minus required return for a handful of rows: the screener's idea. */
 const GAPS = [0.062, 0.041, 0.018, -0.009, -0.027, -0.055]
@@ -32,7 +32,7 @@ export default function Image() {
     (
       <div style={{ width: "100%", height: "100%", display: "flex", background: INK, color: PAPER, fontFamily: "sans-serif" }}>
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "64px 0 64px 72px", width: 680 }}>
-          <span style={{ fontSize: 30, color: BRASS }}>Value Investing Dash</span>
+          <span style={{ fontSize: 30, color: GREEN }}>Value Investing Dash</span>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <span style={{ fontSize: 60, lineHeight: 1.1 }}>What does the price imply?</span>
             <span style={{ fontSize: 60, lineHeight: 1.1, color: MUTED }}>What does the risk require?</span>
@@ -45,9 +45,9 @@ export default function Image() {
           {GAPS.map((gap) => (
             <div key={gap} style={{ display: "flex", height: 30, position: "relative" }}>
               <div style={{ display: "flex", flex: 1, justifyContent: "flex-end" }}>
-                {gap < 0 && <div style={{ width: `${(-gap / 0.07) * 100}%`, background: RUST }} />}
+                {gap < 0 && <div style={{ width: `${(-gap / 0.07) * 100}%`, background: MAGENTA }} />}
               </div>
-              <div style={{ width: 3, background: BRASS }} />
+              <div style={{ width: 3, background: GREEN }} />
               <div style={{ display: "flex", flex: 1 }}>
                 {gap > 0 && <div style={{ width: `${(gap / 0.07) * 100}%`, background: TEAL }} />}
               </div>

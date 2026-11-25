@@ -98,7 +98,7 @@ export const GRAHAM_MIN_SALES_BN = (0.1 * 313.689) / 40.5
  * sheet items and history yfinance does not provide.
  */
 export const GRAHAM_NOTE =
-  "Partial Graham screen. Tested: sales of at least $775M (his $100M of 1971, CPI-adjusted), P/E ≤ 15, and P/E × P/B ≤ 22.5. Approximated: pays a dividend now (he asked for 20 unbroken years) and positive trailing earnings (he asked for ten years without a loss). Not tested: a 2:1 current ratio and 33% EPS growth over ten years. A classic rule, not backtested."
+  "This is a partial Graham screen. It tests sales of at least $775M (his $100M of 1971, adjusted for CPI), P/E of 15 or less, and P/E × P/B of 22.5 or less. It approximates two of his tests by asking whether the company pays a dividend now (he asked for 20 unbroken years) and whether trailing earnings are positive (he asked for ten years without a loss). It does not test the 2:1 current ratio or the 33% EPS growth over ten years. It is a classic rule, and it has not been backtested."
 
 export function passesGraham(stock: Stock): boolean {
   const { peRatio, pbRatio, dividendYield, revenueBn } = stock

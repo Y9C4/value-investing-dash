@@ -35,7 +35,7 @@ export type SignalComponent = {
 }
 
 /** Stated wherever an IC is shown. */
-export const SIGNAL_EVIDENCE = `Rank ICs are Spearman correlations with next-month factor-adjusted returns. Development: ${DEVELOPMENT_SPAN} (${EVIDENCE.signals[0].development.months} months), where every design choice was made. Holdout: ${HOLDOUT_SPAN} (${EVIDENCE.signals[0].holdout.months} months), untouched until the specification was frozen, then run once. A t-stat of about 2 is the usual bar for significance.`
+export const SIGNAL_EVIDENCE = `Rank IC is the Spearman correlation between a month's ranking and the next month's factor-adjusted returns. Every design choice was made on the development months (${DEVELOPMENT_SPAN}, ${EVIDENCE.signals[0].development.months} months). The holdout months (${HOLDOUT_SPAN}, ${EVIDENCE.signals[0].holdout.months} months) were untouched until the specification was frozen, and were then run once. A t-stat of about 2 is the usual bar for significance.`
 
 /** "0.054 (t = 1.92)". */
 export function formatIc(stats: { ic: number; t: number }): string {
@@ -53,7 +53,7 @@ export const SIGNAL_COMPONENTS: SignalComponent[] = [
     label: "Value",
     full: "Implied excess return, reverse DCF",
     blurb:
-      "The return the current price implies, minus the return the stock's risk requires: the average over reverse FCFF, residual income, revenue and shareholder-yield models. Solved from price, not discounted to a fair value.",
+      "The return today's price implies minus the return the stock's risk requires, averaged over four reverse-DCF models (FCFF, residual income, revenue and shareholder yield). It is solved from the price and not discounted to a fair value.",
     formula: "α = r(implied) − WACC or kₑ, averaged over 4 models",
   },
   {
@@ -61,7 +61,7 @@ export const SIGNAL_COMPONENTS: SignalComponent[] = [
     label: "Momentum",
     full: "12–1 month price momentum",
     blurb:
-      "The return from twelve months ago to one month ago (Jegadeesh & Titman 1993). Skipping the last month avoids its short-term reversal. Beside value it asks whether the market has started to re-rate the stock.",
+      "The return from twelve months ago to one month ago (Jegadeesh & Titman 1993). Skipping the latest month avoids its short-term reversal. Alongside value, it shows whether the market has started to re-rate the stock.",
     formula: "P(t−21) ÷ P(t−252) − 1, on dividend-adjusted closes",
   },
   {

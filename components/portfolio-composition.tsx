@@ -519,10 +519,8 @@ export function SectorExposure({
             thing the chart cannot show: weight that is missing from it. */}
         {covered < 0.995 && (
           <p className="text-xs text-muted-foreground">
-            <span className="font-figure tabular-nums">
-              {formatPercent(1 - covered)}
-            </span>{" "}
-            of the portfolio has no sector on file and is not shown.
+            {formatPercent(1 - covered)} of the portfolio has no sector on file
+            and is not shown.
           </p>
         )}
       </PanelBody>

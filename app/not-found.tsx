@@ -14,14 +14,10 @@ export default function NotFound() {
 
   return (
     <div className="flex flex-col gap-4 px-6 py-12 lg:px-10">
-      <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-        Not found · 404
-      </p>
       <h2 className="max-w-2xl font-heading text-2xl leading-snug">
         {ticker ? (
           <>
-            <span className="font-figure">{decodeURIComponent(ticker).toUpperCase()}</span> is not a
-            ticker in today&rsquo;s S&amp;P 500.
+            {decodeURIComponent(ticker).toUpperCase()} is not a ticker in today&rsquo;s S&amp;P 500.
           </>
         ) : (
           "There is no page at this address."

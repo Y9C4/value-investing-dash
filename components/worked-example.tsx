@@ -1,6 +1,5 @@
 import Link from "next/link"
 
-import { MoreLink } from "@/components/more-link"
 import { DistributionStrip } from "@/components/stock-verdict"
 import type { FrontierResponse } from "@/lib/baseline-frontier"
 import { DEVELOPMENT_SPAN, EVIDENCE, HOLDOUT_SPAN, evidenceFor, formatStat } from "@/lib/evidence"
@@ -23,7 +22,7 @@ import {
  * hydrate. Text stays real text and marks sit on percentage scales, so
  * nothing is squashed at a narrow width.
  *
- * Colour roles follow the rest of the site: teal/rust for cheap/dear, indigo
+ * Colour roles follow the rest of the site: teal/magenta for cheap/dear, indigo
  * for the composite, gold for the one stock being traced, greys for the rest.
  */
 
@@ -54,12 +53,12 @@ function Step({
         <span className="font-figure text-muted-foreground">{n}</span>
         {title}
       </h3>
-      <p className="min-h-[3.9rem] text-xs leading-relaxed text-muted-foreground">{text}</p>
+      <p className="min-h-[5rem] text-xs leading-relaxed text-muted-foreground">{text}</p>
       <div className="flex min-h-44 flex-1 flex-col justify-center">{children}</div>
-      <p className="text-xs leading-relaxed text-muted-foreground [&_b]:font-medium [&_b]:text-foreground">
-        {caption}
-      </p>
-      <MoreLink href={href}>{link}</MoreLink>
+      <p className="text-xs leading-relaxed text-muted-foreground">{caption}</p>
+      <Link href={href} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
+        {link}
+      </Link>
     </li>
   )
 }
@@ -468,19 +467,18 @@ export function WorkedExample({
   const solved = VALUATION_METHODS.filter((m) => stock.signals?.impliedReturns[m.id] != null && requiredReturn(stock, m.id) !== null).length
   const below = alpha === null ? 0 : gaps.filter((g) => g < alpha).length
   const betaRaw = stock.discountRates?.betaRaw
-  const kept = chosen ? Math.round((chosen.holdout.ic / chosen.development.ic) * 10) * 10 : null
+  const kept = chosen ? Math.round((chosen.holdout.ic / chosen.development.ic) * 100) : null
   const tan = frontier?.max_sharpe
   const positions = tan ? Object.keys(tan.weights).length : 0
 
   return (
     <section aria-labelledby="steps" className="flex flex-col gap-4">
       <div className="flex max-w-4xl flex-col gap-1.5">
-        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Worked example · live data</p>
         <h2 id="steps" className="font-heading text-xl leading-snug sm:text-2xl">
           How a stock gets its rank: today&rsquo;s #1, {ticker}
         </h2>
         <p className="text-sm text-muted-foreground">
-          {stock.name}, followed through each step of the model. Every figure is drawn from today&rsquo;s data.
+          We follow {stock.name} through each step of the model, using today&rsquo;s data.
         </p>
       </div>
 
@@ -488,13 +486,13 @@ export function WorkedExample({
         <Step
           n={1}
           title="Required return"
-          text="What the stock must earn for its risk: the CAPM cost of equity, and WACC, which adds after-tax debt priced off a synthetic credit rating."
+          text="This is what the stock must earn for its risk. We use the CAPM cost of equity, and WACC, which adds after-tax debt priced from a synthetic credit rating."
           caption={
             <>
               {betaRaw != null && stock.beta !== null ? (
-                <>β <b>{stock.beta.toFixed(2)}</b>, shrunk from a raw {betaRaw.toFixed(2)} (Levi &amp; Welch 2017). </>
+                <>The beta is {stock.beta.toFixed(2)}, shrunk from a raw {betaRaw.toFixed(2)} (Levi and Welch 2017). </>
               ) : null}
-              {stock.discountRates?.syntheticRating ? <>Debt rated <b>{stock.discountRates.syntheticRating}</b> (synthetic).</> : null}
+              {stock.discountRates?.syntheticRating ? <>Its debt carries a synthetic rating of {stock.discountRates.syntheticRating}.</> : null}
             </>
           }
           href="/methodology#assumptions"
@@ -506,11 +504,11 @@ export function WorkedExample({
         <Step
           n={2}
           title="Implied return · reverse DCF"
-          text="Solve for the discount rate at which forecast cash flows are worth today’s price, once per model, and set it against the required return."
+          text="For each model, we solve for the discount rate at which forecast cash flows are worth today’s price, then compare it with the required return."
           caption={
             pair ? (
               <>
-                <b>{solved} of {VALUATION_METHODS.length}</b> models solve. Their mean implied return is <b>{formatPct(pair.implied)}</b> against <b>{formatPct(pair.required)}</b> required.
+                {solved} of the {VALUATION_METHODS.length} models solve for this stock. Their mean implied return is {formatPct(pair.implied)}, against a required return of {formatPct(pair.required)}.
               </>
             ) : (
               <>No model solves at today&rsquo;s price.</>
@@ -525,13 +523,13 @@ export function WorkedExample({
         <Step
           n={3}
           title="Value signal"
-          text={`Implied minus required, averaged over the models that solve, then ranked across the index. A rank, not a forecast: the gap’s calibration slope was ${formatStat(EVIDENCE.calibration.development.slope)} in development and ${formatStat(EVIDENCE.calibration.holdout.slope)} out of sample.`}
+          text={`The gap is the implied return minus the required return, averaged over the models that solve and then ranked across the index. It is a rank and not a forecast, since the gap’s calibration slope was ${formatStat(EVIDENCE.calibration.development.slope)} in development and ${formatStat(EVIDENCE.calibration.holdout.slope)} out of sample.`}
           caption={
             alpha === null ? (
               <>No value reading.</>
             ) : (
               <>
-                <b>{formatPp(alpha)}</b>, above {below} of {gaps.length} valued stocks: value percentile <b>{formatScore(ranking.value.get(ticker) ?? null)}</b>.
+                The gap is {formatPp(alpha)}, which is above {below} of the {gaps.length} valued stocks and gives a value percentile of {formatScore(ranking.value.get(ticker) ?? null)}.
               </>
             )
           }
@@ -548,15 +546,15 @@ export function WorkedExample({
         <Step
           n={4}
           title="Momentum and the composite"
-          text="12–1 momentum is the past year’s return without the latest month, which tends to reverse. The two percentiles are averaged and re-ranked into the composite."
+          text="Momentum is the past year’s return leaving out the latest month, which tends to reverse. The value and momentum percentiles are then averaged and re-ranked into the composite."
           caption={
             <>
-              Composite <b>{formatComposite(ranking.score.get(ticker) ?? null)}</b>, #1 of {ranked.length} scored. Next:{" "}
-              {ranked.slice(1, 4).map((s, i) => (
+              {ticker}&rsquo;s composite is {formatComposite(ranking.score.get(ticker) ?? null)}, the highest of the {ranked.length} stocks scored. The next three are{" "}
+              {ranked.slice(1, 4).map((s, i, next) => (
                 <span key={s.ticker}>
-                  {i > 0 && ", "}
-                  <Link href={`/stocks/${s.ticker}`} className="font-medium text-foreground hover:underline">{s.ticker}</Link>{" "}
-                  {formatComposite(ranking.score.get(s.ticker) ?? null)}
+                  {i > 0 && (i === next.length - 1 ? " and " : ", ")}
+                  <Link href={`/stocks/${s.ticker}`} className="underline underline-offset-2 hover:text-foreground">{s.ticker}</Link>{" "}
+                  ({formatComposite(ranking.score.get(s.ticker) ?? null)})
                 </span>
               ))}
               .
@@ -576,11 +574,11 @@ export function WorkedExample({
         <Step
           n={5}
           title="Out-of-sample test"
-          text="Each month, the rank correlation (IC) between the ranking and the next month’s factor-adjusted return. Design choices were made on the early months only."
+          text="Each month, we measure the rank correlation (IC) between the ranking and the next month’s factor-adjusted return. All design choices were made on the early months only."
           caption={
             chosen && kept !== null ? (
               <>
-                The default composite kept <b>{kept}%</b> of its development IC on months it never saw: t from {chosen.development.t.toFixed(2)} to {chosen.holdout.t.toFixed(2)}.
+                On months it never saw, the default composite kept {kept}% of its development IC, and its t-stat moved from {chosen.development.t.toFixed(2)} to {chosen.holdout.t.toFixed(2)}.
               </>
             ) : null
           }
@@ -593,15 +591,15 @@ export function WorkedExample({
         <Step
           n={6}
           title="Portfolio"
-          text="Mean–variance optimisation with Bayes–Stein shrunk means and a Ledoit–Wolf shrunk covariance, over the stocks ticked in the screener."
+          text="The optimiser finds the best risk-adjusted mix of the stocks ticked in the screener, using Bayes–Stein expected returns and a Ledoit–Wolf covariance matrix."
           caption={
             tan ? (
               <>
-                Max Sharpe <b>{tan.sharpe.toFixed(2)}</b>
-                {frontier?.market ? <> against {frontier.market.sharpe.toFixed(2)} for the S&amp;P 500</> : null}, {positions} positions. In-sample, on three years of daily prices.
+                The maximum-Sharpe portfolio scores {tan.sharpe.toFixed(2)}
+                {frontier?.market ? <>, against {frontier.market.sharpe.toFixed(2)} for the S&amp;P 500</> : null}, spread over {positions} positions. These figures are in-sample, on three years of daily prices.
               </>
             ) : (
-              <>Run on the stocks ticked in the screener; three years of daily prices, 10% position cap.</>
+              <>This runs on the stocks ticked in the screener, using three years of daily prices and a 10% position cap.</>
             )
           }
           href="/portfolio"

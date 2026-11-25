@@ -10,7 +10,9 @@ import {
   RiPieChartLine,
 } from "@remixicon/react"
 
+import { ProfileLinks } from "@/components/profile-links"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { PROFILE } from "@/lib/profile"
 import { cn } from "@/lib/utils"
 
 const NAV = [
@@ -108,12 +110,22 @@ export function AppShell({
               Data maintenance
             </Link>
           )}
-          <Link
-            href="/methodology#about"
-            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-          >
-            by Yajat Charpe
-          </Link>
+
+          {/* Who built it: information, so only the name and the icons are links. */}
+          <div className="mt-1 flex w-full flex-col gap-3 border-t border-border pt-4">
+            <div className="flex flex-col">
+              <Link
+                href="/methodology#about"
+                className="font-heading text-sm transition-opacity hover:opacity-70"
+              >
+                {PROFILE.name}
+              </Link>
+              <span className="mt-1 text-xs text-primary">{PROFILE.university}</span>
+              <span className="text-xs leading-relaxed text-muted-foreground">{PROFILE.degree}</span>
+              <span className="text-xs text-muted-foreground">{PROFILE.graduating}</span>
+            </div>
+            <ProfileLinks />
+          </div>
         </div>
       </aside>
 

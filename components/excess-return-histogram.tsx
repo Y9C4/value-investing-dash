@@ -5,7 +5,7 @@ const pp = (x: number) => formatPp(x).replace(" pp", "")
 
 /**
  * How the index's implied excess returns are distributed: one bar per bin,
- * rust below zero (the price implies less than the risk requires), teal above.
+ * magenta below zero (the price implies less than the risk requires), teal above.
  * Zero and the median are marked, so the headline median sits on its
  * distribution rather than standing alone.
  */

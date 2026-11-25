@@ -24,8 +24,8 @@ export default function GlobalError({
           minHeight: "100vh",
           display: "grid",
           placeItems: "center",
-          background: "#14120f",
-          color: "#ede8df",
+          background: "#0f1217",
+          color: "#e6eaf0",
           fontFamily: "system-ui, sans-serif",
         }}
       >
@@ -34,7 +34,7 @@ export default function GlobalError({
           <h1 style={{ fontSize: 20, fontWeight: 600, margin: "0 0 8px" }}>
             Market data is unavailable
           </h1>
-          <p style={{ margin: "0 0 20px", lineHeight: 1.5, color: "#a39d93" }}>
+          <p style={{ margin: "0 0 20px", lineHeight: 1.5, color: "#98a2b0" }}>
             The dashboard could not read the warehouse, and there is no earlier
             copy to show. Nothing is displayed rather than numbers that may be
             wrong.
@@ -45,8 +45,8 @@ export default function GlobalError({
             onClick={() => retry()}
             style={{
               padding: "8px 16px",
-              background: "#ede8df",
-              color: "#14120f",
+              background: "#e6eaf0",
+              color: "#0f1217",
               border: 0,
               fontWeight: 600,
               cursor: "pointer",

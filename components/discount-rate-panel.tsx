@@ -90,7 +90,7 @@ export function DiscountRatePanel({
         <Figure
           label="Risk-free rate, 10-year Treasury"
           value={formatPct(rates.riskFree)}
-          note="spot (^TNX): the rf in CAPM and under the cost of debt"
+          note="Today's yield, used as the risk-free rate in CAPM and as the base of the cost of debt"
         />
         <Figure
           label="Cost of debt"

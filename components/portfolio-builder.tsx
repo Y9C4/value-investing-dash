@@ -70,6 +70,7 @@ import {
   validateSettings,
   type PortfolioSettings,
 } from "@/lib/portfolio-settings"
+import { useMinWidth } from "@/lib/use-min-width"
 import { useScrollPane } from "@/lib/use-scroll-pane"
 import { cn } from "@/lib/utils"
 
@@ -95,7 +96,7 @@ import { cn } from "@/lib/utils"
  * results, collapsed until the toolbar button opens them, so the frontier is
  * never squeezed into a sliver beside a 20rem rail.
  */
-const RAIL_BREAKPOINT = 1700
+const RAIL_BREAKPOINT = 1440
 
 /** Where the frontier on screen came from; the toolbar states it. */
 type Source = "baseline" | "nightly" | "solved" | "restored"
@@ -178,6 +179,7 @@ export function PortfolioBuilder({
    * wide screen. The first toggle reads the width once and takes over.
    */
   const [railOpen, setRailOpen] = useState<boolean | null>(null)
+  const railWide = useMinWidth(RAIL_BREAKPOINT)
   const { ref: railRef, maxHeight: railMaxHeight } = useScrollPane<HTMLDivElement>({
     from: RAIL_BREAKPOINT,
   })
@@ -463,7 +465,7 @@ export function PortfolioBuilder({
               size="sm"
               variant="outline"
               aria-controls="optimiser-settings"
-              aria-expanded={railOpen ?? undefined}
+              aria-expanded={railOpen ?? railWide}
               onClick={() =>
                 setRailOpen((current) =>
                   // The first press flips whatever the viewport chose; every
@@ -490,6 +492,14 @@ export function PortfolioBuilder({
               {" · "}
               {provenance}
               {dirty && " · settings changed"}
+            </span>
+            {/* Announced once when a solve starts and once when it ends, not on every tick of the timer above. */}
+            <span className="sr-only" role="status">
+              {loading
+                ? "Optimising. This usually takes five to twenty seconds."
+                : source === "solved"
+                  ? "Optimisation finished."
+                  : ""}
             </span>
           </div>
 
@@ -555,7 +565,7 @@ export function PortfolioBuilder({
       <div
         className={cn(
           "grid gap-6",
-          railOpen !== false && "min-[1700px]:grid-cols-[20rem_minmax(0,1fr)]",
+          railOpen !== false && "min-[1440px]:grid-cols-[20rem_minmax(0,1fr)]",
         )}
       >
         {/* A rail beside the results where both fit; below that, a section
@@ -567,9 +577,9 @@ export function PortfolioBuilder({
           className={cn(
             // Sticky: the results are several screens tall and the rail is
             // not, so without this the controls scroll away.
-            "flex-col min-[1700px]:sticky min-[1700px]:top-5 min-[1700px]:max-h-[calc(100vh-8rem)] min-[1700px]:self-start min-[1700px]:overflow-y-auto",
+            "flex-col min-[1440px]:sticky min-[1440px]:top-5 min-[1440px]:max-h-[calc(100vh-8rem)] min-[1440px]:self-start min-[1440px]:overflow-y-auto",
             railOpen === null
-              ? "hidden min-[1700px]:flex"
+              ? "hidden min-[1440px]:flex"
               : railOpen
                 ? "flex"
                 : "hidden",
@@ -625,6 +635,7 @@ export function PortfolioBuilder({
             // While a new solve is in flight this is still the previous one,
             // dimmed uniformly to mark it as about to be replaced.
             <div
+              aria-busy={loading}
               className={cn(
                 "flex flex-col gap-4 transition-opacity",
                 loading && "opacity-50",
@@ -646,13 +657,6 @@ export function PortfolioBuilder({
                 {/* The fifth reading spans the gap a 2- or 3-column wrap would leave. */}
                 <StatStrip className="border sm:grid-cols-3 xl:grid-cols-5 [&>*:last-child]:col-span-2 xl:[&>*:last-child]:col-span-1">
                   <Stat
-                    className={
-                      market === undefined
-                        ? undefined
-                        : active.sharpe > market.sharpe
-                          ? "text-undervalued"
-                          : "text-overvalued"
-                    }
                     label="Sharpe ratio"
                     value={active.sharpe.toFixed(2)}
                     hint={
@@ -661,25 +665,11 @@ export function PortfolioBuilder({
                     }
                   />
                   <Stat
-                    className={
-                      market === undefined
-                        ? undefined
-                        : active.return > market.return
-                          ? "text-undervalued"
-                          : "text-overvalued"
-                    }
                     label="Expected return"
                     value={formatPercent(active.return)}
                     hint={market && `${formatPp(active.return - market.return)} vs S&P 500`}
                   />
                   <Stat
-                    className={
-                      market === undefined
-                        ? undefined
-                        : active.volatility > market.volatility
-                          ? "text-overvalued"
-                          : "text-undervalued"
-                    }
                     label="Expected volatility"
                     value={formatPercent(active.volatility)}
                     hint={

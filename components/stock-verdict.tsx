@@ -65,7 +65,7 @@ function Operator({ children }: { children: string }) {
 
 /**
  * Where this stock's implied excess return sits in today's index: the
- * distribution as a strip of bins (rust below zero, teal above), this stock's
+ * distribution as a strip of bins (magenta below zero, teal above), this stock's
  * bin at full strength and a marker on its reading.
  */
 export function DistributionStrip({
@@ -159,7 +159,7 @@ export function DistributionStrip({
 /**
  * The stock page's verdict: the two rates and their gap as the anchor, the
  * quintiles in words, where the gap sits in the index, and one sentence. The
- * left rule is teal when the price implies more than the risk requires, rust
+ * left rule is teal when the price implies more than the risk requires, magenta
  * when less, and plain when there is no reading.
  */
 export function StockVerdict({

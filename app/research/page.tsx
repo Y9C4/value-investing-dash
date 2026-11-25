@@ -94,12 +94,9 @@ export default function ResearchPage() {
     <div className="flex flex-col gap-8 px-6 py-6 lg:px-10">
       <section aria-labelledby="verdict" className="grid gap-x-10 gap-y-6 xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
-          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-            Out-of-sample test · locked holdout
-          </p>
           <h2 id="verdict" className="font-heading text-2xl leading-snug">
             Out of sample, the default value + momentum composite kept{" "}
-            {Math.round(keptShare * 10) * 10}% of its development rank IC
+            {Math.round(keptShare * 100)}% of its development rank IC
             {vm.holdout.t >= 2 ? ", and stayed significant." : ", but is no longer close to significant."}
           </h2>
           <dl className="grid grid-cols-3 gap-px border border-border bg-border [&>div]:bg-card [&>div]:px-3 [&>div]:py-2.5">
@@ -126,16 +123,16 @@ export default function ResearchPage() {
             months ({DEVELOPMENT_SPAN}){bestInDevelopment && (
               <>, and the composite is the default because it had the highest
               development IC of the {EVIDENCE.signals.length} candidates</>
-            )}. The specification was then frozen and
-            run once on {vm.holdout.months} months it had never seen ({HOLDOUT_SPAN}),
-            after a three-month embargo so no return window spans both.{" "}
+            )}. We then froze the specification and ran it once on{" "}
+            {vm.holdout.months} months it had never seen ({HOLDOUT_SPAN}), after
+            a three-month embargo so that no return window spans both.{" "}
             {passing.length > 0 ? (
               <>
                 In the holdout, only{" "}
                 {passing.map((s, i) => (
                   <span key={s.id}>
                     {i > 0 && (i === passing.length - 1 ? " and " : ", ")}
-                    <span className="text-foreground">{s.label.toLowerCase()}</span> (t = {s.holdout.t.toFixed(2)})
+                    {s.label.toLowerCase()} (t = {s.holdout.t.toFixed(2)})
                   </span>
                 ))}{" "}
                 cleared the conventional t = 2.
@@ -143,23 +140,24 @@ export default function ResearchPage() {
             ) : (
               <>No factor or strategy cleared the conventional t = 2 in the holdout.</>
             )}{" "}
-            The default is not switched on that evidence: choosing again on the
-            holdout would leave no out-of-sample test.
+            We did not switch the default on that evidence, because choosing
+            again on the holdout would leave no out-of-sample test.
           </p>
         </div>
 
         <Panel className="self-start">
           <PanelHeader>
-            <PanelTitle>Figure 1 · Cumulative monthly rank IC</PanelTitle>
+            <PanelTitle>Cumulative monthly rank IC</PanelTitle>
             <PanelMeta>{DEVELOPMENT_SPAN.split(" – ")[0]} – {HOLDOUT_SPAN.split(" – ")[1]}</PanelMeta>
           </PanelHeader>
           <PanelBody>
             <CumulativeIcChart {...cumulativeIc()} />
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              Each month adds that month&rsquo;s Spearman correlation between the
-              ranking and the next month&rsquo;s factor-adjusted returns. A steady
-              rise means the ranking worked in most months; a flat or falling
-              stretch means it did not. The shaded months are the holdout.
+              Each month adds that month&rsquo;s rank correlation between the
+              ranking and the next month&rsquo;s factor-adjusted returns to the
+              running total. A steady rise means the ranking worked in most
+              months, and a flat or falling stretch means it did not. The shaded
+              months are the holdout.
             </p>
           </PanelBody>
         </Panel>
@@ -203,19 +201,20 @@ export default function ResearchPage() {
           </Table>
         </div>
         <PanelBody className="border-t border-border text-xs leading-relaxed text-muted-foreground">
-          Mean IC is the average monthly Spearman rank correlation; its t-stat
-          is Fama–MacBeth (the mean over its standard error). * marks |t| ≥ 2,
-          the conventional bar; ** marks |t| ≥ 3, the bar Harvey, Liu &amp; Zhu
-          (2016) set once many factors have been tried. Q5 − Q1 is the
-          equal-weight return of the top quintile minus the bottom, per month,
-          on the same factor-adjusted target.
+          Mean IC is the average monthly Spearman rank correlation, and its
+          t-stat is Fama–MacBeth: the mean divided by its standard error. One
+          star marks |t| of 2 or more, the conventional bar, and two stars mark
+          |t| of 3 or more, the stricter bar Harvey, Liu and Zhu (2016)
+          recommend once many factors have been tried. Q5 − Q1 is the
+          equal-weight return of the top quintile minus the bottom quintile, per
+          month, on the same factor-adjusted target.
         </PanelBody>
       </Panel>
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Panel>
           <PanelHeader>
-            <PanelTitle>Figure 2 · Mean next-month return by quintile</PanelTitle>
+            <PanelTitle>Mean next-month return by quintile</PanelTitle>
             <PanelMeta>% a month, factor-adjusted</PanelMeta>
           </PanelHeader>
           <PanelBody className="grid gap-4 md:grid-cols-3">
@@ -230,17 +229,18 @@ export default function ResearchPage() {
             ))}
           </PanelBody>
           <PanelBody className="border-t border-border text-xs leading-relaxed text-muted-foreground">
-            Q1 is each signal&rsquo;s lowest-ranked fifth of the index, Q5 its
-            highest. Solid bars are development, hollow bars the holdout. The quintile
-            chips on the screener (Q5 · highest … Q1 · lowest) only mean
-            something if returns rise from Q1 to Q5. A spread carried by one end,
-            or a U shape, is weaker evidence than a steady rise.
+            Q1 is each signal&rsquo;s lowest-ranked fifth of the index and Q5 is
+            its highest. Solid bars are development and hollow bars are the
+            holdout. The quintile chips on the screener (Q5 · highest … Q1 ·
+            lowest) only mean something if returns rise from Q1 to Q5. A spread
+            carried by one end, or a U shape, is weaker evidence than a steady
+            rise.
           </PanelBody>
         </Panel>
 
         <Panel>
           <PanelHeader>
-            <PanelTitle>Figure 3 · Calibration of value</PanelTitle>
+            <PanelTitle>Calibration of value</PanelTitle>
             <PanelMeta>
               slope {formatStat(EVIDENCE.calibration.development.slope)} / {formatStat(EVIDENCE.calibration.holdout.slope)}
             </PanelMeta>
@@ -252,11 +252,12 @@ export default function ResearchPage() {
             />
           </PanelBody>
           <PanelBody className="border-t border-border text-xs leading-relaxed text-muted-foreground">
-            Deciles of implied excess return against what they went on to earn,
-            in pp a year. A forecast would follow the 45° line; the slope is{" "}
+            Stocks are grouped into deciles of implied excess return, and each
+            decile is plotted against what it went on to earn, in percentage
+            points a year. A forecast would follow the 45° line. The slope was{" "}
             {formatStat(EVIDENCE.calibration.development.slope)} in development and{" "}
-            {formatStat(EVIDENCE.calibration.holdout.slope)} in the holdout. That is
-            why the site turns implied excess return into a percentile and
+            {formatStat(EVIDENCE.calibration.holdout.slope)} in the holdout, which
+            is why the site turns implied excess return into a percentile and
             never presents it as expected alpha.
           </PanelBody>
         </Panel>
@@ -291,13 +292,14 @@ export default function ResearchPage() {
       </Panel>
 
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Universe: today&rsquo;s S&amp;P 500 members (so survivorship-biased),
-        month-end rebalancing, statements usable 60 days after period end.
-        Generated {EVIDENCE.generated} from{" "}
-        <span className="font-figure">backtest/output/model_data.parquet</span>.{" "}
+        The universe is today&rsquo;s S&amp;P 500 members, so the results are
+        survivorship-biased. Portfolios rebalance at month-end, and statements
+        are used 60 days after the period ends. This page was generated{" "}
+        {EVIDENCE.generated} from backtest/output/model_data.parquet. The{" "}
         <Link href="/methodology" className="underline underline-offset-2 hover:text-foreground">
-          Methodology
-        </Link>
+          methodology page
+        </Link>{" "}
+        has the full details.
       </p>
     </div>
   )
