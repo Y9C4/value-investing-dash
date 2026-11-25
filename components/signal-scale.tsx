@@ -39,7 +39,7 @@ export function SignalBar({
               // Q1 and Q2 indigo is under 3:1 against the track (Q1 2.0:1
               // dark, 1.7:1 light). An inset muted-foreground edge (≥4.7:1
               // against the track in both themes) keeps those bars' extent
-              // visible without touching the palette; Q3–Q5 already clear 3:1.
+              // visible without touching the palette; Q3-Q5 already clear 3:1.
               boxShadow:
                 band === "q1" || band === "q2" ? "inset 0 0 0 1px var(--color-muted-foreground)" : undefined,
             }}

@@ -100,7 +100,7 @@ const FROZEN_EDGE = "shadow-[inset_-1px_0_0_var(--color-border)]"
 /** Rows in the server-rendered HTML: more than any viewport shows. */
 const INITIAL_ROWS = 60
 const multiple = (value: number | null) => (value === null ? DASH : `${value.toFixed(1)}×`)
-/** A 0–1 percentile as a whole number out of 100. */
+/** A 0-1 percentile as a whole number out of 100. */
 const percentile = (rank: number | null) => (rank === null ? DASH : Math.round(rank * 100).toString())
 
 const COLUMNS: Column[] = [
@@ -158,7 +158,7 @@ const COLUMNS: Column[] = [
       title: "Value percentile",
       body: IMPLIED_BASIS,
       points: [
-        "The bar and number are the percentile, 0–100, on the return gap. 100 is the cheapest stock in the index.",
+        "The bar and number are the percentile, 0-100, on the return gap. 100 is the cheapest stock in the index.",
         "The signed figure is the gap itself, in percentage points (pp) a year.",
         BAND_BASIS,
       ],
@@ -188,9 +188,9 @@ const COLUMNS: Column[] = [
     align: "left",
     help: {
       title: "Momentum percentile",
-      body: "The price return from twelve months ago to one month ago, dividends included, often called 12–1 momentum (Jegadeesh & Titman 1993). The latest month is skipped because it tends to reverse.",
+      body: "The price return from twelve months ago to one month ago, dividends included, often called 12-1 momentum (Jegadeesh & Titman 1993). The latest month is skipped because it tends to reverse.",
       points: [
-        "The number is the percentile, 0–100. 100 rose the most.",
+        "The number is the percentile, 0-100. 100 rose the most.",
         "The signed figure is the return itself.",
         "Blank when there is not yet a year of prices.",
       ],
@@ -300,7 +300,7 @@ const COLUMNS: Column[] = [
     help: {
       title: "Annualised return",
       body: "Mean daily log return over the last 252 sessions × 252, on dividend-adjusted closes.",
-      points: ["Past returns are a poor guide to future ones, so the optimiser tones them down (Bayes–Stein) before using them."],
+      points: ["Past returns are a poor guide to future ones, so the optimiser tones them down (Bayes-Stein) before using them."],
     },
     cell: (stock) => formatSignedPct(stock.realisedReturn),
   },

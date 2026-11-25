@@ -1,3 +1,4 @@
+import { Tex } from "@/components/tex"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -14,7 +15,7 @@ import { cn } from "@/lib/utils"
 export const metadata = {
   title: "Methodology",
   description:
-    "How Value Investing Dash ranks the S&P 500: reverse DCF, momentum and earnings surprise, how the ranking was tested, and every assumption with its source.",
+    "How Value Investing Dash ranks the S&P 500: reverse DCF, momentum and earnings surprise, how the ranking was tested, and the assumptions behind it.",
 }
 
 /** Every model-versus-ratio pair, from the backtest export; the last row is the four-model average against the ratio composite. */
@@ -29,7 +30,7 @@ const word = (n: number) => WORDS[n] ?? String(n)
 
 /** Every constant in the value signal and where it comes from (`warehouse.spec`). */
 const ASSUMPTIONS = [
-  { what: "Explicit forecast", value: "5 years, then a perpetuity", source: "Within Damodaran's 5–10 year range; checked at 3 and 10" },
+  { what: "Explicit forecast", value: "5 years, then a perpetuity", source: "Within Damodaran's 5-10 year range; checked at 3 and 10" },
   { what: "Long-run growth", value: "Lower of 2.5% and the 10-year Treasury", source: "Terminal growth no higher than the risk-free rate (Damodaran)" },
   { what: "Starting growth", value: "Recent revenue growth, slowing to long-run", source: "Extremes capped at the 1st and 99th percentiles; growth rarely persists (Chan, Karceski & Lakonishok 2003)" },
   { what: "Beta", value: "252 daily returns, adjusted toward average", source: "Vasicek toward the index mean, then 25% toward 0.9 (Levi & Welch 2017)" },
@@ -37,8 +38,8 @@ const ASSUMPTIONS = [
   { what: "Cost of debt", value: "10-year Treasury + synthetic-rating spread", source: "Damodaran's rating table for large non-financial firms, January 2026" },
   { what: "Financial firms", value: "No WACC", source: "Debt is a bank's raw material, not its capital (Damodaran)" },
   { what: "Reporting delay", value: "Accounts used 60 days after year end", source: "SEC 10-K deadline for large accelerated filers" },
-  { what: "Momentum", value: "12-month return skipping the last month (12–1)", source: "Jegadeesh & Titman (1993)" },
-  { what: "Earnings surprise", value: "(Actual − consensus EPS) ÷ price", source: "Livnat & Mendenhall (2006)" },
+  { what: "Momentum", value: "12-month return skipping the last month (12-1)", source: "Jegadeesh & Titman (1993)" },
+  { what: "Earnings surprise", value: <Tex>{"\\frac{\\text{actual EPS} - \\text{consensus EPS}}{\\text{price}}"}</Tex>, source: "Livnat & Mendenhall (2006)" },
   { what: "Score weights", value: "Equal", source: "Asness, Moskowitz & Pedersen (2013); equal weights hold up out of sample (DeMiguel et al. 2009)" },
   { what: "Model average", value: "Equal, over the models that work", source: "Forecast combination (Stock & Watson 2004)" },
 ]
@@ -57,7 +58,7 @@ const SECTIONS = [
   ["value", "Value: reverse DCF"],
   ["factors", "Momentum and earnings surprise"],
   ["evidence", "How it was tested"],
-  ["assumptions", "Assumptions and sources"],
+  ["assumptions", "Assumptions"],
   ["build", "How it is built"],
   ["glossary", "Glossary"],
   ["about", "About"],
@@ -68,18 +69,18 @@ const GLOSSARY = [
   ["Implied return", "That rate. It is what buying at today's price would earn if the forecast cash flows arrive."],
   ["Required return", "What the stock should earn for its risk: WACC for whole-firm models, CAPM cost of equity for equity models."],
   ["Return gap", "Implied return minus required return, in percentage points (pp) a year. Also called implied excess return. The value ranking uses it."],
-  ["pp", "Percentage points, the difference between two percentages (6.7% − 9.4% = −2.7 pp)."],
+  ["pp", <>Percentage points, the difference between two percentages (<Tex>{"6.7\\% - 9.4\\% = -2.7\\ \\text{pp}"}</Tex>).</>],
   ["kₑ (cost of equity)", "The 10-year Treasury yield plus beta times the market premium (CAPM)."],
   ["WACC", "Cost of equity and after-tax cost of debt, weighted by market value."],
-  ["12–1 momentum", "The return from twelve months ago to one month ago."],
+  ["12-1 momentum", "The return from twelve months ago to one month ago."],
   ["Percentile", "Where a stock sits in the index on a measure, from 0 to 100. 100 is best."],
-  ["Score", "The average of the selected percentiles, re-ranked 0–100 so each fifth holds the same number of stocks."],
+  ["Score", "The average of the selected percentiles, re-ranked 0-100 so each fifth holds the same number of stocks."],
   ["Quintile", "One fifth of the index by a ranking. Value Q5 is the cheapest fifth; score Q5 is the top-ranked fifth."],
   ["Rank IC", "Information coefficient: how closely a month's ranking matched the order of the next month's returns. 0 is chance. In stock selection, around 0.05 is considered useful."],
   ["t-stat", "How far a result is from zero compared with its noise. About 2 or more suggests it is unlikely to be luck."],
   ["Design period", "The months used to make every choice about the model. The notebooks call it development."],
   ["Unseen test (holdout)", "Later months kept aside until the rules were locked, then scored once. Also called out of sample."],
-  ["Factor-adjusted return", "A stock's return after removing what common market factors (Fama–French five) would explain that month. The ranking is tested against this."],
+  ["Factor-adjusted return", "A stock's return after removing what common market factors (Fama-French five) would explain that month. The ranking is tested against this."],
   ["Top − bottom", "How much more the top fifth returned than the bottom fifth, per month (Q5 − Q1)."],
 ] as const
 
@@ -162,15 +163,13 @@ export default function MethodologyPage() {
             much easier to sanity-check.
           </p>
           <figure className="mb-6 overflow-clip rounded-lg border border-border bg-card">
-            <div className="overflow-x-auto px-4 py-4 font-mono text-[0.8125rem] leading-8 whitespace-nowrap">
-              <p className="!mb-0">
-                Price = Σ CF<sub>t</sub> ÷ (1 + r)<sup>t</sup> + TV ÷ (1 + r)<sup>5</sup>
-              </p>
-              <p className="!mb-0">TV = CF<sub>5</sub> × (1 + g) ÷ (r − g)</p>
-              <p className="!mb-0">gap = r − required return</p>
+            <div className="px-4 py-3 text-base">
+              <Tex block>{"\\text{Price} = \\sum_{t=1}^{5} \\frac{\\text{CF}_t}{(1+r)^t} + \\frac{\\text{TV}}{(1+r)^5}"}</Tex>
+              <Tex block>{"\\text{TV} = \\frac{\\text{CF}_5\\,(1+g)}{r-g}"}</Tex>
+              <Tex block>{"\\text{gap} = r - \\text{required return}"}</Tex>
             </div>
             <figcaption className="border-t border-border px-4 py-2 text-xs leading-5 text-muted-foreground">
-              We solve the first line for r, summing over years 1 to 5. CF<sub>t</sub> is the forecast cash flow in year t, and g is
+              We solve the first line for <Tex>r</Tex>. <Tex>{"\\text{CF}_t"}</Tex> is the forecast cash flow in year <Tex>t</Tex>, and <Tex>g</Tex> is
               the long-run growth rate. The value ranking uses the gap.
             </figcaption>
           </figure>
@@ -213,7 +212,7 @@ export default function MethodologyPage() {
                 <span className="font-heading text-base">{c.label}</span>
                 <div className="flex flex-col gap-2">
                   <p className="!mb-0 text-sm leading-6 text-muted-foreground">{c.blurb}</p>
-                  <code className="font-mono text-xs leading-5 break-words">{c.formula}</code>
+                  <Tex block className="text-sm">{c.formula}</Tex>
                 </div>
               </li>
             ))}
@@ -229,7 +228,7 @@ export default function MethodologyPage() {
             Every signal was backtested month by month on the S&amp;P 500, using only
             accounts that were public at the time. We measured how well each
             ranking predicted the next month&rsquo;s returns after removing the five
-            Fama–French factors.
+            Fama-French factors.
           </p>
           <h3>Design period and unseen test</h3>
           <Exhibit>
@@ -327,16 +326,16 @@ export default function MethodologyPage() {
           <ul className="mb-4 divide-y divide-border overflow-clip rounded-lg border border-border bg-card text-sm leading-6 [&>li]:px-4 [&>li]:py-3">
             <li>The default ranking has not been proven. Value + momentum reached t = {EVIDENCE.signals[0].development.t.toFixed(2)} in the design period ({DEVELOPMENT_SPAN}) and t = {EVIDENCE.signals[0].holdout.t.toFixed(2)} in the unseen test ({HOLDOUT_SPAN}), where about 2 is the usual bar. It stays the default because it was chosen before the test, and choosing again afterwards would leave nothing tested on unseen data.</li>
             <li>The samples are short: {EVIDENCE.signals[0].development.months} design months and {EVIDENCE.signals[0].holdout.months} test months. Once many signals have been tried, one needs a t-stat near 3 to be convincing (Harvey, Liu and Zhu 2016).</li>
-            <li>Value on its own did not make money as a simple buy-cheap, sell-expensive portfolio. In the design period the cheapest fifth minus the most expensive {VALUE_LS.longShort < 0 ? "lost" : "made"} {pct1(VALUE_LS.longShort)} a month before factor adjustment. Against the five Fama–French factors its alpha is {alphaPct}% a year (t = {formatStat(VALUE_LS.alphaT)}), with large exposure to value (HML) and profitability (RMW). Most of what it picks up is those known factors.</li>
+            <li>Value on its own did not make money as a simple buy-cheap, sell-expensive portfolio. In the design period the cheapest fifth minus the most expensive {VALUE_LS.longShort < 0 ? "lost" : "made"} {pct1(VALUE_LS.longShort)} a month before factor adjustment. Against the five Fama-French factors its alpha is {alphaPct}% a year (t = {formatStat(VALUE_LS.alphaT)}), with large exposure to value (HML) and profitability (RMW). Most of what it picks up is those known factors.</li>
             <li>The size of the gap is not a forecast. A stock priced to return 5 points more than required did not go on to earn 5 points more. The calibration slope (1 would be a perfect forecast) was {formatStat(EVIDENCE.calibration.development.slope)} in the design period and {formatStat(EVIDENCE.calibration.holdout.slope)} in the test, so we rank on the gap and do not forecast with it.</li>
             <li>The test uses today&rsquo;s S&amp;P 500 members, so companies that dropped out are missing. That tends to flatter the results.</li>
             <li>2023 to 2026 was led by very large growth companies, a poor stretch for value.</li>
           </ul>
         </Section>
 
-        <Section id="assumptions" n={4} title="Assumptions and sources">
+        <Section id="assumptions" n={4} title="Assumptions">
           <p>
-            Each setting in the model comes from published research, a regulatory
+            Each setting below lists its source: published research, a regulatory
             rule or a backtest result. Where data is missing we show a dash, never
             a guess or a zero.
           </p>
@@ -373,8 +372,8 @@ export default function MethodologyPage() {
           <h3>Portfolio optimiser</h3>
           <p>
             The efficient frontier uses three years of dividend-adjusted daily
-            prices. A Ledoit–Wolf covariance matrix steadies the noisy risk
-            estimates, and Bayes–Stein expected returns pull noisy historical
+            prices. A Ledoit-Wolf covariance matrix steadies the noisy risk
+            estimates, and Bayes-Stein expected returns pull noisy historical
             averages toward the minimum-variance portfolio (Jorion 1986). No stock
             can exceed 10% (the UCITS single-issuer limit) unless fewer than ten
             stocks make that impossible. The optimiser knows nothing about value;

@@ -2,7 +2,7 @@
 
 **Status:** holdout run once on 2026-11-24 under the frozen specification (§19, `evidence.ipynb`) · **Last revised:** 2026-11-24
 
-§1–§12 are the original plan. §13–§17 record what development found and what comes next: the signals added to the product, further models graded by feasibility, how each is tested, how the signal is shown on the screener, and the live data warehouse that computes it.
+§1-§12 are the original plan. §13-§17 record what development found and what comes next: the signals added to the product, further models graded by feasibility, how each is tested, how the signal is shown on the screener, and the live data warehouse that computes it.
 
 ---
 
@@ -18,7 +18,7 @@ The plan does three things:
 2. **Test the signal before the portfolio.** Valuation signals are evaluated with cheap cross-sectional statistics, iterated freely during a development period, then frozen and run once on a locked holdout.
 3. **Run the optimiser once, at the end, in a separate stage.** It uses the frozen signal as its expected-return input.
 
-Everything uses yfinance data. Portfolios are formed at every month-end. The usable window is about Mar 2023 – Oct 2026 (about 44 dates), set by how many years of annual statements yfinance provides.
+Everything uses yfinance data. Portfolios are formed at every month-end. The usable window is about Mar 2023 - Oct 2026 (about 44 dates), set by how many years of annual statements yfinance provides.
 
 ---
 
@@ -39,8 +39,8 @@ Checked on AAPL, JPM, KO and MSFT on 2026-11-12:
 
 | Data | History |
 |---|---|
-| Annual statements (income, balance sheet, cash flow) | 4 usable fiscal years (about FY2022/23 – FY2025/26). yfinance returns a 5th, older column, but it holds only a handful of stray line items |
-| Quarterly statements | 5–7 quarters, too few to rebuild a rolling 4-quarter (TTM) figure beyond about a year back |
+| Annual statements (income, balance sheet, cash flow) | 4 usable fiscal years (about FY2022/23 - FY2025/26). yfinance returns a 5th, older column, but it holds only a handful of stray line items |
+| Quarterly statements | 5-7 quarters, too few to rebuild a rolling 4-quarter (TTM) figure beyond about a year back |
 | Share count history | Back to 2015. Not split-adjusted, unlike prices and statement share counts |
 | Prices and dividends | Decades |
 
@@ -60,17 +60,17 @@ Checked on AAPL, JPM, KO and MSFT on 2026-11-12:
 
 **Calendar time, monthly:** the last trading day of every month. At each rebalance date, every stock is valued on that same day, using its newest annual statement that was public by then (§5). This is the standard design for cross-sectional signal tests (Fama-French; Hou, Xue & Zhang; Asness & Frazzini 2013). It gives about 500 stocks on every date and a natural date to form portfolios on.
 
-Valuing each company once, on its own report date (event time), was rejected: about 75% of companies have December year-ends, so dates bunch in March and leave 20–30 stocks in most other months, and staggered dates give no single day to hold a portfolio.
+Valuing each company once, on its own report date (event time), was rejected: about 75% of companies have December year-ends, so dates bunch in March and leave 20-30 stocks in most other months, and staggered dates give no single day to hold a portfolio.
 
-`backtest.models` holds Mar 2022 – Oct 2026. Coverage is thin before **Mar 2023** (3–36 stocks per date in 2022), because yfinance's oldest annual column is almost always empty, so analysis starts in Mar 2023. Oct 2026 has no complete forward window yet.
+`backtest.models` holds Mar 2022 - Oct 2026. Coverage is thin before **Mar 2023** (3-36 stocks per date in 2022), because yfinance's oldest annual column is almost always empty, so analysis starts in Mar 2023. Oct 2026 has no complete forward window yet.
 
 ### Split
 
 | Part | Dates | Purpose |
 |---|---|---|
-| Development | Mar 2023 – Jan 2025 (23 dates) | All design choices: growth assumptions, which models stay, how to combine them, how to calibrate |
-| Embargo | Feb – Apr 2025 (3 dates) | Skipped, so no 3-month return window overlaps both sides |
-| Holdout | May 2025 – Oct 2026 (18 dates; 17 with a 1-month outcome) | Run **once** after the design is frozen. This is the reported result |
+| Development | Mar 2023 - Jan 2025 (23 dates) | All design choices: growth assumptions, which models stay, how to combine them, how to calibrate |
+| Embargo | Feb - Apr 2025 (3 dates) | Skipped, so no 3-month return window overlaps both sides |
+| Holdout | May 2025 - Oct 2026 (18 dates; 17 with a 1-month outcome) | Run **once** after the design is frozen. This is the reported result |
 
 The split is stored per row in `backtest.models.split`.
 
@@ -113,7 +113,7 @@ Coverage per date: about 406 stocks in Mar 2023, about 492 from Nov 2023. Non-De
 
 Each model solves `price = PV(projected cash flows, r)` for `r`, with the rebalance date as t = 0. Expected alpha = `r` − the required return. The required return must match the level of the cash flow:
 
-- **Firm-level** models (reverse FCFF, reverse revenue) solve against enterprise value, so `r` is compared with **WACC**: equity weight × cost of equity + debt weight × cost of debt × (1 − tax). Weights use gross debt excluding leases (net debt can be negative). Cost of debt = interest expense / debt excluding leases, clamped to 2–15%.
+- **Firm-level** models (reverse FCFF, reverse revenue) solve against enterprise value, so `r` is compared with **WACC**: equity weight × cost of equity + debt weight × cost of debt × (1 − tax). Weights use gross debt excluding leases (net debt can be negative). Cost of debt = interest expense / debt excluding leases, clamped to 2-15%.
 - **Equity-level** models (reverse RIM, shareholder yield) solve against market cap, so `r` is compared with the **cost of equity**.
 - Cost of equity = risk-free rate + Σ beta × factor premium, using FF5 or CAPM (see the diagnostic in §7).
 
@@ -147,7 +147,7 @@ g_k   = g_0 + (g_L − g_0) × k / N        (linear fade, reaching g_L in year N
 | `g_0`, trailing | Revenue CAGR from the statement 2 years earlier, else 1 year earlier: `(Rev_T / Rev_{T−k})^(1/years) − 1`, with years taken from the actual period ends. Computed once per statement, not per rebalance row. Revenue rather than FCFF, because FCFF growth is too noisy and often undefined. Clamped to [−10%, +25%], since past growth barely persists (Chan, Karceski & Lakonishok 2003) |
 | `g_0`, sector | Median trailing `g_0` across the sector at the rebalance date |
 | `g_0`, missing | A ticker's first usable statement has no earlier year to compare with. Fall back to `g_L` (the flat specification) and flag the row |
-| `g_L` | 2–3% nominal, at most the risk-free rate. Must stay below `r` |
+| `g_L` | 2-3% nominal, at most the risk-free rate. Must stay below `r` |
 | `N` | 5 years; check N = 3 and N = 10 for robustness |
 
 With flat growth this reduces to `r = FCFF_0 (1 + g_L) / EV + g_L`. Otherwise `f(r) = PV(r) − EV` is strictly decreasing on (g_L, ∞) when every `FCFF_t > 0`, so it has exactly one root; solve with `brentq`. A linear fade is used first; an exponential fade (`g_k = g_L + (g_0 − g_L) φ^k`) adds a parameter and is only worth trying if the linear one shows promise.
@@ -185,7 +185,7 @@ Report negative results as they come out (for example, "the reverse revenue mode
 |---|---|---|
 | Valuation band tests | Cut | Bands are quintiles, so test 1's spread already covers them |
 | Sector breakdown for every variant | Cut | One sector table for the final signal only |
-| 2015–2026 optimiser backtest with historical-mean returns | Optional | The real comparison is now historical mean vs expected alpha, and that only exists inside the signal window |
+| 2015-2026 optimiser backtest with historical-mean returns | Optional | The real comparison is now historical mean vs expected alpha, and that only exists inside the signal window |
 | Long-short portfolios, transaction-cost grid, L2 grid | Deferred | Not needed to answer the core question |
 | Learned or forest-based model weights | Phase 2, see §14 | A first regression tree failed out of sample (§13). Forests, linear combinations and regime models are graded in §14 and tested under §15 |
 | Deflated Sharpe ratio | Conditional | Only if many portfolio configurations end up being compared |
@@ -201,7 +201,7 @@ Each stage is cached and lives in its own file, so a later stage never forces an
 | 0. Data | Pull from yfinance into the `backtest` schema, then build `backtest.models` (one row per rebalance date × ticker, point-in-time rules applied) with `notebooks/DWimplementation_v2.sql` | Local Supabase (Postgres) | ~10 min load, ~2 s build | Once; rebuild `models` when an input rule changes |
 | 1. Signals | For each date × stock × model: implied return (root solve), required return, expected alpha, plain ratios | One long table: `date, ticker, model, value` | Seconds to minutes (~35k solves) | When a model specification changes |
 | 2. Evaluation | Join forward returns, then compute IC, spreads, calibration and factor regressions | Tables and charts | Seconds | Freely, during development |
-| 3. Freeze and holdout | Commit the chosen specification, then run stages 1–2 on the holdout dates | Reported results | Seconds | **Once** |
+| 3. Freeze and holdout | Commit the chosen specification, then run stages 1-2 on the holdout dates | Reported results | Seconds | **Once** |
 | 4. Portfolio | Optimiser comparisons using only the frozen signal (§9) | Portfolio results | Seconds to minutes | After stage 3 |
 
 **Leak test:** `backtest/test_leaks.py` fails if any input to a rebalance date is dated after that date. **Needs updating:** it and `backtest/pit.py` still target the earlier design (quarterly `rebalance_dates`, the `annual_fundamentals` view, a 90-day lag). Stage 1 now reads `backtest.models`, so the test should check that table instead: `period_end + 60 <= rebalance_date` on every row (verified 0 violations on 2026-11-14), prices and share counts on or before the rebalance date, and no development window overlapping the holdout.
@@ -247,7 +247,7 @@ All portfolios are long-only, drawn from the top fifth by expected alpha, and us
 
 - **Survivorship bias.** The universe is today's S&P 500. yfinance has no historical membership and few prices for delisted names; in `backtest.models` every row has a forward return, so no stock ever drops out. Over about 3 years the effect is modest, but it inflates absolute returns. Rank-based tests are less affected.
 - **Restated figures.** yfinance shows older years as later restated, not as originally filed.
-- **Short window, one market regime.** 2023–2026 was mostly a market led by mega-cap growth stocks, so value probably lagged. A weak headline result is possible. Factor-adjusted targets and attribution keep the study informative either way.
+- **Short window, one market regime.** 2023-2026 was mostly a market led by mega-cap growth stocks, so value probably lagged. A weak headline result is possible. Factor-adjusted targets and attribution keep the study informative either way.
 - **Few time periods.** About 44 monthly dates support claims about cross-sectional ranking, not strong claims about long-run strategy returns. Fundamentals change only once a year per company, so successive months are not independent signals.
 - **Shallow growth history.** Trailing growth uses at most two prior years, and is missing for each company's first usable statement.
 
@@ -264,7 +264,7 @@ All portfolios are long-only, drawn from the top fifth by expected alpha, and us
 
 ## 13. What development found, and what the product adds
 
-Development dates only (Mar 2023 – Jan 2025, 23 months), target = 1-month factor-adjusted return, CAPM benchmark. **Run of 2026-11-23, under the revised specification (§18).** The 2026-11-17 figures are kept in §18's variant log.
+Development dates only (Mar 2023 - Jan 2025, 23 months), target = 1-month factor-adjusted return, CAPM benchmark. **Run of 2026-11-23, under the revised specification (§18).** The 2026-11-17 figures are kept in §18's variant log.
 
 | Signal | Mean IC | IC t-stat | IC > 0 | Q5 − Q1 / month | FF5 alpha / yr (t) | Coverage, dev | Coverage, live 2026-11-23 |
 |---|---|---|---|---|---|---|---|
@@ -274,7 +274,7 @@ Development dates only (Mar 2023 – Jan 2025, 23 months), target = 1-month fact
 | Momentum 12-1 | 0.029 | 1.18 | 65% | 0.5% | −1.2% (−0.10) | 99.8% | 98.6% |
 | Earnings surprise (analyst surprise scaled by price) | 0.024 | 1.45 | 57% | 0.2% | −6.1% (−1.04) | 98.9% | 97.4% |
 
-Coverage is the share of stock-months (development) or stocks (live) with a value; about 466–476 stocks per date in development.
+Coverage is the share of stock-months (development) or stocks (live) with a value; about 466-476 stocks per date in development.
 
 - The two blends are the strongest results in the study and neither is significant on 23 months. Momentum + surprise has the best spread and the only positive factor-adjusted alpha; value + momentum has the best ranking.
 - **Regression tree** (`backtest/ml/tree.py`, 33 percentile-ranked predictors, 200-round date-block bootstrap): negative out-of-bag R² at every depth (−1% to −6%) and an out-of-bag IC of about zero. It loses to both blends on most rounds. The fitted tree splits mostly on statement staleness, which is the earnings calendar, not value.
@@ -304,10 +304,10 @@ Graded on four things: whether the data is already loaded, how many parameters t
 | Ridge or lasso on ranked characteristics | Linear map from the 33 percentile ranks to the target, fitted walk-forward | `model_data.parquet` | 33 coefficients plus a penalty | Coefficients exported to a table, scored in SQL | **B** |
 | Random forest / gradient boosting | Bagged or boosted trees on the same ranks | Same | Hundreds of splits; the single tree already failed | Python scoring job | **B−** |
 | HMM regime switching | Two- or three-state hidden Markov model on daily HML and UMD factor returns since 1963; the regime decides the value/momentum weights | `factor_returns` covers 60 years, so the regime model is not limited to 23 months, though its effect on the blend is | ~10 parameters, fitted on factor history only | Python job writes one regime probability a day | **B** |
-| Industry momentum | Momentum of the stock's industry (Moskowitz & Grinblatt 1999) | Industry from the profile; 20–40 names per industry | None | SQL | **B** |
-| Analyst estimate revisions | Change in consensus EPS over 1–3 months | yfinance has the final estimate only | – | – | **C** |
-| Short interest | Days-to-cover | Not in yfinance history | – | – | **C** |
-| Longer point-in-time window | Compustat via WRDS (open question 4) | Not available | – | – | **C** |
+| Industry momentum | Momentum of the stock's industry (Moskowitz & Grinblatt 1999) | Industry from the profile; 20-40 names per industry | None | SQL | **B** |
+| Analyst estimate revisions | Change in consensus EPS over 1-3 months | yfinance has the final estimate only | - | - | **C** |
+| Short interest | Days-to-cover | Not in yfinance history | - | - | **C** |
+| Longer point-in-time window | Compustat via WRDS (open question 4) | Not available | - | - | **C** |
 
 Already tested and not pursued: quality (ROIC), gross profitability, low accruals, low volatility, magic formula, 1-month reversal, sector-neutral value (all ≤ the value baseline in §13); COMPS (dropped by the keep rule); the forward-DCF margin (beaten by reverse FCFF in test 2).
 
@@ -352,7 +352,7 @@ Every candidate goes through the same bench as §7, on the same development date
 
 ## 16. Showing the signal on the screener
 
-**Ranks, not magnitudes.** Test 4 found the size of expected alpha meaningless (calibration slope 0.14), so no component is shown as a forecast return. Each is a **percentile within today's universe**, 0–100, the same arithmetic the blends were tested with.
+**Ranks, not magnitudes.** Test 4 found the size of expected alpha meaningless (calibration slope 0.14), so no component is shown as a forecast return. Each is a **percentile within today's universe**, 0-100, the same arithmetic the blends were tested with.
 
 | Component | Raw value | Shown as |
 |---|---|---|
@@ -418,7 +418,7 @@ Python keeps extraction, loading and the optimiser.
 **Phases:**
 
 1. **Warehouse and signal on the site** (this change): raw / warehouse / public schemas, ingest, `refresh()`, the screener signal and the stock-page panel.
-2. **Holdout:** freeze the specification in a committed config, run tests 1–5 once on May 2025 – Oct 2026, and report the result on the about page whatever it is.
+2. **Holdout:** freeze the specification in a committed config, run tests 1-5 once on May 2025 - Oct 2026, and report the result on the about page whatever it is.
 3. **A-grade models** (§14), through §15, then the IC-weighted blend.
 4. **Portfolio stage** (§9) with the frozen signal, ranked rather than scaled, as the optimiser's expected-return input.
 
@@ -448,13 +448,13 @@ Every constant now has a source, and missing data produces no reading rather tha
 - Every kept model still beats its plain ratio on the same stocks (test 2), and COMPS still fails the keep rule.
 - Live, kₑ falls below the risk-free rate for 22 stocks instead of 90. The remaining negative betas are what the method gives for this window; no floor is imposed on top.
 - Firm-level coverage falls: 70 financial firms lose FCFF and revenue by design, and 28 non-financial firms that report debt but no interest expense lose them for want of a cost of debt. Value coverage stays at 96% because RIM and shareholder yield still cover them.
-- Optimiser, not part of the signal: expected returns are Jorion (1986) Bayes–Stein means instead of historical means clipped at ±50%, and the default position cap is the UCITS 10% single-issuer limit (none under 10 holdings) instead of 3% widened to 1.5/n.
+- Optimiser, not part of the signal: expected returns are Jorion (1986) Bayes-Stein means instead of historical means clipped at ±50%, and the default position cap is the UCITS 10% single-issuer limit (none under 10 holdings) instead of 3% widened to 1.5/n.
 
 **Variant log** (§4 asks for one):
 
 | # | Date | Specification | Value + momentum IC |
 |---|---|---|---|
-| 1 | 2026-11-17 | Original (§6–§7): raw CAPM beta, clamped kd, clamped growth | 0.056 |
+| 1 | 2026-11-17 | Original (§6-§7): raw CAPM beta, clamped kd, clamped growth | 0.056 |
 | 2 | 2026-11-23 | This revision | 0.054 |
 
 
@@ -463,16 +463,16 @@ Every constant now has a source, and missing data produces no reading rather tha
 
 ## 19. Holdout result (2026-11-24)
 
-Run once, on the specification frozen in `warehouse.spec` (§18), by `notebooks/evidence.ipynb` from the development notebook's export. Target and statistics as in test 1. 16 holdout months have a factor-adjusted outcome (May 2025 – Aug 2026); the last two rebalance dates wait on Kenneth French's factor returns.
+Run once, on the specification frozen in `warehouse.spec` (§18), by `notebooks/evidence.ipynb` from the development notebook's export. Target and statistics as in test 1. 16 holdout months have a factor-adjusted outcome (May 2025 - Aug 2026); the last two rebalance dates wait on Kenneth French's factor returns.
 
 | Signal | Development IC (t) | Holdout IC (t) | Holdout months IC > 0 | Holdout Q5 − Q1 / month (t) |
 |---|---|---|---|---|
 | Value + momentum composite (default) | 0.054 (1.92) | 0.033 (1.04) | 63% | +0.33% (0.48) |
 | Momentum + earnings surprise | 0.035 (1.47) | 0.057 (2.01) | 75% | +1.75% (2.33) |
 | Value | 0.032 (1.18) | 0.023 (0.61) | 63% | −0.32% (−0.36) |
-| Momentum 12–1 | 0.029 (1.18) | 0.014 (0.30) | 50% | +1.09% (0.87) |
+| Momentum 12-1 | 0.029 (1.18) | 0.014 (0.30) | 50% | +1.09% (0.87) |
 | Earnings surprise | 0.024 (1.45) | 0.066 (3.31) | 75% | +1.62% (2.67) |
 
 Calibration slope of value: 0.17 (t 0.30) in development, −0.44 (t −0.51) in the holdout.
 
-**Reading.** Every signal kept the sign of its development IC. The default composite kept about 60% of its strength and is not significant. Earnings surprise is the one factor above Harvey–Liu–Zhu's t = 3. The default is not changed on this evidence: the holdout tests the frozen choice, and re-choosing on it would leave no out-of-sample test until new months accrue. The site prints both samples beside every factor and strategy, read from `app/research/_data/evidence.json`.
+**Reading.** Every signal kept the sign of its development IC. The default composite kept about 60% of its strength and is not significant. Earnings surprise is the one factor above Harvey-Liu-Zhu's t = 3. The default is not changed on this evidence: the holdout tests the frozen choice, and re-choosing on it would leave no out-of-sample test until new months accrue. The site prints both samples beside every factor and strategy, read from `app/research/_data/evidence.json`.

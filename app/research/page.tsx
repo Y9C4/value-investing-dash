@@ -160,7 +160,7 @@ export default function ResearchPage() {
         <Panel className="self-start">
           <PanelHeader>
             <PanelTitle>Has the ranking kept working?</PanelTitle>
-            <PanelMeta>{DEVELOPMENT_SPAN.split(" – ")[0]} – {HOLDOUT_SPAN.split(" – ")[1]}</PanelMeta>
+            <PanelMeta>{DEVELOPMENT_SPAN.split(" - ")[0]} - {HOLDOUT_SPAN.split(" - ")[1]}</PanelMeta>
           </PanelHeader>
           <PanelBody className="flex flex-col gap-2">
             <p className="text-sm leading-relaxed text-muted-foreground">
@@ -218,7 +218,7 @@ export default function ResearchPage() {
             <p>
               Target: {EVIDENCE.target[0].toLowerCase() + EVIDENCE.target.slice(1)}.
               Rank IC is the average monthly Spearman rank correlation. Its t-stat
-              is Fama–MacBeth: the mean divided by its standard error. 2 is the
+              is Fama-MacBeth: the mean divided by its standard error. 2 is the
               conventional bar; Harvey, Liu and Zhu (2016) recommend 3 once many
               factors have been tried. Fifths are equal-weighted.
             </p>

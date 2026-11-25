@@ -1,9 +1,10 @@
+import { Tex } from "@/components/tex"
 import Link from "next/link"
 
 import { DistributionStrip } from "@/components/stock-verdict"
 import type { FrontierResponse } from "@/lib/baseline-frontier"
 import { DEVELOPMENT_SPAN, EVIDENCE, HOLDOUT_SPAN, evidenceFor } from "@/lib/evidence"
-import { DASH, formatPct, formatPp } from "@/lib/format"
+import { formatPct, formatPp } from "@/lib/format"
 import type { Ranking } from "@/lib/screen"
 import { DEFAULT_SIGNALS, formatComposite, formatScore } from "@/lib/signals"
 import {
@@ -112,11 +113,11 @@ function RequiredFigure({ stock }: { stock: Stock }) {
               <span className="flex items-center gap-1.5"><Swatch className={T1} />risk-free {formatPct(rf)}</span>
               <span className="flex items-center gap-1.5">
                 <Swatch className={T2} />
-                β {beta === null ? DASH : beta.toFixed(2)} × market premium {formatPp(premium)}
+                <Tex>{`\\beta\\,${beta === null ? "" : `(${beta.toFixed(2)})`} \\times \\text{market premium}`}</Tex> {formatPp(premium)}
               </span>
             </span>
           ) : (
-            <span className="text-[11px] text-muted-foreground">risk-free + β × market premium</span>
+            <span className="text-[11px] text-muted-foreground"><Tex>{"r_f + \\beta \\times \\text{market premium}"}</Tex></span>
           )}
         </div>
       )}
@@ -496,7 +497,7 @@ export function WorkedExample({
             </>
           }
           href="/methodology#assumptions"
-          link="Every assumption and its source"
+          link="Every assumption"
         >
           <RequiredFigure stock={stock} />
         </Step>
@@ -591,7 +592,7 @@ export function WorkedExample({
         <Step
           n={6}
           title="Build a portfolio"
-          text="The optimiser takes the stocks you pick and finds the mix with the most expected return for its risk, using Bayes–Stein returns and Ledoit–Wolf covariance."
+          text="The optimiser takes the stocks you pick and finds the mix with the most expected return for its risk, using Bayes-Stein returns and Ledoit-Wolf covariance."
           caption={
             tan ? (
               <>

@@ -1,5 +1,6 @@
+import { Tex } from "@/components/tex"
 import { Info } from "@/components/info"
-import { Details, Panel, PanelBody, PanelHeader, PanelMeta, PanelTitle } from "@/components/ui/panel"
+import { Panel, PanelBody, PanelHeader, PanelMeta, PanelTitle } from "@/components/ui/panel"
 import {
   Table,
   TableBody,
@@ -8,7 +9,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { RATIO_FIELDS, formatRatio, type RatioContext } from "@/lib/sectors"
+import { RATIO_FIELDS, formatRatio, type RatioContext, type RatioKey } from "@/lib/sectors"
+import { BAND_FILL, valuationBand } from "@/lib/valuation"
+
+/** Which end of the sector is cheap. ROE and growth are not prices, so neither. */
+const CHEAP_END: Partial<Record<RatioKey, "low" | "high">> = {
+  peRatio: "low",
+  pbRatio: "low",
+  evEbitda: "low",
+  fcfYield: "high",
+  dividendYield: "high",
+  shareholderYield: "high",
+}
+
+/** The bar's colour: the value quintile of the stock's cheapness among its peers. */
+function barFill(row: RatioContext, pct: number): string {
+  const end = CHEAP_END[row.key]
+  if (!end) return "var(--color-signal-q4)"
+  // Share of peers no cheaper than this one, so the cheapest multiple reads as 1.
+  return BAND_FILL[valuationBand(end === "high" ? pct : 1 - pct + 1 / row.peers)]
+}
 
 /**
  * The classic ratios against the stock's sector: the language most readers
@@ -21,28 +41,18 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
   return (
     <Panel>
       <PanelHeader>
-        <PanelTitle>Multiples against the sector</PanelTitle>
-        <PanelMeta>{sector}</PanelMeta>
+        <PanelTitle>Relative valuation vs sector</PanelTitle>
+        <PanelMeta>{sector} · context only, not in the composite</PanelMeta>
       </PanelHeader>
-      <p className="border-b border-border px-4 py-3 text-sm leading-relaxed text-muted-foreground">
-        The dot shows where this stock sits among its sector peers, lowest on the
-        left; the tick is the sector median. For P/E, P/B and EV/EBITDA, further
-        left is cheaper. For yields, further right is cheaper.
-      </p>
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead>Ratio</TableHead>
+            <TableHead>Multiple</TableHead>
             <TableHead className="text-right">
               Stock<span className="sm:hidden"> / median</span>
             </TableHead>
             <TableHead className="hidden text-right sm:table-cell">Sector median</TableHead>
-            <TableHead className="w-[38%] sm:w-[30%]">
-              <span className="flex items-center gap-1">
-                <span className="sm:hidden">Rank in sector</span>
-                <span className="hidden sm:inline">Rank in sector (low → high)</span>
-              </span>
-            </TableHead>
+            <TableHead className="w-[38%] sm:w-[30%]">Sector rank</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -52,11 +62,14 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
             return (
               <TableRow key={row.key} className="hover:bg-transparent">
                 {/* Under 640px the median folds under the stock's figure and the
-                    rank count under the dot, so all four readings stay. */}
+                    rank count under the bar, so all four readings stay. */}
                 <TableCell className="whitespace-normal">
                   <span className="flex items-center gap-1 text-sm">
                     {field.label}
-                    <Info title={field.label}>{field.help}</Info>
+                    <Info title={field.label}>
+                      <Tex block>{field.tex}</Tex>
+                      {field.help}
+                    </Info>
                   </span>
                 </TableCell>
                 <TableCell className="text-right font-figure text-sm">
@@ -70,17 +83,17 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
                 </TableCell>
                 <TableCell>
                   {pct === null ? (
-                    <span className="text-xs text-muted-foreground">not measured</span>
+                    <span className="text-xs text-muted-foreground">n/a</span>
                   ) : (
                     <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
-                      {/* A position on the peer range, not a score: no fill colour. */}
+                      {/* Length is the rank, low to high; the tick is the median. */}
                       <div className="relative h-5 w-full sm:flex-1" aria-hidden="true">
-                        <span className="absolute inset-x-0 top-1/2 h-px bg-border" />
-                        <span className="absolute inset-y-1 left-1/2 w-px bg-muted-foreground/40" />
+                        <span className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-muted" />
                         <span
-                          className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground"
-                          style={{ left: `${(pct * 100).toFixed(1)}%` }}
+                          className="absolute top-1/2 left-0 h-2 min-w-2 -translate-y-1/2 rounded-full"
+                          style={{ width: `${(pct * 100).toFixed(1)}%`, background: barFill(row, pct) }}
                         />
+                        <span className="absolute inset-y-1 left-1/2 w-px bg-foreground/70" />
                       </div>
                       <span className="font-figure text-xs text-muted-foreground sm:w-16 sm:text-right">
                         {Math.round(pct * row.peers)} of {row.peers}
@@ -93,15 +106,21 @@ export function RatioPanel({ sector, context }: { sector: string; context: Ratio
           })}
         </TableBody>
       </Table>
-      <PanelBody className="border-t border-border">
-        <Details summary="Do these feed the ranking?">
-          <p>
-            No. They are here for context. In the backtest, each simple ratio
-            predicted returns slightly less well than the reverse-DCF model built
-            on the same figures, though the differences were too small to rule out
-            luck.
-          </p>
-        </Details>
+      <PanelBody className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border text-xs text-muted-foreground">
+        {(
+          [
+            ["Cheap", BAND_FILL["deep-value"]],
+            ["Mid", BAND_FILL.fair],
+            ["Rich", BAND_FILL.expensive],
+            ["ROE, growth (not a price)", "var(--color-signal-q4)"],
+          ] as const
+        ).map(([label, fill]) => (
+          <span key={label} className="flex items-center gap-1.5">
+            <span aria-hidden="true" className="h-2 w-4 rounded-full" style={{ background: fill }} />
+            {label}
+          </span>
+        ))}
+        <span>Bar length: rank low → high · tick: median</span>
       </PanelBody>
     </Panel>
   )

@@ -51,8 +51,8 @@ function quantileSorted(xs: number[], q: number): number {
 export type Bin = { lo: number; hi: number; count: number }
 
 /**
- * Equal-width bins with the Freedman–Diaconis width, 2·IQR·n^(−1/3) (1981),
- * over the 1st–99th percentile range; values outside it fall into the edge
+ * Equal-width bins with the Freedman-Diaconis width, 2·IQR·n^(−1/3) (1981),
+ * over the 1st-99th percentile range; values outside it fall into the edge
  * bins, so every observation is counted and no single outlier sets the scale.
  * Edges are aligned to zero so a sign change is always a bin edge.
  */

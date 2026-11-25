@@ -82,7 +82,7 @@ export function validateSettings(settings: PortfolioSettings): SettingsErrors {
     portfolios < MIN_PORTFOLIOS ||
     portfolios > MAX_PORTFOLIOS
   ) {
-    errors.portfolios = `Whole number, ${MIN_PORTFOLIOS}–${MAX_PORTFOLIOS}.`
+    errors.portfolios = `Whole number, ${MIN_PORTFOLIOS}-${MAX_PORTFOLIOS}.`
   }
 
   const gamma = Number(settings.gamma.trim() === "" ? "0" : settings.gamma)

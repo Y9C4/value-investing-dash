@@ -1,3 +1,4 @@
+import { Tex } from "@/components/tex"
 import { noWaccReason } from "@/components/stock-readings"
 import { formatPct } from "@/lib/format"
 import type { DiscountRates, Stock } from "@/lib/valuation"
@@ -19,8 +20,8 @@ function Figure({
 }: {
   label: string
   value: string
-  formula?: string
-  note?: string
+  formula?: React.ReactNode
+  note?: React.ReactNode
 }) {
   return (
     <div className="flex flex-col gap-0.5">
@@ -31,7 +32,7 @@ function Figure({
         {value}
       </dd>
       {formula && (
-        <span className="font-figure text-xs leading-tight text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           {formula}
         </span>
       )}
@@ -54,43 +55,48 @@ export function DiscountRatePanel({
 }) {
   const beta = stock.beta
   const coverage = rates.interestCoverage
-  const debtNote = rates.syntheticRating
-    ? `rf + the default spread for a ${rates.syntheticRating} synthetic rating (EBIT ÷ interest ${
-        coverage === null || coverage === undefined ? "—" : `${coverage.toFixed(1)}×`
-      })`
-    : "not measured: no interest expense reported"
+  const debtNote = rates.syntheticRating ? (
+    <>
+      <Tex>{"r_f + \\text{spread}"}</Tex> for synthetic rating {rates.syntheticRating}
+      {coverage !== null && coverage !== undefined && (
+        <> (<Tex>{`\\text{EBIT} / \\text{interest} = ${coverage.toFixed(1)}\\times`}</Tex>)</>
+      )}
+    </>
+  ) : (
+    "not measured: no interest expense reported"
+  )
   return (
     <div className="flex flex-col gap-3 px-4 py-3">
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
         <Figure
           label="Cost of equity"
           value={formatPct(rates.costOfEquity)}
-          formula="rf + β × market premium"
+          formula={<Tex>{"k_e = r_f + \\beta \\times \\text{MRP}"}</Tex>}
           note={
             rates.costOfEquity === null
               ? "none: no beta measured"
-              : "CAPM; the hurdle for residual income and shareholder yield"
+              : "hurdle for RIM and shareholder yield"
           }
         />
         <Figure
           label="WACC"
           value={formatPct(rates.wacc)}
-          formula="ke(E/V) + kd(D/V)(1 − t)"
-          note={noWaccReason(stock) ?? "the hurdle for FCFF and revenue"}
+          formula={<Tex>{"k_e \\dfrac{E}{V} + k_d \\dfrac{D}{V}\\,(1-t)"}</Tex>}
+          note={noWaccReason(stock) ?? "hurdle for FCFF and revenue"}
         />
         <Figure
           label="Beta"
           value={beta === null ? "—" : beta.toFixed(2)}
           note={
             rates.betaRaw === null || rates.betaRaw === undefined
-              ? "adjusted toward the market average (Levi & Welch 2017)"
-              : `adjusted from a measured ${rates.betaRaw.toFixed(2)} (Levi & Welch 2017)`
+              ? "Vasicek-shrunk (Levi & Welch 2017)"
+              : `raw OLS ${rates.betaRaw.toFixed(2).replace("-", "−")}`
           }
         />
         <Figure
           label="Risk-free rate, 10-year Treasury"
           value={formatPct(rates.riskFree)}
-          note="Today's yield, used as the risk-free rate in CAPM and as the base of the cost of debt"
+          note={<>spot yield; <Tex>r_f</Tex> in CAPM and base of <Tex>k_d</Tex></>}
         />
         <Figure
           label="Cost of debt"
@@ -99,24 +105,31 @@ export function DiscountRatePanel({
         />
         <Figure
           label="Equity weight (E/V)"
+          formula={<Tex>{"\\dfrac{E}{E+D}"}</Tex>}
           value={formatPct(rates.equityWeight)}
-          note="market cap over market cap plus debt"
+          note="market cap; debt excludes leases"
         />
         <Figure
           label="Tax rate"
           value={formatPct(rates.taxRate)}
-          note="from the latest annual statement"
+          note="effective rate, latest annual statement"
         />
       </dl>
 
-      <p className="border-t border-border pt-3 text-sm leading-relaxed text-muted-foreground">
-        Beta comes from 252 days of returns against the Fama-French market
-        factor, pulled toward the index average according to how noisy it is
-        (Vasicek), then a quarter of the way toward 0.9 (Levi &amp; Welch 2017).
-        The market premium is that factor&rsquo;s long-run average. Cost of debt
-        uses Damodaran&rsquo;s synthetic rating table (January 2026). We use the
-        10-year Treasury here because a DCF discounts cash flows over decades.
-      </p>
+      <div className="flex flex-col gap-1 border-t border-border pt-3 text-sm text-muted-foreground">
+        <div>
+          <Tex>{"\\beta = 0.75\\,\\beta_{\\text{Vasicek}} + 0.25 \\times 0.9"}</Tex>, from 252 daily returns on the
+          Fama-French market factor (Levi &amp; Welch 2017)
+        </div>
+        <div>
+          <Tex>{"\\text{MRP} = \\overline{R_m - r_f}"}</Tex>, the long-run mean
+        </div>
+        <div>
+          <Tex>{"k_d = y_{10\\text{Y}} + s(\\text{rating})"}</Tex>, rating from <Tex>{"\\text{EBIT} / \\text{interest}"}</Tex> (Damodaran,
+          Jan 2026)
+        </div>
+        <div>No WACC for financial firms. <Tex>r_f</Tex> is the 10Y because a DCF discounts over decades.</div>
+      </div>
     </div>
   )
 }

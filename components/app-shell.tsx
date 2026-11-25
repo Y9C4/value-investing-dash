@@ -20,7 +20,7 @@ const NAV = [
   { href: "/screener", label: "Stock screener", hint: "Rank and filter the S&P 500", icon: RiFilter3Line },
   { href: "/portfolio", label: "Portfolio optimiser", hint: "Build a mix from your picks", icon: RiPieChartLine },
   { href: "/research", label: "Backtest results", hint: "How well the ranking worked", icon: RiFlaskLine },
-  { href: "/methodology", label: "Methodology", hint: "Models, assumptions, sources", icon: RiInformationLine },
+  { href: "/methodology", label: "Methodology", hint: "Models and assumptions", icon: RiInformationLine },
 ]
 
 /** `/` would prefix-match every route, so it is matched exactly. */

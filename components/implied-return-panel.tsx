@@ -1,3 +1,4 @@
+import { Tex } from "@/components/tex"
 import { Info } from "@/components/info"
 import {
   Details,
@@ -20,7 +21,6 @@ import { missingReason, noGrowthReason } from "@/components/stock-readings"
 import { formatPct, formatPp, formatSignedPct } from "@/lib/format"
 import {
   gapTextClass,
-  IMPLIED_BASIS,
   VALUATION_METHODS,
   methodAlpha,
   requiredReturn,
@@ -33,20 +33,20 @@ import {
  */
 function ImpliedGrowth({ stock }: { stock: Stock }) {
   const { impliedGrowth = null, impliedGrowthAboveMax = null } = stock.signals ?? {}
-  const assumed = impliedGrowthAboveMax ? "over 100%" : formatPct(impliedGrowth)
+  const assumed = impliedGrowthAboveMax ? "over 100%" : formatPct(impliedGrowth).replace("-", "−")
   const why = impliedGrowthAboveMax
-    ? "a year: even 100% growth for five years would not justify this price."
+    ? "p.a.: no g₀ up to 100% reaches the current EV."
     : impliedGrowth === null
       ? noGrowthReason(stock)
-      : "a year to start, slowing to 2.5% over five years. Calculated at WACC, so it swings widely when WACC is close to 2.5%."
+      : <><Tex>g_0</Tex> fading linearly to <Tex>{"g = 2.5\\%"}</Tex> over 5 years, solved at WACC. Sensitive as <Tex>{"\\text{WACC} \\to g"}</Tex>.</>
 
   return (
     <div className="grid grid-cols-2 gap-px border-b border-border bg-border [&>*]:bg-card [&>*]:px-4 [&>*]:py-3">
-      <Stat label="FCFF growth the price assumes" value={assumed} hint={why} />
+      <Stat label={<span>Market-implied FCFF growth (<Tex>g_0</Tex>)</span>} value={assumed} hint={why} />
       <Stat
-        label="Revenue growth so far"
+        label="Trailing revenue CAGR"
         value={formatSignedPct(stock.revenueGrowth)}
-        hint={stock.revenueGrowth === null ? "no growth history" : "a year, from reported results"}
+        hint={stock.revenueGrowth === null ? "no growth history" : "p.a., as reported"}
       />
     </div>
   )
@@ -65,18 +65,16 @@ export function ImpliedReturnPanel({ stock }: { stock: Stock }) {
       <PanelHeader>
         <PanelTitle>
           <span className="flex items-center gap-1.5">
-            What the price implies
-            <Info title="Return gap">{IMPLIED_BASIS}</Info>
+            Implied return · reverse DCF
+            <Info title="Implied alpha">
+              <Tex block>{"\\alpha = \\frac{1}{n} \\sum_{i=1}^{n} (r_i - k_i)"}</Tex>
+              Each r solves price = PV of cash flows. k is WACC for FCFF and revenue, cost of equity for
+              residual income and shareholder yield.
+            </Info>
           </span>
         </PanelTitle>
-        <PanelMeta>reverse DCF · % a year</PanelMeta>
+        <PanelMeta>% p.a.</PanelMeta>
       </PanelHeader>
-
-      <p className="border-b border-border px-4 py-3 text-sm leading-relaxed text-muted-foreground">
-        Four reverse-DCF models each work out the return implied by today&rsquo;s
-        price. A positive gap means the price offers more than the stock&rsquo;s
-        risk calls for.
-      </p>
 
       <ImpliedGrowth stock={stock} />
 
@@ -86,9 +84,9 @@ export function ImpliedReturnPanel({ stock }: { stock: Stock }) {
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>Model</TableHead>
-            <TableHead className="hidden text-right sm:table-cell">Implied</TableHead>
-            <TableHead className="hidden text-right sm:table-cell">Required</TableHead>
-            <TableHead className="text-right">Gap</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">Implied r</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">Hurdle k</TableHead>
+            <TableHead className="text-right"><Tex>{"\\alpha = r - k"}</Tex></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -102,7 +100,7 @@ export function ImpliedReturnPanel({ stock }: { stock: Stock }) {
               <TableRow key={method.id} className="hover:bg-transparent">
                 <TableCell className="whitespace-normal">
                   <span className="text-sm font-medium">{method.label}</span>
-                  <span className="ml-2 hidden text-xs text-muted-foreground lg:inline">
+                  <span className="hidden text-xs text-muted-foreground sm:block">
                     {method.full}
                   </span>
                   <span className="block font-figure text-xs text-muted-foreground sm:hidden">
@@ -132,23 +130,28 @@ export function ImpliedReturnPanel({ stock }: { stock: Stock }) {
       </Table>
 
       <PanelBody className="border-t border-border">
-        <Details>
-          <p>
-            Each model finds the return at which five years of its cash flow,
-            plus a terminal value, equals today&rsquo;s price. It searches from
-            long-run growth (2.5%) to 100% a year. The headline figure averages
-            the models that have both an implied and a required return.
-          </p>
-          <p>
-            A dash means the figure could not be calculated, and the row says
-            why. Under Implied, an input is missing or negative, or no rate in
-            that range fits. Under Required, there is no WACC: we do not
-            calculate it for financial firms, or no interest expense is reported.
-          </p>
-          <p>
-            The quintile compares this stock with the rest of the index. In
-            testing, that ranking was informative but the size of the gap was not.
-          </p>
+        <Details summary="Formulas">
+          <dl className="flex flex-col gap-2">
+            {VALUATION_METHODS.map((method) => (
+              <div key={method.id}>
+                <dt className="text-xs font-semibold text-foreground">{method.label}</dt>
+                <dd className="text-sm"><Tex block>{method.formula}</Tex></dd>
+              </div>
+            ))}
+            <div>
+              <dt className="text-xs font-semibold text-foreground">Terminal value and growth</dt>
+              <dd className="text-sm">
+                <Tex block>{"\\text{TV} = \\frac{\\text{CF}_5\\,(1+g)}{r-g}, \\quad g = \\min(2.5\\%,\\ y_{10\\text{Y}})"}</Tex>
+                <Tex block>{"r \\in [g,\\ 100\\%]"}</Tex>
+              </dd>
+              <dd className="text-xs">Each model is solved for r. No root in that range, no reading.</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold text-foreground">Headline</dt>
+              <dd className="text-sm"><Tex block>{"\\alpha = \\frac{1}{n} \\sum_{i=1}^{n} (r_i - k_i)"}</Tex></dd>
+              <dd className="text-xs">Over the models with both r and k.</dd>
+            </div>
+          </dl>
         </Details>
       </PanelBody>
     </Panel>

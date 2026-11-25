@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation"
 
 import { StockDetail } from "@/components/stock-detail"
-import { StockVerdict } from "@/components/stock-verdict"
+import { StockStanding, StockVerdict } from "@/components/stock-verdict"
+import { PriceChartCard, PriceChartLoader } from "@/components/ticker-history"
 import { readStoredCloses } from "@/lib/closes"
 import { rankUniverse } from "@/lib/screen"
 import { ratioContext } from "@/lib/sectors"
@@ -43,7 +44,17 @@ export default async function StockPage({ params }: PageProps<"/stocks/[ticker]"
   return (
     <>
       {/* The verdict first; every panel below is its evidence. */}
-      <StockVerdict stock={stock} stocks={stocks} valueRank={valueRank} composite={score} />
+      <StockVerdict
+        stock={stock}
+        valueRank={valueRank}
+        chart={
+          closes && closes.length > 0 ? (
+            <PriceChartCard data={{ ticker: stock.ticker, candles: closes }} />
+          ) : (
+            <PriceChartLoader ticker={stock.ticker} />
+          )
+        }
+      />
 
       <StockDetail
         stock={stock}
@@ -51,10 +62,10 @@ export default async function StockPage({ params }: PageProps<"/stocks/[ticker]"
         marketReturn={marketReturn}
         valueRank={valueRank}
         ratios={ratioContext(stocks, stock)}
-        closes={closes}
+        standing={<StockStanding stock={stock} stocks={stocks} />}
         blends={[
-          { label: "Value + momentum score", score },
-          { label: "Momentum + earnings surprise score", score: momentumSurprise.score.get(stock.ticker) ?? null },
+          { label: "Value + momentum composite", score },
+          { label: "Momentum + earnings surprise composite", score: momentumSurprise.score.get(stock.ticker) ?? null },
         ]}
       />
     </>

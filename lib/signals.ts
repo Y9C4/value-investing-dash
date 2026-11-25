@@ -51,26 +51,26 @@ export const SIGNAL_COMPONENTS: SignalComponent[] = [
   {
     id: "value",
     label: "Value",
-    full: "Return gap from reverse DCF",
+    full: "Implied excess return, reverse DCF",
     blurb:
       "The yearly return today's price implies, minus the return the stock's risk requires, averaged over four reverse-DCF models (FCFF, residual income, revenue and shareholder yield). We solve for the return from the price instead of estimating a fair value.",
-    formula: "gap = implied return − WACC or cost of equity, averaged over 4 models",
+    formula: "\\alpha = \\frac{1}{n} \\sum_{i=1}^{n} (r_i - k_i)",
   },
   {
     id: "momentum",
     label: "Momentum",
-    full: "Price change over the past year, skipping the latest month",
+    full: "12-1 month price momentum",
     blurb:
-      "The return from twelve months ago to one month ago, often written 12–1 momentum (Jegadeesh & Titman 1993). The latest month is left out because it tends to reverse. It shows whether the market has started to re-rate the stock.",
-    formula: "price 1 month ago ÷ price 12 months ago − 1, dividends included",
+      "The return from twelve months ago to one month ago, often written 12-1 momentum (Jegadeesh & Titman 1993), measured on dividend-adjusted closes. The latest month is left out because it tends to reverse. It shows whether the market has started to re-rate the stock.",
+    formula: "\\text{MOM} = \\frac{P_{t-21}}{P_{t-252}} - 1",
   },
   {
     id: "surprise",
     label: "Earnings surprise",
-    full: "Latest quarter's earnings beat or miss, relative to price",
+    full: "Price-scaled earnings surprise (SUE), latest quarter",
     blurb:
       "How far the latest quarter's EPS came in above or below the analyst consensus, divided by the share price (Livnat & Mendenhall 2006). Only reports from the last 100 days count.",
-    formula: "(reported EPS − estimated EPS) ÷ price",
+    formula: "\\text{SUE} = \\frac{\\text{EPS}_{\\text{reported}} - \\text{EPS}_{\\text{consensus}}}{P}",
   },
 ]
 

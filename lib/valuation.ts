@@ -28,7 +28,7 @@ export type ValuationMethod = {
   full: string
   /** One line the user can act on — what the method rewards. */
   blurb: string
-  /** The core expression the implied return solves. */
+  /** The core expression the implied return solves, in LaTeX. */
   formula: string
   /** The required return the implied return is measured against. */
   against: "wacc" | "ke"
@@ -43,7 +43,7 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     full: "Reverse free cash flow to firm",
     blurb:
       "The return that makes five years of growing free cash flow, then a perpetuity, worth today's enterprise value. Measured against WACC.",
-    formula: "EV = Σ FCFFₜ / (1 + r)ᵗ + terminal, solved for r",
+    formula: "\\text{EV} = \\sum_{t=1}^{5} \\frac{\\text{FCFF}_t}{(1+r)^t} + \\text{terminal}",
     against: "wacc",
     refusesWhen: [
       "Free cash flow to the firm is zero or negative",
@@ -56,7 +56,7 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     full: "Reverse residual income",
     blurb:
       "The return that makes book value plus five years of earnings above it worth today's market cap, with ROE fading to its sector median. Works for banks. Measured against cost of equity.",
-    formula: "E = B₀ + Σ (ROEₜ − r)·Bₜ₋₁ / (1 + r)ᵗ, solved for r",
+    formula: "E = B_0 + \\sum_{t} \\frac{(\\text{ROE}_t - r)\\,B_{t-1}}{(1+r)^t}",
     against: "ke",
     refusesWhen: [
       "Book value is zero or negative",
@@ -69,7 +69,7 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     full: "Reverse revenue DCF",
     blurb:
       "Grows revenue and fades the cash margin toward the sector median, then solves for the return that justifies the enterprise value. Works for companies whose cash flow is temporarily negative. Measured against WACC.",
-    formula: "EV = Σ Revₜ · marginₜ / (1 + r)ᵗ + terminal, solved for r",
+    formula: "\\text{EV} = \\sum_{t=1}^{5} \\frac{\\text{Rev}_t \\cdot \\text{margin}_t}{(1+r)^t} + \\text{terminal}",
     against: "wacc",
     refusesWhen: [
       "Revenue is zero or missing",
@@ -82,7 +82,7 @@ export const VALUATION_METHODS: ValuationMethod[] = [
     full: "Reverse shareholder yield",
     blurb:
       "Treats dividends plus net buybacks as the cash a shareholder receives, and solves for the return that justifies the market cap. Measured against cost of equity.",
-    formula: "E = Σ (divs + buybacks)ₜ / (1 + r)ᵗ + terminal, solved for r",
+    formula: "E = \\sum_{t=1}^{5} \\frac{(\\text{divs} + \\text{buybacks})_t}{(1+r)^t} + \\text{terminal}",
     against: "ke",
     refusesWhen: ["The company returned no net cash to shareholders"],
   },
@@ -157,7 +157,7 @@ export type Stock = {
 
 /**
  * The signal's components for one stock, from `warehouse.signals`. Each rank is
- * a percentile (0–1] within today's universe; null where the component could
+ * a percentile (0-1] within today's universe; null where the component could
  * not be computed (no solvable reverse-DCF model, under a year of prices, no
  * earnings report in the last 100 days).
  */

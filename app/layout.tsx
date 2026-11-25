@@ -1,6 +1,7 @@
 import Script from "next/script";
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Inter } from "next/font/google";
+import "katex/dist/katex.min.css";
 import "./globals.css";
 import { AppShell } from "@/components/app-shell";
 import { MarketContext } from "@/components/market-context";
@@ -21,6 +22,8 @@ const display = IBM_Plex_Sans({
 const sans = Inter({
   subsets: ["latin"],
   axes: ["opsz"],
+  // A drawn italic for formulas, not a slanted upright.
+  style: ["normal", "italic"],
   variable: "--font-inter",
 });
 // Real code only (the notebook pages), so it is not preloaded on the others.

@@ -29,7 +29,7 @@ export function ExcessReturnHistogram({
     <figure className="flex flex-col gap-2">
       <figcaption
         className="text-sm text-muted-foreground"
-        title={`Bin width ${((bins[0].hi - bins[0].lo) * 100).toFixed(1)} pp (Freedman–Diaconis rule)`}
+        title={`Bin width ${((bins[0].hi - bins[0].lo) * 100).toFixed(1)} pp (Freedman-Diaconis rule)`}
       >
         Return gap for {values.length} stocks, in percentage points (pp) a year. Taller
         bars mean more stocks; the end bars include everything beyond them.

@@ -24,18 +24,21 @@ export type RatioField = {
   label: string
   /** Multiples print as 12.3×, everything else as a percent. */
   unit: "multiple" | "percent"
+  /** The ratio itself, in LaTeX. */
+  tex: string
+  /** What the formula alone does not say. */
   help: string
 }
 
 export const RATIO_FIELDS: RatioField[] = [
-  { key: "peRatio", label: "P/E", unit: "multiple", help: "Market capitalisation over trailing-twelve-month net income (Damodaran). Shown only when all four quarters report and the total is positive." },
-  { key: "pbRatio", label: "P/B", unit: "multiple", help: "Market cap over book equity. Positive book only." },
-  { key: "evEbitda", label: "EV/EBITDA", unit: "multiple", help: "Enterprise value over EBITDA. Positive EBITDA only." },
-  { key: "fcfYield", label: "FCF yield", unit: "percent", help: "Free cash flow to the firm over enterprise value." },
-  { key: "dividendYield", label: "Dividend yield", unit: "percent", help: "Dividends paid over the last year, over price." },
-  { key: "shareholderYield", label: "Shareholder yield", unit: "percent", help: "Dividends plus net buybacks, over market cap." },
-  { key: "roe", label: "ROE", unit: "percent", help: "Net income divided by book equity. Heavy buybacks shrink book equity and can inflate it, so read it alongside P/B." },
-  { key: "revenueGrowth", label: "Revenue growth", unit: "percent", help: "How fast sales have grown, using the two-year compound rate where available and the one-year rate otherwise. Past growth rarely persists, so the models fade it toward the long-run rate." },
+  { key: "peRatio", label: "P/E", unit: "multiple", tex: "\\frac{\\text{market cap}}{\\text{TTM net income}}", help: "Only when all four quarters report and the total is positive." },
+  { key: "pbRatio", label: "P/B", unit: "multiple", tex: "\\frac{\\text{market cap}}{\\text{book equity}}", help: "Positive book equity only." },
+  { key: "evEbitda", label: "EV/EBITDA", unit: "multiple", tex: "\\frac{\\text{market cap} + \\text{net debt}}{\\text{annual EBITDA}}", help: "Net debt excludes leases. Both sides positive." },
+  { key: "fcfYield", label: "FCF yield", unit: "percent", tex: "\\frac{\\text{FCFF}}{\\text{EV}}", help: "" },
+  { key: "dividendYield", label: "Dividend yield", unit: "percent", tex: "\\frac{\\text{TTM dividends per share}}{\\text{price}}", help: "" },
+  { key: "shareholderYield", label: "Shareholder yield", unit: "percent", tex: "\\frac{\\text{dividends} + \\text{net buybacks}}{\\text{market cap}}", help: "" },
+  { key: "roe", label: "ROE", unit: "percent", tex: "\\frac{\\text{net income}}{\\text{book equity}}", help: "Heavy buybacks shrink the denominator, so read it with P/B." },
+  { key: "revenueGrowth", label: "Revenue growth", unit: "percent", tex: "\\left(\\frac{\\text{Rev}_t}{\\text{Rev}_{t-2}}\\right)^{1/2} - 1", help: "The one-year rate when only that is available." },
 ]
 
 export function formatRatio(value: number | null, unit: RatioField["unit"]): string {
@@ -47,7 +50,7 @@ export function formatRatio(value: number | null, unit: RatioField["unit"]): str
 export type SectorRow = {
   sector: string
   count: number
-  /** Median value percentile (all four models), 0–1. */
+  /** Median value percentile (all four models), 0-1. */
   value: number | null
   peRatio: number | null
   evEbitda: number | null

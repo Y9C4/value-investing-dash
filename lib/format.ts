@@ -20,7 +20,7 @@ export function formatAxisPercent(value: number) {
 /**
  * A percent tick formatter with enough decimals for the range being plotted.
  *
- * Whole percents are right for a 0–20% axis and wrong for an 11–15% one, where
+ * Whole percents are right for a 0-20% axis and wrong for an 11-15% one, where
  * they print "12%" twice in a row and the reader is left deciding which tick
  * lied.
  */

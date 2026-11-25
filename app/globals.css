@@ -309,6 +309,27 @@
 .notebook-code :is(.bp, .nb) { color: var(--seq-2); }
 .notebook-prose .anchor-link { display: none; }
 
+/* Formulas keep KaTeX's layout but are set in the UI face, italic. Big operators
+   and stretched brackets stay in KaTeX's own fonts, which Inter cannot replace. */
+.katex,
+.katex :is(.mathnormal, .mathit, .mathrm, .mainrm, .textrm, .textit, .mathbf) {
+  font-family: var(--font-inter), KaTeX_Main, serif;
+  font-style: italic;
+}
+.katex {
+  font-size: 1.05em;
+}
+/* A long formula scrolls inside its box rather than widening the page. */
+.katex-display {
+  margin: 0.25rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.125rem;
+}
+.katex-display > .katex {
+  text-align: left;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,

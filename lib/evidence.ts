@@ -4,7 +4,7 @@
  * `python-api/notebooks/evidence.ipynb`. Re-running that notebook is the only
  * way an IC on the site changes, so the numbers cannot drift from the notebook.
  *
- * Two samples: development (Mar 2023 – Jan 2025), where every design choice
+ * Two samples: development (Mar 2023 - Jan 2025), where every design choice
  * was made, and the holdout (May 2025 onward), untouched until the
  * specification was frozen and run once.
  */
@@ -14,7 +14,7 @@ import evidence from "@/app/research/_data/evidence.json"
 export type SampleStats = {
   /** Mean monthly Spearman rank IC against next-month factor-adjusted returns. */
   ic: number
-  /** Fama–MacBeth t-stat of the monthly IC series. */
+  /** Fama-MacBeth t-stat of the monthly IC series. */
   t: number
   /** Share of months with IC > 0. */
   hit: number
@@ -59,7 +59,7 @@ export type Evidence = {
     /** Share of months the model's IC beat the ratio's; null for the composite row. */
     wins: number | null
   }[]
-  /** Development only: the value signal's top-minus-bottom quintile on raw returns, and its Fama–French alpha. */
+  /** Development only: the value signal's top-minus-bottom quintile on raw returns, and its Fama-French alpha. */
   valueAttribution: { longShort: number; alpha: number; alphaT: number; months: number }
 }
 
@@ -110,8 +110,8 @@ export function formatMonth(month: string): string {
   return MONTH.format(new Date(`${month}-01T00:00:00Z`))
 }
 
-export const DEVELOPMENT_SPAN = `${formatMonth(EVIDENCE.samples.Development.first)} – ${formatMonth(EVIDENCE.samples.Development.last)}`
-export const HOLDOUT_SPAN = `${formatMonth(EVIDENCE.samples.Holdout.first)} – ${formatMonth(EVIDENCE.samples.Holdout.last)}`
+export const DEVELOPMENT_SPAN = `${formatMonth(EVIDENCE.samples.Development.first)} - ${formatMonth(EVIDENCE.samples.Development.last)}`
+export const HOLDOUT_SPAN = `${formatMonth(EVIDENCE.samples.Holdout.first)} - ${formatMonth(EVIDENCE.samples.Holdout.last)}`
 
 /**
  * The screener's three ranked strategies, as the research charts draw them.

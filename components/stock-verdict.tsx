@@ -1,12 +1,10 @@
-import { compositeQuintileLabel, missingReason, valueQuintileLabel } from "@/components/stock-readings"
-import { DASH, formatMarketCap, formatPct, formatPp, formatSharePrice } from "@/lib/format"
+import { missingReason } from "@/components/stock-readings"
+import { formatMarketCap, formatPct, formatPp, formatSharePrice } from "@/lib/format"
+import exchanges from "@/lib/exchanges.json"
 import { histogram } from "@/lib/rank"
-import { SIGNAL_BAND_FILL, formatComposite, formatScore, signalBand } from "@/lib/signals"
 import { cn } from "@/lib/utils"
 import {
-  BAND_FILL,
   VALUATION_METHODS,
-  gapTextClass,
   impliedAlpha,
   impliedAndRequired,
   methodAlpha,
@@ -16,44 +14,27 @@ import {
 
 const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1)
 
-function Figure({
-  label,
-  value,
-  note,
-  className,
-}: {
-  label: string
-  value: string
-  note: string
-  className?: string
-}) {
-  return (
-    <div className="flex flex-col gap-1 last:col-span-2">
-      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-      <span
-        className={cn(
-          "font-figure text-2xl leading-none font-semibold sm:text-4xl xl:text-5xl",
-          value === DASH ? "text-muted-foreground" : className
-        )}
-      >
-        {/* The unit at half size, so "pp" does not weigh as much as the number. */}
-        {value.replace(/ pp$/, "")}
-        {value.endsWith(" pp") && <span className="ml-1 text-[0.5em]">pp</span>}
-      </span>
-      <span className="text-xs text-muted-foreground">{note}</span>
-    </div>
-  )
-}
+/**
+ * Listing exchange by ticker, for display only: a one-off pull of Yahoo's
+ * fullExchangeName, since the warehouse does not store it.
+ * shortcut: static file, move into raw.company_profile if the universe starts changing often.
+ */
+const EXCHANGE: Record<string, string> = exchanges
 
-/** The arithmetic sign between two figures; decoration, the labels carry the meaning. */
-function Operator({ children }: { children: string }) {
+/** One line of the stacked sum: sign, what it is, the rate. */
+function Line({ sign, label, note, value }: { sign?: string; label: string; note: string; value: string }) {
   return (
-    <span
-      aria-hidden="true"
-      className="hidden self-center pt-1 font-figure text-3xl text-muted-foreground sm:inline"
-    >
-      {children}
-    </span>
+    <div className="flex items-center justify-between gap-4">
+      <dt className="flex items-center gap-2">
+        {/* The labels carry the meaning; the sign is decoration. */}
+        <span aria-hidden="true" className="w-3 font-figure text-sm text-muted-foreground">{sign}</span>
+        <span className="flex flex-col">
+          <span className="text-sm font-semibold">{label}</span>
+          <span className="text-xs text-muted-foreground">{note}</span>
+        </span>
+      </dt>
+      <dd className="font-figure text-3xl leading-none font-semibold">{value}</dd>
+    </div>
   )
 }
 
@@ -68,7 +49,10 @@ export function DistributionStrip({
   ticker,
   className,
   heightClass = "h-8",
+  label = "Return gap",
 }: {
+  /** What the plotted figure is called on the page drawing it. */
+  label?: string
   values: number[]
   alpha: number
   ticker: string
@@ -93,7 +77,7 @@ export function DistributionStrip({
   return (
     <figure className={cn("flex w-full max-w-xl flex-col gap-1", className)}>
       <figcaption className="text-xs text-muted-foreground">
-        Return gap across {values.length} S&amp;P 500 stocks, pp a year
+        {label} across {values.length} S&amp;P 500 stocks, pp p.a.
       </figcaption>
       <div
         role="img"
@@ -108,7 +92,7 @@ export function DistributionStrip({
               style={{
                 height: `${Math.max((bin.count / peak) * 100, 4)}%`,
                 background: bin.hi <= 0 ? "var(--color-overvalued)" : "var(--color-undervalued)",
-                opacity: i === mine ? 1 : 0.35,
+                opacity: i === mine ? 1 : 0.45,
               }}
             />
           ))}
@@ -151,30 +135,38 @@ export function DistributionStrip({
 }
 
 const VALUE_PLACE: Record<ReturnType<typeof valuationBand>, string> = {
-  "deep-value": "in the cheapest fifth of the S&P 500",
-  undervalued: "in the second cheapest fifth of the S&P 500",
-  fair: "in the middle fifth of the S&P 500",
-  overvalued: "in the second most expensive fifth of the S&P 500",
-  expensive: "in the most expensive fifth of the S&P 500",
-  unrated: "unranked",
+  "deep-value": "in the cheapest quintile (Q5) of the S&P 500 on value",
+  undervalued: "in the second cheapest quintile (Q4) of the S&P 500 on value",
+  fair: "in the middle quintile (Q3) of the S&P 500 on value",
+  overvalued: "in the second most expensive quintile (Q2) of the S&P 500 on value",
+  expensive: "in the most expensive quintile (Q1) of the S&P 500 on value",
+  unrated: "not ranked on value",
+}
+
+/** Where the stock's return gap falls across the index. Sits with the ranking. */
+export function StockStanding({ stock, stocks }: { stock: Stock; stocks: Stock[] }) {
+  const alpha = impliedAlpha(stock)
+  if (alpha === null) return null
+  const values = stocks.flatMap((s) => {
+    const a = impliedAlpha(s)
+    return a === null ? [] : [a]
+  })
+  return <DistributionStrip values={values} alpha={alpha} ticker={stock.ticker} className="max-w-none" label="Implied alpha distribution" />
 }
 
 /**
- * The stock page's verdict: the two rates and their gap as the anchor, the
- * quintiles in words, where the gap sits in the index, and one sentence.
+ * The stock page's verdict: the price to the left, and beside it the two rates
+ * as a sum, tinted by its sign, with one sentence saying what it means.
  */
 export function StockVerdict({
   stock,
-  stocks,
   valueRank,
-  composite,
+  chart,
 }: {
   stock: Stock
-  /** The whole index, for the distribution strip. */
-  stocks: Stock[]
   valueRank: number | null
-  /** The value + momentum composite percentile. */
-  composite: number | null
+  /** The price chart, top left where there is room for it. */
+  chart: React.ReactNode
 }) {
   const rates = impliedAndRequired(stock)
   const alpha = impliedAlpha(stock)
@@ -189,82 +181,49 @@ export function StockVerdict({
     (solved.length > 0
       ? solved.reduce((sum, method) => sum + stock.signals!.impliedReturns[method.id]!, 0) / solved.length
       : null)
-  const values = stocks.flatMap((s) => {
-    const a = impliedAlpha(s)
-    return a === null ? [] : [a]
-  })
-  const compositeBand = signalBand(composite)
+
+  // Green when the price offers more than the risk requires, red when less.
+  const tone = alpha === null || alpha === 0 ? null : alpha > 0 ? "var(--primary)" : "var(--destructive)"
 
   return (
-    <header className="flex flex-col gap-4 border-b border-border px-4 py-5 sm:px-6 lg:px-10">
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <h2 className="font-heading text-2xl">{stock.name}</h2>
-        <span className="font-figure text-sm text-muted-foreground">
-          {stock.ticker} · {formatSharePrice(stock.price)}
-          {stock.marketCap !== null && ` · ${formatMarketCap(stock.marketCap)}`}
-        </span>
-        <span className="text-sm text-muted-foreground">{stock.sector}</span>
-      </div>
-
-      {/* On a phone the two rates share a row and the gap takes the next. */}
-      <div className="flex flex-col gap-2">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:flex sm:flex-wrap sm:items-start sm:gap-x-5">
-          <Figure
-            label="Implied return"
-            value={formatPct(implied)}
-            note={`a year, at ${formatSharePrice(stock.price)}`}
-          />
-          <Operator>−</Operator>
-          <Figure
-            label="Required return"
-            value={formatPct(rates?.required)}
-            note="a year, given its risk"
-          />
-          <Operator>=</Operator>
-          <Figure
-            label="Return gap"
-            value={formatPp(alpha)}
-            note="a year"
-            className={gapTextClass(alpha)}
-          />
+    <header className="grid gap-4 px-6 pt-6 lg:px-10 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+      {/* Before the chart in the document, so a phone reads the verdict first. */}
+      <div
+        className="flex min-w-0 flex-col gap-4 border border-border bg-card px-5 py-4"
+        style={
+          tone
+            ? {
+                background: `color-mix(in oklab, ${tone} 10%, var(--card))`,
+                borderColor: `color-mix(in oklab, ${tone} 45%, transparent)`,
+              }
+            : undefined
+        }
+      >
+        <div className="flex flex-col gap-0.5">
+          <h2 className="font-heading text-2xl">{stock.name}</h2>
+          <span className="font-figure text-sm text-muted-foreground">
+            {EXCHANGE[stock.ticker] ? `${EXCHANGE[stock.ticker]}: ` : ""}
+            {stock.ticker} · {formatSharePrice(stock.price)}
+            {stock.marketCap !== null && ` · ${formatMarketCap(stock.marketCap)}`} · {stock.sector}
+          </span>
         </div>
-        <p className="max-w-3xl text-xs text-muted-foreground">
-          {counted.length > 0
-            ? `Average of ${counted.length === 1 ? "the one model" : `${counted.length} of 4 models`} that could be calculated (${counted.map((m) => m.label).join(", ")}).${counted.length < 4 ? " The model table says why the others could not." : ""}`
-            : solved.length > 0
-              ? `${solved.length === 1 ? "One model solves" : `${solved.length} models solve`}, but none has a required return: ${lowerFirst(missingReason(stock, solved[0]) ?? "")}.`
-              : "No reverse-DCF model can be solved at this price."}
-        </p>
-      </div>
 
-      <div className="flex flex-wrap gap-x-8 gap-y-1.5 text-sm">
-        <span className="flex flex-wrap items-center gap-x-2">
-          <span aria-hidden="true" className="size-2.5 shrink-0" style={{ background: BAND_FILL[band] }} />
-          <span className="font-medium whitespace-nowrap">{valueQuintileLabel(band)}</span>
-          {valueRank !== null && (
-            <span className="whitespace-nowrap text-muted-foreground">
-              value percentile {formatScore(valueRank)}
-            </span>
-          )}
-        </span>
-        <span className="flex flex-wrap items-center gap-x-2">
-          <span
-            aria-hidden="true"
-            className="size-2.5 shrink-0"
-            style={{ background: SIGNAL_BAND_FILL[compositeBand] }}
-          />
-          <span className="font-medium whitespace-nowrap">{compositeQuintileLabel(compositeBand)}</span>
-          {composite !== null && (
-            <span className="whitespace-nowrap text-muted-foreground">
-              value + momentum score {formatComposite(composite)}
-            </span>
-          )}
-        </span>
-      </div>
+        <dl className="flex flex-col gap-3">
+          <Line label="Implied return" note={`p.a. at ${formatSharePrice(stock.price)}`} value={formatPct(implied)} />
+          <Line sign="−" label="Required return" note="p.a., mean WACC, kₑ" value={formatPct(rates?.required)} />
+          <div className="flex items-center justify-between gap-4 border-t border-border pt-3">
+            <dt className="flex items-center gap-2">
+              <span aria-hidden="true" className="w-3 font-figure text-sm text-muted-foreground">=</span>
+              <span className="text-sm font-semibold">Implied alpha</span>
+            </dt>
+            <dd className="flex items-center font-figure text-4xl leading-none font-semibold" style={tone ? { color: tone } : undefined}>
+              {formatPp(alpha).replace(/ pp$/, "")}
+              {alpha !== null && <span className="ml-1 text-2xl leading-none">pp</span>}
+            </dd>
+          </div>
+        </dl>
 
-      {alpha !== null && <DistributionStrip values={values} alpha={alpha} ticker={stock.ticker} />}
-
-      <p className="max-w-3xl text-base leading-relaxed">
+      <p className="text-base leading-relaxed">
         {rates === null ? (
           <>
             {stock.ticker} has no value rank:{" "}
@@ -274,19 +233,21 @@ export function StockVerdict({
           </>
         ) : (
           <>
-            Buying {stock.ticker} at {formatSharePrice(stock.price)} implies a return of{" "}
-            {formatPct(rates.implied)} a year,{" "}
-            {rates.implied >= rates.required ? "more" : "less"} than the{" "}
-            {formatPct(rates.required)} its risk calls for. On value that puts it{" "}
-            {VALUE_PLACE[band]}.
-            {composite !== null && (
-              <>
-                {" "}With momentum added, it scores {formatComposite(composite)} out of 100.
-              </>
-            )}
+            At {formatSharePrice(stock.price)}, {stock.ticker} has an implied return of{" "}
+            {formatPct(rates.implied)} p.a., with an alpha of {formatPp(alpha)} compared with its
+            required return. It&rsquo;s {VALUE_PLACE[band]}.
           </>
         )}
       </p>
+        <p className="text-xs text-muted-foreground">
+          {counted.length > 0
+            ? `Mean of ${counted.length} of 4 models: ${counted.map((m) => m.label).join(", ")}.`
+            : solved.length > 0
+              ? `${solved.length === 1 ? "One model solves" : `${solved.length} models solve`}, but none has a required return: ${lowerFirst(missingReason(stock, solved[0]) ?? "")}.`
+              : "No reverse-DCF model can be solved at this price."}
+        </p>
+      </div>
+      <div className="min-w-0 xl:order-first">{chart}</div>
     </header>
   )
 }

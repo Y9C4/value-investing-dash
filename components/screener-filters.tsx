@@ -1,5 +1,6 @@
 "use client"
 
+import { Tex } from "@/components/tex"
 import {
   RiCloseLine,
   RiInformationLine,
@@ -181,9 +182,7 @@ function MethodInfo({
           <span className="text-xs text-muted-foreground">
             Formula
           </span>
-          <div className="text-xs leading-relaxed break-words">
-            {method.formula}
-          </div>
+          <div className="text-xs"><Tex block>{method.formula}</Tex></div>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -376,9 +375,7 @@ function SignalToggle({
               <span className="text-xs text-muted-foreground">
                 Formula
               </span>
-              <div className="text-xs leading-relaxed break-words">
-                {component.formula}
-              </div>
+              <div className="text-xs"><Tex block>{component.formula}</Tex></div>
             </div>
             <p className="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
               {evidence && describeEvidence(evidence)} Covers <span className="font-figure">{coverage}</span> of{" "}

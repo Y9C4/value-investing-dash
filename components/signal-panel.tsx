@@ -1,3 +1,4 @@
+import { Tex } from "@/components/tex"
 import { SignalBar } from "@/components/signal-scale"
 import { compositeQuintileLabel } from "@/components/stock-readings"
 import { ValueBar } from "@/components/valuation-scale"
@@ -18,17 +19,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { evidenceFor } from "@/lib/evidence"
 import { formatPp, formatSignedPct } from "@/lib/format"
 import {
   SIGNAL_COMPONENTS,
-  SIGNAL_EVIDENCE,
   formatComposite,
+  formatIc,
   formatScore,
   signalBand,
   warehouseRank,
   type SignalId,
 } from "@/lib/signals"
 import { impliedAlpha, type Stock } from "@/lib/valuation"
+
+/** Both tested composites' ICs, in one line each way. */
+const TESTED = [
+  ["V+M", ["value", "momentum"]],
+  ["M+SUE", ["momentum", "surprise"]],
+]
+  .map(([name, ids]) => {
+    const e = evidenceFor(ids as string[])!
+    return `${name}: IC ${formatIc(e.development)} design, ${formatIc(e.holdout)} holdout`
+  })
+  .join(" · ")
 
 /** A tested blend's score for this stock, ranked over the whole universe. */
 export type BlendScore = { label: string; score: number | null }
@@ -40,7 +53,7 @@ function rawReading(stock: Stock, id: SignalId): string {
   if (id === "value") {
     // The same figure the percentile ranks: all four models, as on every other surface.
     const alpha = impliedAlpha(stock)
-    return alpha === null ? "—" : `${formatPp(alpha)} a year`
+    return alpha === null ? "—" : `${formatPp(alpha)} p.a.`
   }
   if (id === "momentum") {
     return signals.momentum === null ? "—" : formatSignedPct(signals.momentum)
@@ -64,7 +77,10 @@ export function SignalPanel({
   stock,
   valueRank,
   blends,
+  children,
 }: {
+  /** Where the stock stands in the index, shown above the scores. */
+  children?: React.ReactNode
   stock: Stock
   /** Value percentile over all four models. */
   valueRank: number | null
@@ -76,9 +92,11 @@ export function SignalPanel({
   return (
     <Panel>
       <PanelHeader>
-        <PanelTitle>How it ranks</PanelTitle>
-        <PanelMeta>0–100 across the S&amp;P 500</PanelMeta>
+        <PanelTitle>Factor percentiles</PanelTitle>
+        <PanelMeta>cross-sectional rank, 0-100</PanelMeta>
       </PanelHeader>
+
+      {children && <div className="border-b border-border px-4 py-3">{children}</div>}
 
       {/* The two tested composites first: these are what the screener ranks on. */}
       <div className="grid grid-cols-1 gap-px border-b border-border bg-border sm:grid-cols-2 [&>*]:bg-card [&>*]:px-4 [&>*]:py-3">
@@ -107,8 +125,8 @@ export function SignalPanel({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead>Ingredient</TableHead>
-            <TableHead className="hidden text-right sm:table-cell">Reading</TableHead>
+            <TableHead>Factor</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">Raw value</TableHead>
             <TableHead className="w-[45%] sm:w-[40%]">Percentile</TableHead>
           </TableRow>
         </TableHeader>
@@ -124,7 +142,7 @@ export function SignalPanel({
                   <span className="text-sm font-medium">
                     {component.label}
                   </span>
-                  <span className="ml-2 hidden text-xs text-muted-foreground md:inline">
+                  <span className="hidden text-xs text-muted-foreground sm:block">
                     {component.full}
                   </span>
                   <span className="block font-figure text-xs text-muted-foreground sm:hidden">
@@ -152,13 +170,26 @@ export function SignalPanel({
         </TableBody>
       </Table>
 
-      <PanelBody className="flex flex-col gap-2 border-t border-border">
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          100 is the best in the index on that measure. The two scores at the top
-          average the ingredients named.
-        </p>
-        <Details summary="How well has this worked?">
-          <p>{SIGNAL_EVIDENCE}</p>
+      <PanelBody className="border-t border-border">
+        <Details summary="Formulas">
+          <dl className="flex flex-col gap-2">
+            {SIGNAL_COMPONENTS.map((component) => (
+              <div key={component.id}>
+                <dt className="text-xs font-semibold text-foreground">{component.label}</dt>
+                <dd className="text-sm"><Tex block>{component.formula}</Tex></dd>
+              </div>
+            ))}
+            <div>
+              <dt className="text-xs font-semibold text-foreground">Composite</dt>
+              <dd className="text-sm"><Tex block>{"\\text{composite} = \\text{cume\\_dist}\\left(\\frac{1}{m} \\sum_{j=1}^{m} p_j\\right)"}</Tex></dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold text-foreground">Rank IC (backtest)</dt>
+              <dd className="text-sm"><Tex block>{"\\text{IC}_t = \\rho_{\\text{Spearman}}\\left(\\text{rank}_t,\\ R^{\\text{FF5 adj}}_{t+1}\\right)"}</Tex></dd>
+              <dd className="text-xs">t-stat by Fama-MacBeth.</dd>
+              <dd className="font-figure text-xs">{TESTED}</dd>
+            </div>
+          </dl>
         </Details>
       </PanelBody>
     </Panel>

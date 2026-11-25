@@ -37,7 +37,7 @@ test("histogram counts every value, puts zero on an edge, and folds the tails in
   const bins = histogram(values)
   assert.equal(bins.reduce((n, b) => n + b.count, 0), 1000)
   assert.ok(bins.some((b) => Math.abs(b.lo) < 1e-12))
-  // tan has huge tails; without the 1–99% range the bins would number in thousands.
+  // tan has huge tails; without the 1-99% range the bins would number in thousands.
   assert.ok(bins.length < 60, `${bins.length} bins`)
   assert.deepEqual(histogram([1]), [])
 })

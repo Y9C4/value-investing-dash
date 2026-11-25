@@ -214,7 +214,7 @@ function ScreenerGuide() {
     },
     {
       term: "Score",
-      text: `The average of the two, re-ranked 0–100. We use this mix by default because it did best in the design period, ${holdoutClause(evidenceFor(DEFAULT_SIGNALS)!)}.`,
+      text: `The average of the two, re-ranked 0-100. We use this mix by default because it did best in the design period, ${holdoutClause(evidenceFor(DEFAULT_SIGNALS)!)}.`,
     },
   ]
 

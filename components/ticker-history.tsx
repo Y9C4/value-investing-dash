@@ -1,5 +1,6 @@
 "use client"
 
+import { Tex } from "@/components/tex"
 import { useEffect, useState, useSyncExternalStore } from "react"
 import {
   CartesianGrid,
@@ -23,8 +24,11 @@ import {
   PanelMeta,
   PanelTitle,
   Stat,
+  StatStrip,
 } from "@/components/ui/panel"
 import { formatPct, formatSignedPct } from "@/lib/format"
+import { SIGNAL_BAND_FILL, SIGNAL_BAND_LABELS, formatComposite, formatScore, signalBand } from "@/lib/signals"
+import { BAND_FILL, BAND_LABELS, valuationBand } from "@/lib/valuation"
 
 type Candle = {
   date: string
@@ -223,7 +227,7 @@ export function PriceChartCard({ data }: { data: ReturnsResponse }) {
   const y = niceTicks(low, high)
   const x = monthTicks(
     chartData.map((point) => point.date),
-    wide ? 6 : 3
+    wide ? 4 : 3
   )
   const first = chartData[0]
   const last = chartData[chartData.length - 1]
@@ -234,19 +238,20 @@ export function PriceChartCard({ data }: { data: ReturnsResponse }) {
     `low ${formatPrice(low)}, high ${formatPrice(high)}.`
 
   return (
-    <Panel>
+    <Panel className="h-full">
       <PanelHeader>
-        <PanelTitle>{data.ticker} · price, 1 year</PanelTitle>
+        <PanelTitle>{data.ticker} · 1Y price</PanelTitle>
         <PanelMeta>
           {formatSignedPct(change)} over {chartData.length} trading days to {formatLongDate(last.date)}
         </PanelMeta>
       </PanelHeader>
-      <PanelBody>
-        <figure className="relative">
+      <PanelBody className="flex flex-1 flex-col">
+        <figure className="relative min-h-72 flex-1">
           <figcaption className="sr-only">{summary}</figcaption>
-          <ChartContainer config={chartConfig} className="h-72 w-full sm:h-96">
+          {/* Absolute, so the chart takes the height the verdict beside it sets. */}
+          <ChartContainer config={chartConfig} className="absolute inset-0 aspect-auto h-full w-full">
             {/* The right margin is the room the last-price label needs. */}
-            <LineChart data={chartData} margin={{ left: 0, right: 8 + 7 * formatPrice(last.close).length, top: 8 }}>
+            <LineChart data={chartData} margin={{ left: 0, right: 8 + 8 * formatPrice(last.close).length, top: 8 }}>
               <CartesianGrid vertical={false} stroke="var(--color-grid)" />
               <XAxis
                 dataKey="date"
@@ -303,7 +308,7 @@ export function PriceChartCard({ data }: { data: ReturnsResponse }) {
           </ChartContainer>
         </figure>
         <p className="mt-2 text-xs text-muted-foreground">
-          Daily closing prices, adjusted for stock splits. Dividends are not included.
+          Daily close, split-adjusted, ex-dividends.
         </p>
       </PanelBody>
     </Panel>
@@ -326,68 +331,49 @@ export function PriceChartLoader({ ticker }: { ticker: string }) {
       </div>
     )
   }
-  if (loading || !data) return <div className="h-[21rem] animate-pulse rounded-lg border border-border bg-card" />
+  if (loading || !data) return <div className="h-[22rem] animate-pulse rounded-lg border border-border bg-card" />
   return data.candles.length > 0 ? <PriceChartCard data={data} /> : null
 }
 
 /**
- * Beta, the risk-free rate and the two realised returns behind it.
- *
- * Every figure is precomputed and arrives with the page: beta and the stock's
- * return from `ticker_statistics` by way of the universe snapshot, the two
- * scalars from that snapshot's own payload. None of it waits on the chart
- * request, so this card renders with the server response rather than after it.
- *
- * Nullable throughout, because a snapshot written before the market return
- * existed simply does not carry one. The placeholder is the app's convention
- * for a value that is absent, and it is the honest answer here: a market
- * return printed as 0.00% would be a claim nobody made.
+ * Beta, the risk-free rate, the two realised returns and where the stock ranks,
+ * as one row under the verdict. A missing value prints as a dash, never 0.
  */
-export function KeyStatisticsCard({
+export function KeyStatistics({
   beta,
   riskFreeRate,
   realisedReturn,
   marketReturn,
+  valueRank,
+  composite,
 }: {
   beta: number | null
   riskFreeRate: number | null
   realisedReturn: number | null
   marketReturn: number | null
+  valueRank: number | null
+  composite: number | null
 }) {
+  const band = valuationBand(valueRank)
+  const scoreBand = signalBand(composite)
+  const swatch = (background: string) => <span aria-hidden="true" className="size-2.5 shrink-0" style={{ background }} />
+
   return (
-    <Panel>
-      <PanelHeader>
-        <PanelTitle>Key statistics</PanelTitle>
-        <PanelMeta>past 252 trading days</PanelMeta>
-      </PanelHeader>
-      <PanelBody>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
-          <Stat
-            label="Beta"
-            value={beta?.toFixed(2) ?? "—"}
-            hint="sensitivity to the market, adjusted toward average (Levi & Welch)"
-          />
-          <Stat
-            label="3-month T-bill"
-            value={formatPct(riskFreeRate)}
-            hint="average over the period; the cash rate behind Sharpe ratios"
-          />
-          <Stat
-            label="Stock’s return"
-            value={formatSignedPct(realisedReturn)}
-            hint="annualised log return, dividends included"
-          />
-          <Stat
-            label="S&P 500 return"
-            value={formatSignedPct(marketReturn)}
-            hint="same method, same period"
-          />
-        </div>
-        <p className="mt-3 border-t border-border pt-3 text-sm leading-relaxed text-muted-foreground">
-          Required returns use the 10-year Treasury instead, to match the long
-          horizon of a DCF (see How the required return is built).
-        </p>
-      </PanelBody>
-    </Panel>
+    <StatStrip>
+      <Stat label="Beta (adj.)" value={beta?.toFixed(2) ?? "—"} hint={<Tex>{"0.75\\,\\beta_{\\text{Vasicek}} + 0.25 \\times 0.9"}</Tex>} />
+      <Stat label="3M T-bill" value={formatPct(riskFreeRate)} hint="252d mean; CAPM uses the 10Y" />
+      <Stat label="Realised return" value={formatSignedPct(realisedReturn)} hint="252d log, annualised" />
+      <Stat label="Market return" value={formatSignedPct(marketReturn)} hint="S&P 500, same basis" />
+      <Stat
+        label="Value quintile"
+        value={<span className="flex items-center gap-2">{swatch(BAND_FILL[band])}{BAND_LABELS[band]}</span>}
+        hint={valueRank === null ? "no value reading" : `value percentile ${formatScore(valueRank)}`}
+      />
+      <Stat
+        label="V+M composite"
+        value={<span className="flex items-center gap-2">{swatch(SIGNAL_BAND_FILL[scoreBand])}{formatComposite(composite)}</span>}
+        hint={`quintile ${SIGNAL_BAND_LABELS[scoreBand].replace(/^Q/, "")}`}
+      />
+    </StatStrip>
   )
 }

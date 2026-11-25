@@ -19,11 +19,11 @@ import {
 export const valueQuintileLabel = (band: ValuationBand) =>
   band === "unrated" ? BAND_LABELS.unrated : `Value ${BAND_LABELS[band].replace("Q", "quintile ")}`
 
-/** "Score quintile 5 · highest". */
+/** "Composite quintile 5 · highest". */
 export const compositeQuintileLabel = (band: SignalBand) =>
   band === "unscored"
     ? SIGNAL_BAND_LABELS.unscored
-    : `Score ${SIGNAL_BAND_LABELS[band].replace("Q", "quintile ")}`
+    : `Composite ${SIGNAL_BAND_LABELS[band].replace("Q", "quintile ")}`
 
 const FINANCIAL = "Financial Services"
 const NO_KE = "No cost of equity: no beta measured (needs 120 of the last 252 sessions)"
@@ -40,19 +40,19 @@ export function noWaccReason(stock: Stock): string | null {
 
 // The solver brackets the rate between long-run growth and 100% a year and
 // reports nothing outside it, so "above 100%" and "below growth" look alike.
-const UNBRACKETED = "Can’t calculate: no rate between long-run growth and 100% a year fits the price, or an input is missing"
+const UNBRACKETED = "Did not solve: no rate between long-run growth and 100% a year fits the price, or an input is missing"
 
 /** Why one model has no implied return, as far as the stored ratios can tell. */
 function unsolvedReason(stock: Stock, id: MethodId): string {
   // Without a market cap there is no price for any model to solve against.
-  if (stock.marketCap === null) return "Can’t calculate: no market capitalisation (share count missing)"
+  if (stock.marketCap === null) return "Did not solve: no market capitalisation (share count missing)"
   if (id === "fcff" || id === "revenue") {
-    if (stock.fcfYield === null) return "Can’t calculate: no free cash flow figure"
-    if (id === "fcff" && stock.fcfYield <= 0) return "Can’t calculate: free cash flow is not positive"
+    if (stock.fcfYield === null) return "Did not solve: no free cash flow figure"
+    if (id === "fcff" && stock.fcfYield <= 0) return "Did not solve: free cash flow is not positive"
   }
-  if (id === "rim" && stock.pbRatio === null) return "Can’t calculate: book equity not positive or not reported"
+  if (id === "rim" && stock.pbRatio === null) return "Did not solve: book equity not positive or not reported"
   if (id === "shareholderYield" && (stock.shareholderYield ?? 0) <= 0) {
-    return "Can’t calculate: no net cash returned to shareholders"
+    return "Did not solve: no net cash returned to shareholders"
   }
   return UNBRACKETED
 }
